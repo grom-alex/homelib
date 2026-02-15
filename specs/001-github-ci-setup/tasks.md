@@ -91,10 +91,10 @@
 
 **Purpose**: Верификация и завершение
 
-- [ ] T014 Запушить ветку `001-github-ci-setup` в origin (`git push -u origin 001-github-ci-setup`)
-- [ ] T015 Убедиться, что CI workflow запустился на пуше (проверить вкладку Actions)
-- [ ] T016 Убедиться, что CI завершился со статусом success (нет Go-кода — graceful skip)
-- [ ] T017 Выполнить валидацию по quickstart.md в `specs/001-github-ci-setup/quickstart.md`
+- [x] T014 Запушить ветку `001-github-ci-setup` в origin (`git push -u origin 001-github-ci-setup`)
+- [x] T015 Убедиться, что CI workflow запустился на пуше (проверить вкладку Actions)
+- [x] T016 Убедиться, что CI завершился со статусом success (нет Go-кода — graceful skip)
+- [x] T017 Выполнить валидацию по quickstart.md в `specs/001-github-ci-setup/quickstart.md`
 
 ---
 
