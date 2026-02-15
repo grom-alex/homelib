@@ -1,19 +1,13 @@
 <!--
   Sync Impact Report
   ===========================================================================
-  Version change: 1.0.0 → 1.1.0
-  Modified principles: none
-  Added sections:
-    - 6.VI. GitHub Flow как модель разработки (new principle)
+  Version change: 1.2.0 → 1.2.1
+  Modified principles:
+    - §7 Требования к тестированию — расширено на фронтенд (Vue 3)
+  Added sections: N/A
   Removed sections: N/A
   Templates requiring updates:
-    - .specify/templates/plan-template.md — ✅ compatible
-    - .specify/templates/spec-template.md — ✅ compatible
-    - .specify/templates/tasks-template.md — ✅ compatible
-    - .specify/templates/checklist-template.md — ✅ compatible
-    - .specify/templates/agent-file-template.md — ✅ compatible
-    - .specify/templates/commands/*.md — N/A (directory empty)
-    - CLAUDE.md — ✅ updated (Development Workflow section added)
+    - CLAUDE.md — ✅ updated (Testing Requirements extended to frontend)
   Follow-up TODOs: none
   ===========================================================================
 -->
@@ -334,6 +328,16 @@ Ollama-инстансов (healthcheck каждые 30 секунд через `
 - Не вводить внешних SaaS-зависимостей (§1.VII)
 - Быть развёртываемым через Docker Compose (§6.I)
 - Иметь настраиваемую конфигурацию через YAML (§6.V)
+- Иметь покрытие unit-тестами не менее 80%
+
+### Требования к тестированию
+
+Покрытие кода unit-тестами ДОЛЖНО составлять не менее 80% для каждого
+пакета/модуля — как для бэкенда (Go packages), так и для фронтенда
+(Vue 3 components/composables/stores). CI-пайплайн ДОЛЖЕН проверять
+уровень покрытия и блокировать мерж при несоответствии порогу.
+Исключения допускаются ТОЛЬКО для сгенерированного кода, миграций БД,
+конфигурационных файлов и чисто декларативных шаблонов (HTML/CSS).
 
 ### Compliance review
 
@@ -342,4 +346,4 @@ Ollama-инстансов (healthcheck каждые 30 секунд через `
 Нарушения принципов ДОЛЖНЫ быть явно задокументированы и обоснованы
 в секции «Complexity Tracking» плана реализации.
 
-**Version**: 1.1.0 | **Ratified**: 2026-02-15 | **Last Amended**: 2026-02-15
+**Version**: 1.2.1 | **Ratified**: 2026-02-15 | **Last Amended**: 2026-02-15

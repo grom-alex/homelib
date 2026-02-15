@@ -22,6 +22,17 @@ Thumbs.db
 .env
 .env.*
 
+# Node.js
+node_modules/
+dist/
+build/
+*.log
+
+# Coverage
+coverage/
+coverage.out
+*.coverprofile
+
 # Temporary
 *.tmp
 *.swp

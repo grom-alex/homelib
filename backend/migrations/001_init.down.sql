@@ -1,0 +1,13 @@
+DROP TABLE IF EXISTS refresh_tokens;
+DROP TABLE IF EXISTS users;
+DROP TYPE IF EXISTS user_role;
+DROP TABLE IF EXISTS book_genres;
+DROP TABLE IF EXISTS book_authors;
+DROP TRIGGER IF EXISTS trg_books_search_vector ON books;
+DROP FUNCTION IF EXISTS books_search_vector_update();
+DROP TABLE IF EXISTS books;
+DROP TABLE IF EXISTS series;
+DROP TABLE IF EXISTS collections;
+DROP TABLE IF EXISTS genres;
+DROP TABLE IF EXISTS authors;
+DROP EXTENSION IF EXISTS pg_trgm;

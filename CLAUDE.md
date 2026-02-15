@@ -141,6 +141,14 @@ Key parsing details:
 - Roles: `user`, `admin`
 - First registered user becomes admin (or via CLI command)
 
+## Testing Requirements
+
+- Покрытие unit-тестами: минимум **80%** для каждого пакета/модуля (бэкенд и фронтенд)
+- CI блокирует мерж при покрытии ниже порога
+- Исключения: сгенерированный код, миграции БД, конфигурационные файлы, декларативные шаблоны (HTML/CSS)
+- **Backend (Go):** `go test -race -coverprofile=coverage.out ./...` + `go tool cover -func=coverage.out`
+- **Frontend (Vue 3):** `vitest --coverage` (или аналогичный инструмент)
+
 ## Key Design Decisions
 
 1. **Summary embedding instead of full-text:** 500K vectors vs 75M chunks (~80x storage reduction)
@@ -155,6 +163,8 @@ Architecture documentation is in Russian in [docs/](docs/). The most current ver
 ## Active Technologies
 - Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`) (001-github-ci-setup)
 - N/A (конфигурационные файлы) (001-github-ci-setup)
+- Go 1.25, Node.js 22 LTS (frontend build) (002-mvp-backend-init)
+- PostgreSQL 17 + pg_trgm + tsvector (pgvector НЕ используется в MVP) (002-mvp-backend-init)
 
 ## Recent Changes
 - 001-github-ci-setup: Added Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`)

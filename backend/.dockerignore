@@ -1,0 +1,11 @@
+.git
+.github
+.gitignore
+*.md
+docs/
+specs/
+coverage.out
+*_test.go
+**/*_test.go
+.vscode/
+.idea/

@@ -1,0 +1,198 @@
+# Authentication API Contracts
+# MVP HomeLib — 002-mvp-backend-init
+
+paths:
+  /api/auth/register:
+    post:
+      summary: Регистрация нового пользователя
+      description: |
+        Создаёт аккаунт. Первый зарегистрированный пользователь получает роль admin.
+        Регистрация может быть отключена через конфигурацию (auth.registration_enabled).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, username, display_name, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 50
+                  pattern: "^[a-zA-Z0-9_-]+$"
+                  example: "ivan_petrov"
+                display_name:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                  example: "Иван Петров"
+                password:
+                  type: string
+                  minLength: 8
+                  example: "securepassword123"
+      responses:
+        "201":
+          description: Пользователь создан, автоматический вход
+          headers:
+            Set-Cookie:
+              description: "refresh_token=<token>; HttpOnly; Path=/api/auth; Max-Age=2592000; SameSite=Strict"
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/UserInfo"
+                  access_token:
+                    type: string
+                    description: JWT access token (15 min)
+        "400":
+          description: Невалидные данные (email, username, password)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Email или username уже существует
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "user with this email already exists"
+        "403":
+          description: Регистрация отключена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "registration is disabled"
+
+  /api/auth/login:
+    post:
+      summary: Вход в систему
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Успешный вход
+          headers:
+            Set-Cookie:
+              description: "refresh_token=<token>; HttpOnly; Path=/api/auth; Max-Age=2592000; SameSite=Strict"
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/UserInfo"
+                  access_token:
+                    type: string
+        "401":
+          description: Неверный email или пароль
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "invalid email or password"
+
+  /api/auth/refresh:
+    post:
+      summary: Обновление access-токена
+      description: Refresh-токен берётся из httpOnly cookie
+      responses:
+        "200":
+          description: Новый access-токен
+          headers:
+            Set-Cookie:
+              description: Новый refresh-токен (token rotation)
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+        "401":
+          description: Refresh-токен отсутствует, истёк или невалиден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/auth/logout:
+    post:
+      summary: Выход из системы
+      description: Инвалидирует refresh-токен
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Успешный выход
+          headers:
+            Set-Cookie:
+              description: Очищает cookie с refresh-токеном
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "logged out"
+
+components:
+  schemas:
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        username:
+          type: string
+        display_name:
+          type: string
+        role:
+          type: string
+          enum: [user, admin]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
