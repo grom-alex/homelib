@@ -2,11 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Communication
+
+Always respond in Russian (русский язык).
+
 ## Project Overview
 
 HomeLib is a personal/home library web application for managing, searching, and reading digital book collections. It features AI-powered semantic search and automated metadata enhancement through distributed GPU processing.
 
 **Current Status:** Architecture documentation only (in `/docs/`). Implementation not yet started.
+
+## Development Workflow
+
+Разработка ведётся по модели **GitHub Flow**:
+
+- Основная ветка: `master` (всегда в deployable состоянии)
+- Для каждой фичи/исправления создаётся отдельная ветка от `master`
+- Именование веток: `NNN-short-name` (например, `001-github-ci-setup`)
+- Изменения вливаются в `master` через Pull Request
+- PR требует прохождения CI (сборка, тесты, линтеры) перед мержем
+- Репозиторий: `git@github.com:grom-alex/homelib.git`
 
 ## Technology Stack
 
@@ -136,3 +151,10 @@ Key parsing details:
 ## Documentation
 
 Architecture documentation is in Russian in [docs/](docs/). The most current version is `homelib-architecture-v7.md`.
+
+## Active Technologies
+- Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`) (001-github-ci-setup)
+- N/A (конфигурационные файлы) (001-github-ci-setup)
+
+## Recent Changes
+- 001-github-ci-setup: Added Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`)
