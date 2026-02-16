@@ -37,7 +37,7 @@ type CreateUserInput struct {
 	Email       string `json:"email" binding:"required,email"`
 	Username    string `json:"username" binding:"required,min=3,max=50"`
 	DisplayName string `json:"display_name" binding:"required,min=1,max=200"`
-	Password    string `json:"password" binding:"required,min=8"`
+	Password    string `json:"password" binding:"required,min=8,max=72"`
 }
 
 type LoginInput struct {

@@ -1,9 +1,10 @@
 package handler
 
 import (
-	"fmt"
 	"io"
+	"mime"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -34,15 +35,14 @@ func (h *DownloadHandler) DownloadBook(c *gin.Context) {
 	}
 	defer func() { _ = result.Reader.Close() }()
 
-	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, result.Filename))
+	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{
+		"filename": filepath.Base(result.Filename),
+	}))
 	c.Header("Content-Type", result.ContentType)
 	if result.Size > 0 {
 		c.Header("Content-Length", strconv.FormatInt(result.Size, 10))
 	}
 
 	c.Status(http.StatusOK)
-	c.Stream(func(w io.Writer) bool {
-		_, err := io.Copy(w, result.Reader)
-		return err == nil
-	})
+	_, _ = io.Copy(c.Writer, result.Reader)
 }

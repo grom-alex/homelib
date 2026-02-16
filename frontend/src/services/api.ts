@@ -1,4 +1,5 @@
 import axios from 'axios'
+import router from '@/router'
 
 const api = axios.create({
   baseURL: '/api',
@@ -28,11 +29,21 @@ function addRefreshSubscriber(cb: (token: string) => void) {
   refreshSubscribers.push(cb)
 }
 
+// Separate instance for refresh to avoid interceptor loop
+const refreshClient = axios.create({
+  baseURL: '/api',
+  withCredentials: true,
+})
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/refresh')
+    ) {
       if (isRefreshing) {
         return new Promise((resolve) => {
           addRefreshSubscriber((token: string) => {
@@ -46,7 +57,7 @@ api.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const { data } = await api.post('/auth/refresh')
+        const { data } = await refreshClient.post('/auth/refresh')
         sessionStorage.setItem('access_token', data.access_token)
         originalRequest.headers.Authorization = `Bearer ${data.access_token}`
         onRefreshed(data.access_token)
@@ -54,7 +65,7 @@ api.interceptors.response.use(
       } catch {
         sessionStorage.removeItem('access_token')
         refreshSubscribers = []
-        window.location.href = '/login'
+        router.push({ name: 'login' })
         return Promise.reject(error)
       } finally {
         isRefreshing = false

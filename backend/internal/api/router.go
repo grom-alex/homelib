@@ -66,6 +66,7 @@ func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware) *gin.Engine {
 		{
 			admin.POST("/import", h.Admin.StartImport)
 			admin.GET("/import/status", h.Admin.ImportStatus)
+			admin.POST("/import/cancel", h.Admin.CancelImport)
 		}
 	}
 

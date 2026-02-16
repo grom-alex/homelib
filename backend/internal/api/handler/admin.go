@@ -30,3 +30,9 @@ func (h *AdminHandler) ImportStatus(c *gin.Context) {
 	status := h.importSvc.GetStatus()
 	c.JSON(http.StatusOK, status)
 }
+
+// CancelImport handles POST /api/admin/import/cancel.
+func (h *AdminHandler) CancelImport(c *gin.Context) {
+	h.importSvc.CancelImport()
+	c.JSON(http.StatusOK, gin.H{"message": "import cancellation requested"})
+}

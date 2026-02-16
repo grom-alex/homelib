@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// Mock router
+vi.mock('@/router', () => ({
+  default: { push: vi.fn() },
+}))
+
 describe('api service', () => {
   beforeEach(() => {
     vi.resetModules()
@@ -13,7 +18,7 @@ describe('api service', () => {
         response: { use: vi.fn() },
       },
     })
-    vi.doMock('axios', () => ({ default: { create: createSpy, post: vi.fn() } }))
+    vi.doMock('axios', () => ({ default: { create: createSpy } }))
 
     await import('../api')
     expect(createSpy).toHaveBeenCalledWith(
@@ -31,7 +36,7 @@ describe('api service', () => {
         response: { use: vi.fn() },
       },
     })
-    vi.doMock('axios', () => ({ default: { create: createSpy, post: vi.fn() } }))
+    vi.doMock('axios', () => ({ default: { create: createSpy } }))
     await import('../api')
 
     sessionStorage.setItem('access_token', 'my-token')
@@ -50,7 +55,7 @@ describe('api service', () => {
         response: { use: vi.fn() },
       },
     })
-    vi.doMock('axios', () => ({ default: { create: createSpy, post: vi.fn() } }))
+    vi.doMock('axios', () => ({ default: { create: createSpy } }))
     await import('../api')
 
     const config = { headers: {} as Record<string, string> }
@@ -61,62 +66,70 @@ describe('api service', () => {
   it('response interceptor retries on 401 with refresh', async () => {
     let responseRejector: (error: unknown) => Promise<unknown>
     const mockApiCall = vi.fn().mockResolvedValue({ data: 'retry-success' })
-    const mockPost = vi.fn().mockResolvedValue({ data: { access_token: 'new-tok' } })
-    const instance = Object.assign(mockApiCall, {
+    const mockRefreshPost = vi.fn().mockResolvedValue({ data: { access_token: 'new-tok' } })
+
+    const apiInstance = Object.assign(mockApiCall, {
       interceptors: {
         request: { use: vi.fn() },
         response: {
           use: vi.fn((_: unknown, rej: typeof responseRejector) => { responseRejector = rej }),
         },
       },
-      post: mockPost,
     })
-    const createSpy = vi.fn().mockReturnValue(instance)
+    const refreshInstance = { post: mockRefreshPost }
+
+    let callCount = 0
+    const createSpy = vi.fn(() => {
+      callCount++
+      return callCount === 1 ? apiInstance : refreshInstance
+    })
     vi.doMock('axios', () => ({ default: { create: createSpy } }))
     await import('../api')
 
     const error = {
       response: { status: 401 },
-      config: { headers: {} as Record<string, string>, _retry: false },
+      config: { headers: {} as Record<string, string>, _retry: false, url: '/books' },
     }
 
     const result = await responseRejector!(error)
-    expect(mockPost).toHaveBeenCalledWith('/auth/refresh')
+    expect(mockRefreshPost).toHaveBeenCalledWith('/auth/refresh')
     expect(sessionStorage.getItem('access_token')).toBe('new-tok')
     expect(result).toEqual({ data: 'retry-success' })
   })
 
-  it('response interceptor redirects to /login on refresh failure', async () => {
+  it('response interceptor navigates to /login on refresh failure', async () => {
     let responseRejector: (error: unknown) => Promise<unknown>
-    const mockPost = vi.fn().mockRejectedValue(new Error('refresh failed'))
-    const createSpy = vi.fn().mockReturnValue({
+    const mockRefreshPost = vi.fn().mockRejectedValue(new Error('refresh failed'))
+
+    const apiInstance = {
       interceptors: {
         request: { use: vi.fn() },
         response: {
           use: vi.fn((_: unknown, rej: typeof responseRejector) => { responseRejector = rej }),
         },
       },
-      post: mockPost,
+    }
+    const refreshInstance = { post: mockRefreshPost }
+
+    let callCount = 0
+    const createSpy = vi.fn(() => {
+      callCount++
+      return callCount === 1 ? apiInstance : refreshInstance
     })
     vi.doMock('axios', () => ({ default: { create: createSpy } }))
 
-    // Mock window.location
-    const originalHref = window.location.href
-    Object.defineProperty(window, 'location', {
-      value: { href: originalHref },
-      writable: true,
-    })
-
     await import('../api')
+    const router = (await import('@/router')).default
 
     sessionStorage.setItem('access_token', 'old-tok')
     const error = {
       response: { status: 401 },
-      config: { headers: {}, _retry: false },
+      config: { headers: {}, _retry: false, url: '/books' },
     }
 
     await expect(responseRejector!(error)).rejects.toBeDefined()
     expect(sessionStorage.getItem('access_token')).toBeNull()
+    expect(router.push).toHaveBeenCalledWith({ name: 'login' })
   })
 
   it('response interceptor passes through non-401 errors', async () => {
@@ -129,10 +142,30 @@ describe('api service', () => {
         },
       },
     })
-    vi.doMock('axios', () => ({ default: { create: createSpy, post: vi.fn() } }))
+    vi.doMock('axios', () => ({ default: { create: createSpy } }))
     await import('../api')
 
     const error = { response: { status: 500 }, config: {} }
+    await expect(responseRejector!(error)).rejects.toEqual(error)
+  })
+
+  it('response interceptor skips refresh for /auth/refresh URL', async () => {
+    let responseRejector: (error: unknown) => Promise<unknown>
+    const createSpy = vi.fn().mockReturnValue({
+      interceptors: {
+        request: { use: vi.fn() },
+        response: {
+          use: vi.fn((_: unknown, rej: typeof responseRejector) => { responseRejector = rej }),
+        },
+      },
+    })
+    vi.doMock('axios', () => ({ default: { create: createSpy } }))
+    await import('../api')
+
+    const error = {
+      response: { status: 401 },
+      config: { headers: {}, _retry: false, url: '/auth/refresh' },
+    }
     await expect(responseRejector!(error)).rejects.toEqual(error)
   })
 })

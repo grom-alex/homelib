@@ -107,11 +107,47 @@ describe('auth store', () => {
     expect(store.isAuthenticated).toBe(false)
   })
 
-  it('init restores token from session storage', () => {
+  it('init restores token and refreshes session', async () => {
+    vi.mocked(authApi.refresh).mockResolvedValue({
+      user: mockUser,
+      access_token: 'refreshed',
+    })
     sessionStorage.setItem('access_token', 'stored')
     const store = useAuthStore()
-    store.init()
-    expect(store.accessToken).toBe('stored')
+    await store.init()
+    expect(store.accessToken).toBe('refreshed')
+    expect(store.user).toEqual(mockUser)
+    expect(store.initialized).toBe(true)
+  })
+
+  it('init clears auth if refresh fails', async () => {
+    vi.mocked(authApi.refresh).mockRejectedValue(new Error('expired'))
+    sessionStorage.setItem('access_token', 'stored')
+    const store = useAuthStore()
+    await store.init()
+    expect(store.accessToken).toBeNull()
+    expect(store.user).toBeNull()
+    expect(store.initialized).toBe(true)
+  })
+
+  it('init does nothing on second call', async () => {
+    vi.mocked(authApi.refresh).mockResolvedValue({
+      user: mockUser,
+      access_token: 'refreshed',
+    })
+    sessionStorage.setItem('access_token', 'stored')
+    const store = useAuthStore()
+    await store.init()
+    vi.mocked(authApi.refresh).mockClear()
+    await store.init()
+    expect(authApi.refresh).not.toHaveBeenCalled()
+  })
+
+  it('init skips refresh if no stored token', async () => {
+    const store = useAuthStore()
+    await store.init()
+    expect(authApi.refresh).not.toHaveBeenCalled()
+    expect(store.initialized).toBe(true)
   })
 
   it('clearAuth removes everything', () => {

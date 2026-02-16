@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted } from 'vue'
+import { reactive, onMounted, onUnmounted } from 'vue'
 import { getStats } from '@/services/books'
 import type { BookFilters } from '@/services/books'
 
@@ -79,6 +79,10 @@ function onFilterChange() {
     emit('update', { ...localFilters })
   }, 300)
 }
+
+onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 
 function clearFilters() {
   localFilters.q = ''

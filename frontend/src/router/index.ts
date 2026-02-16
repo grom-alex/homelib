@@ -53,8 +53,11 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  if (!auth.initialized) {
+    await auth.init()
+  }
   if (to.meta.guest) return true
   if (!auth.isAuthenticated) return { name: 'login' }
   if (to.meta.admin && !auth.isAdmin) return { name: 'catalog' }

@@ -2,6 +2,8 @@
   <v-container>
     <v-progress-linear v-if="catalog.loading" indeterminate color="primary" />
 
+    <v-alert v-if="catalog.error" type="error" class="mb-4">{{ catalog.error }}</v-alert>
+
     <template v-if="book">
       <v-row>
         <v-col cols="12">

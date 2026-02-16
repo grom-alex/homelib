@@ -6,6 +6,7 @@ import * as authApi from '@/services/auth'
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserInfo | null>(null)
   const accessToken = ref<string | null>(null)
+  const initialized = ref(false)
 
   const isAuthenticated = computed(() => !!accessToken.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
@@ -54,6 +55,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function init() {
+    if (initialized.value) return
     const token = sessionStorage.getItem('access_token')
     if (token) {
       accessToken.value = token
@@ -64,11 +66,13 @@ export const useAuthStore = defineStore('auth', () => {
         clearAuth()
       }
     }
+    initialized.value = true
   }
 
   return {
     user,
     accessToken,
+    initialized,
     isAuthenticated,
     isAdmin,
     login,

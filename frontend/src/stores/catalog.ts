@@ -36,6 +36,7 @@ export const useCatalogStore = defineStore('catalog', () => {
   async function fetchBook(id: number) {
     loading.value = true
     error.value = null
+    currentBook.value = null
     try {
       currentBook.value = await booksApi.getBook(id)
     } catch (e: unknown) {

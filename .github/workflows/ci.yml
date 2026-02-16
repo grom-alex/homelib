@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches-ignore: [master]
   pull_request:
     branches: [master]
 
@@ -33,27 +32,29 @@ jobs:
       - name: Test with coverage
         run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
 
-      - name: Check coverage per package (≥80%)
+      - name: Check coverage per package (>=80%)
         run: |
           fail=0
           while IFS= read -r line; do
-            pkg=$(echo "$line" | awk '{print $2}')
-            pct=$(echo "$line" | grep -oP '[0-9]+\.[0-9]+%' | tr -d '%')
+            pkg=$(echo "$line" | awk '{print $1}')
+            # Extract function/total coverage line
+            if echo "$line" | grep -q "^total:"; then
+              continue
+            fi
+            pct=$(echo "$line" | awk '{print $NF}' | tr -d '%')
             if [ -z "$pct" ]; then
               continue
             fi
-            # Skip packages with [no test files]
-            if echo "$line" | grep -q "no test files"; then
-              echo "SKIP $pkg (no test files)"
-              continue
-            fi
-            if [ "$(echo "$pct < 80" | bc -l)" = "1" ]; then
+            if awk "BEGIN {exit !($pct < 80)}"; then
               echo "FAIL $pkg: ${pct}% < 80%"
               fail=1
             else
               echo "OK   $pkg: ${pct}%"
             fi
-          done < <(go test -cover ./... 2>&1)
+          done < <(go tool cover -func=coverage.out | grep -E '^[a-z]' | awk '{print $1, $NF}' | sort -u -t: -k1,1 | while read -r file covpct; do
+            pkg=$(dirname "$file" | sed 's|^|./|')
+            echo "$pkg $covpct"
+          done | sort -u)
 
           if [ "$fail" -eq 1 ]; then
             echo "::error::Some packages have less than 80% test coverage"

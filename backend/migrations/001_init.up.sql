@@ -9,7 +9,7 @@ CREATE TABLE authors (
     name_sort   TEXT NOT NULL,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX idx_authors_name_sort ON authors (name_sort);
+CREATE UNIQUE INDEX idx_authors_name_sort ON authors (name_sort);
 CREATE INDEX idx_authors_name_trgm ON authors USING gin (name gin_trgm_ops);
 
 CREATE TABLE genres (
@@ -19,6 +19,7 @@ CREATE TABLE genres (
     parent_id   INTEGER REFERENCES genres(id),
     meta_group  TEXT
 );
+CREATE INDEX idx_genres_parent ON genres (parent_id) WHERE parent_id IS NOT NULL;
 
 CREATE TABLE collections (
     id              SERIAL PRIMARY KEY,
@@ -37,7 +38,7 @@ CREATE TABLE collections (
 
 CREATE TABLE series (
     id          BIGSERIAL PRIMARY KEY,
-    name        TEXT NOT NULL,
+    name        TEXT NOT NULL UNIQUE,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX idx_series_name_trgm ON series USING gin (name gin_trgm_ops);

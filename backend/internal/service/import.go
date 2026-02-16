@@ -58,21 +58,19 @@ func NewImportService(
 // Returns an error if an import is already running.
 func (s *ImportService) StartImport() error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.status.Status == "running" {
-		s.mu.Unlock()
 		return fmt.Errorf("import is already running")
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
 	now := time.Now()
 	s.status = models.ImportStatus{
 		Status:    "running",
 		StartedAt: &now,
 	}
-	s.mu.Unlock()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	s.mu.Lock()
 	s.cancelFn = cancel
-	s.mu.Unlock()
 
 	go s.runImport(ctx)
 	return nil
@@ -98,6 +96,7 @@ func (s *ImportService) CancelImport() {
 	defer s.mu.Unlock()
 	if s.cancelFn != nil {
 		s.cancelFn()
+		s.cancelFn = nil
 	}
 }
 
@@ -108,17 +107,22 @@ func (s *ImportService) runImport(ctx context.Context) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.cancelFn = nil
 	now := time.Now()
 	if err != nil {
 		errStr := err.Error()
+		status := "failed"
+		if ctx.Err() != nil {
+			status = "cancelled"
+		}
 		s.status = models.ImportStatus{
-			Status:     "failed",
+			Status:     status,
 			StartedAt:  s.status.StartedAt,
 			FinishedAt: &now,
 			Stats:      stats,
 			Error:      &errStr,
 		}
-		log.Printf("Import failed: %v", err)
+		log.Printf("Import %s: %v", status, err)
 		return
 	}
 
@@ -197,6 +201,9 @@ func (s *ImportService) importINPX(ctx context.Context) (*models.ImportStats, er
 
 	batchNum := 0
 	for i := 0; i < len(result.Records); i += batchSize {
+		if err := ctx.Err(); err != nil {
+			return stats, fmt.Errorf("import cancelled: %w", err)
+		}
 		end := i + batchSize
 		if end > len(result.Records) {
 			end = len(result.Records)

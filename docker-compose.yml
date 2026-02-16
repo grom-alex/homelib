@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: homelib
       POSTGRES_USER: homelib
-      POSTGRES_PASSWORD: homelib
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-homelib}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     expose:
@@ -27,31 +27,38 @@ services:
     environment:
       DB_HOST: postgres
       DB_USER: homelib
-      DB_PASSWORD: homelib
+      DB_PASSWORD: ${DB_PASSWORD:-homelib}
       DB_NAME: homelib
       JWT_SECRET: ${JWT_SECRET}
     volumes:
       - ${LIBRARY_PATH:-/mnt/smb/media/MyHomeLib/lib.rus.ec}:/library:ro
+      - ./backend/config.yaml:/etc/homelib/config.yaml:ro
     expose:
       - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: ["/app/worker", "-config", "/etc/homelib/config.yaml"]
+    command: ["worker", "-config", "/etc/homelib/config.yaml"]
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       DB_HOST: postgres
       DB_USER: homelib
-      DB_PASSWORD: homelib
+      DB_PASSWORD: ${DB_PASSWORD:-homelib}
       DB_NAME: homelib
       JWT_SECRET: ${JWT_SECRET}
     volumes:
       - ${LIBRARY_PATH:-/mnt/smb/media/MyHomeLib/lib.rus.ec}:/library:ro
+      - ./backend/config.yaml:/etc/homelib/config.yaml:ro
 
   frontend:
     build:
@@ -65,8 +72,10 @@ services:
     image: nginx:alpine
     restart: unless-stopped
     depends_on:
-      - api
-      - frontend
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_started
     ports:
       - "80:80"
     volumes:

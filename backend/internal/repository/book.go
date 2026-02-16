@@ -334,69 +334,6 @@ func (r *BookRepo) GetBookForDownload(ctx context.Context, id int64) (archiveNam
 	return
 }
 
-func (r *BookRepo) getBookAuthorRefs(ctx context.Context, bookID int64) ([]models.BookAuthorRef, error) {
-	rows, err := r.pool.Query(ctx,
-		`SELECT a.id, a.name FROM authors a
-		 JOIN book_authors ba ON ba.author_id = a.id
-		 WHERE ba.book_id = $1 ORDER BY a.name_sort`, bookID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var refs []models.BookAuthorRef
-	for rows.Next() {
-		var ref models.BookAuthorRef
-		if err := rows.Scan(&ref.ID, &ref.Name); err != nil {
-			return nil, err
-		}
-		refs = append(refs, ref)
-	}
-	return refs, rows.Err()
-}
-
-func (r *BookRepo) getBookGenreRefs(ctx context.Context, bookID int64) ([]models.BookGenreRef, error) {
-	rows, err := r.pool.Query(ctx,
-		`SELECT g.id, g.name FROM genres g
-		 JOIN book_genres bg ON bg.genre_id = g.id
-		 WHERE bg.book_id = $1 ORDER BY g.name`, bookID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var refs []models.BookGenreRef
-	for rows.Next() {
-		var ref models.BookGenreRef
-		if err := rows.Scan(&ref.ID, &ref.Name); err != nil {
-			return nil, err
-		}
-		refs = append(refs, ref)
-	}
-	return refs, rows.Err()
-}
-
-func (r *BookRepo) getBookSeriesRef(ctx context.Context, bookID int64) (*models.BookSeriesRef, error) {
-	var seriesID *int64
-	var seriesNum *int
-	err := r.pool.QueryRow(ctx,
-		`SELECT series_id, series_num FROM books WHERE id = $1`, bookID,
-	).Scan(&seriesID, &seriesNum)
-	if err != nil || seriesID == nil {
-		return nil, err
-	}
-
-	var ref models.BookSeriesRef
-	ref.Num = seriesNum
-	err = r.pool.QueryRow(ctx,
-		`SELECT id, name FROM series WHERE id = $1`, *seriesID,
-	).Scan(&ref.ID, &ref.Name)
-	if err != nil {
-		return nil, err
-	}
-	return &ref, nil
-}
-
 func (r *BookRepo) getBookAuthorRefsBatch(ctx context.Context, bookIDs []int64) (map[int64][]models.BookAuthorRef, error) {
 	rows, err := r.pool.Query(ctx,
 		`SELECT ba.book_id, a.id, a.name FROM authors a

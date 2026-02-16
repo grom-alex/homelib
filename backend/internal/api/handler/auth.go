@@ -99,11 +99,26 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		_ = h.authSvc.Logout(c.Request.Context(), refreshToken)
 	}
 
-	c.SetCookie("refresh_token", "", -1, "/", "", h.cookieSecure, true)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		MaxAge:   -1,
+		Path:     "/",
+		Secure:   h.cookieSecure,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
 func (h *AuthHandler) setRefreshCookie(c *gin.Context, token string) {
-	maxAge := int(h.refreshTTL.Seconds())
-	c.SetCookie("refresh_token", token, maxAge, "/", "", h.cookieSecure, true)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    token,
+		MaxAge:   int(h.refreshTTL.Seconds()),
+		Path:     "/",
+		Secure:   h.cookieSecure,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
 }
