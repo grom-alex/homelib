@@ -1,10 +1,10 @@
 <template>
   <v-container>
-    <h1 class="text-h4 mb-4">Серии</h1>
+    <h1 class="text-h4 mb-4">Авторы</h1>
 
     <v-text-field
       v-model="query"
-      label="Поиск по сериям"
+      label="Поиск по авторам"
       prepend-inner-icon="mdi-magnify"
       clearable
       density="compact"
@@ -18,10 +18,14 @@
     <v-progress-linear v-if="loading" indeterminate color="primary" class="mb-4" />
 
     <v-list>
-      <v-list-item v-for="s in seriesList" :key="s.id">
-        <v-list-item-title>{{ s.name }}</v-list-item-title>
+      <v-list-item
+        v-for="author in authors"
+        :key="author.id"
+        :to="`/authors/${author.id}`"
+      >
+        <v-list-item-title>{{ author.name }}</v-list-item-title>
         <template #append>
-          <v-chip size="small">{{ s.books_count }} книг</v-chip>
+          <v-chip size="small">{{ author.books_count }} книг</v-chip>
         </template>
       </v-list-item>
     </v-list>
@@ -38,9 +42,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getSeries, type SeriesListItem } from '@/services/books'
+import { getAuthors, type AuthorListItem } from '@/api/books'
 
-const seriesList = ref<SeriesListItem[]>([])
+const authors = ref<AuthorListItem[]>([])
 const loading = ref(false)
 const query = ref('')
 const page = ref(1)
@@ -61,8 +65,8 @@ function onSearch() {
 async function fetchData() {
   loading.value = true
   try {
-    const result = await getSeries({ q: query.value || undefined, page: page.value, limit })
-    seriesList.value = result.items
+    const result = await getAuthors({ q: query.value || undefined, page: page.value, limit })
+    authors.value = result.items
     total.value = result.total
     totalPages.value = Math.ceil(result.total / limit)
   } finally {

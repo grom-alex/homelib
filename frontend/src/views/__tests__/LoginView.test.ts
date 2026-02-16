@@ -3,9 +3,9 @@ import { mount } from '@vue/test-utils'
 import { createVuetify } from 'vuetify'
 import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createWebHistory } from 'vue-router'
-import LoginPage from '../LoginPage.vue'
+import LoginView from '../LoginView.vue'
 
-vi.mock('@/services/auth', () => ({
+vi.mock('@/api/auth', () => ({
   login: vi.fn(),
   register: vi.fn(),
   refresh: vi.fn(),
@@ -23,14 +23,14 @@ const router = createRouter({
 })
 
 function mountLogin() {
-  return mount(LoginPage, {
+  return mount(LoginView, {
     global: {
       plugins: [vuetify, createPinia(), router],
     },
   })
 }
 
-describe('LoginPage', () => {
+describe('LoginView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()

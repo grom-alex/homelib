@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createVuetify } from 'vuetify'
-import AdminImportPage from '../AdminImportPage.vue'
+import AdminImportView from '../AdminImportView.vue'
 
 const mockStartImport = vi.fn()
 const mockGetImportStatus = vi.fn()
 
-vi.mock('@/services/admin', () => ({
+vi.mock('@/api/admin', () => ({
   startImport: (...args: unknown[]) => mockStartImport(...args),
   getImportStatus: (...args: unknown[]) => mockGetImportStatus(...args),
 }))
@@ -14,14 +14,14 @@ vi.mock('@/services/admin', () => ({
 const vuetify = createVuetify()
 
 function mountPage() {
-  return mount(AdminImportPage, {
+  return mount(AdminImportView, {
     global: {
       plugins: [vuetify],
     },
   })
 }
 
-describe('AdminImportPage', () => {
+describe('AdminImportView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetImportStatus.mockResolvedValue({ status: 'idle' })

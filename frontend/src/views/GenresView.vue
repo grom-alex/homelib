@@ -21,7 +21,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { getGenres, type GenreTreeItem } from '@/services/books'
+import { getGenres, type GenreTreeItem } from '@/api/books'
 
 const genres = ref<GenreTreeItem[]>([])
 const loading = ref(false)

@@ -81,7 +81,7 @@
 import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCatalogStore } from '@/stores/catalog'
-import { downloadBook } from '@/services/books'
+import { downloadBook } from '@/api/books'
 
 const route = useRoute()
 const catalog = useCatalogStore()

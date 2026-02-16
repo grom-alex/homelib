@@ -7,7 +7,7 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: () => import('@/pages/LoginPage.vue'),
+      component: () => import('@/views/LoginView.vue'),
       meta: { guest: true },
     },
     {
@@ -17,37 +17,37 @@ const router = createRouter({
     {
       path: '/books',
       name: 'catalog',
-      component: () => import('@/pages/CatalogPage.vue'),
+      component: () => import('@/views/CatalogView.vue'),
     },
     {
       path: '/books/:id',
       name: 'book',
-      component: () => import('@/pages/BookPage.vue'),
+      component: () => import('@/views/BookView.vue'),
     },
     {
       path: '/authors',
       name: 'authors',
-      component: () => import('@/pages/AuthorsPage.vue'),
+      component: () => import('@/views/AuthorsView.vue'),
     },
     {
       path: '/authors/:id',
       name: 'author',
-      component: () => import('@/pages/AuthorPage.vue'),
+      component: () => import('@/views/AuthorView.vue'),
     },
     {
       path: '/genres',
       name: 'genres',
-      component: () => import('@/pages/GenresPage.vue'),
+      component: () => import('@/views/GenresView.vue'),
     },
     {
       path: '/series',
       name: 'series',
-      component: () => import('@/pages/SeriesPage.vue'),
+      component: () => import('@/views/SeriesView.vue'),
     },
     {
       path: '/admin/import',
       name: 'admin-import',
-      component: () => import('@/pages/AdminImportPage.vue'),
+      component: () => import('@/views/AdminImportView.vue'),
       meta: { admin: true },
     },
   ],

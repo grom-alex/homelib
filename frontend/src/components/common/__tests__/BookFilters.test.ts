@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createVuetify } from 'vuetify'
 import BookFilters from '../BookFilters.vue'
 
-vi.mock('@/services/books', () => ({
+vi.mock('@/api/books', () => ({
   getStats: vi.fn().mockResolvedValue({
     books_count: 100,
     authors_count: 50,

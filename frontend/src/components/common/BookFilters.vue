@@ -49,8 +49,8 @@
 
 <script setup lang="ts">
 import { reactive, onMounted, onUnmounted } from 'vue'
-import { getStats } from '@/services/books'
-import type { BookFilters } from '@/services/books'
+import { getStats } from '@/api/books'
+import type { BookFilters } from '@/api/books'
 
 const emit = defineEmits<{
   (e: 'update', filters: Partial<BookFilters>): void

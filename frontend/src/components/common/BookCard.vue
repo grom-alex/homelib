@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import type { BookListItem } from '@/services/books'
+import type { BookListItem } from '@/api/books'
 
 defineProps<{ book: BookListItem }>()
 

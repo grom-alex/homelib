@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { BookListItem, BookDetail, BookFilters } from '@/services/books'
-import * as booksApi from '@/services/books'
+import type { BookListItem, BookDetail, BookFilters } from '@/api/books'
+import * as booksApi from '@/api/books'
 
 export const useCatalogStore = defineStore('catalog', () => {
   const books = ref<BookListItem[]>([])

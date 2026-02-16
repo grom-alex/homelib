@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '../auth'
 
-vi.mock('@/services/auth', () => ({
+vi.mock('@/api/auth', () => ({
   login: vi.fn(),
   register: vi.fn(),
   refresh: vi.fn(),
   logout: vi.fn(),
 }))
 
-import * as authApi from '@/services/auth'
+import * as authApi from '@/api/auth'
 
 const mockUser = {
   id: '1',

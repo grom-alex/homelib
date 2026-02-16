@@ -20,7 +20,7 @@ describe('api service', () => {
     })
     vi.doMock('axios', () => ({ default: { create: createSpy } }))
 
-    await import('../api')
+    await import('../client')
     expect(createSpy).toHaveBeenCalledWith(
       expect.objectContaining({ baseURL: '/api' }),
     )
@@ -37,7 +37,7 @@ describe('api service', () => {
       },
     })
     vi.doMock('axios', () => ({ default: { create: createSpy } }))
-    await import('../api')
+    await import('../client')
 
     sessionStorage.setItem('access_token', 'my-token')
     const config = { headers: {} as Record<string, string> }
@@ -56,7 +56,7 @@ describe('api service', () => {
       },
     })
     vi.doMock('axios', () => ({ default: { create: createSpy } }))
-    await import('../api')
+    await import('../client')
 
     const config = { headers: {} as Record<string, string> }
     const result = requestInterceptor!(config)
@@ -84,7 +84,7 @@ describe('api service', () => {
       return callCount === 1 ? apiInstance : refreshInstance
     })
     vi.doMock('axios', () => ({ default: { create: createSpy } }))
-    await import('../api')
+    await import('../client')
 
     const error = {
       response: { status: 401 },
@@ -118,7 +118,7 @@ describe('api service', () => {
     })
     vi.doMock('axios', () => ({ default: { create: createSpy } }))
 
-    await import('../api')
+    await import('../client')
     const router = (await import('@/router')).default
 
     sessionStorage.setItem('access_token', 'old-tok')
@@ -143,7 +143,7 @@ describe('api service', () => {
       },
     })
     vi.doMock('axios', () => ({ default: { create: createSpy } }))
-    await import('../api')
+    await import('../client')
 
     const error = { response: { status: 500 }, config: {} }
     await expect(responseRejector!(error)).rejects.toEqual(error)
@@ -160,7 +160,7 @@ describe('api service', () => {
       },
     })
     vi.doMock('axios', () => ({ default: { create: createSpy } }))
-    await import('../api')
+    await import('../client')
 
     const error = {
       response: { status: 401 },

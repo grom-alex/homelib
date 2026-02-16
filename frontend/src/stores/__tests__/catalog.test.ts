@@ -2,12 +2,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useCatalogStore } from '../catalog'
 
-vi.mock('@/services/books', () => ({
+vi.mock('@/api/books', () => ({
   getBooks: vi.fn(),
   getBook: vi.fn(),
 }))
 
-import * as booksApi from '@/services/books'
+import * as booksApi from '@/api/books'
 
 const mockBooks = [
   { id: 1, title: 'Book 1', lang: 'ru', format: 'fb2', is_deleted: false, authors: [], genres: [] },

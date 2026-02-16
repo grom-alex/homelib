@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockGet = vi.fn()
-vi.mock('../api', () => ({
+vi.mock('../client', () => ({
   default: {
     get: (...args: unknown[]) => mockGet(...args),
   },

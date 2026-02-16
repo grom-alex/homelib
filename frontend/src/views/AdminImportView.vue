@@ -89,7 +89,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { startImport, getImportStatus, type ImportStatus } from '@/services/admin'
+import { startImport, getImportStatus, type ImportStatus } from '@/api/admin'
 
 const status = ref<ImportStatus | null>(null)
 const importing = ref(false)

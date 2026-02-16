@@ -35,10 +35,10 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
-import type { BookFilters as BookFiltersType } from '@/services/books'
-import BookCard from '@/components/BookCard.vue'
-import BookFilters from '@/components/BookFilters.vue'
-import PaginationBar from '@/components/PaginationBar.vue'
+import type { BookFilters as BookFiltersType } from '@/api/books'
+import BookCard from '@/components/common/BookCard.vue'
+import BookFilters from '@/components/common/BookFilters.vue'
+import PaginationBar from '@/components/common/PaginationBar.vue'
 
 const catalog = useCatalogStore()
 

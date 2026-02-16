@@ -20,8 +20,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { getAuthor, type AuthorDetail } from '@/services/books'
-import BookCard from '@/components/BookCard.vue'
+import { getAuthor, type AuthorDetail } from '@/api/books'
+import BookCard from '@/components/common/BookCard.vue'
 
 const route = useRoute()
 const author = ref<AuthorDetail | null>(null)

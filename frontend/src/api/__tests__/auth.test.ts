@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockPost = vi.fn()
-vi.mock('../api', () => ({
+vi.mock('../client', () => ({
   default: {
     post: (...args: unknown[]) => mockPost(...args),
   },
