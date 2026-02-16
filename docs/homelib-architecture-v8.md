@@ -2383,17 +2383,21 @@ homelib/
 │   │   │   ├── author.go
 │   │   │   ├── genre.go
 │   │   │   ├── collection.go           # Collection (метаданные библиотеки)
+│   │   │   ├── series.go               # Series, SeriesListItem
 │   │   │   ├── user.go                 # User, RefreshToken
 │   │   │   ├── user_book.go            # UserBook (статус, оценка)
 │   │   │   ├── reading_progress.go     # ReadingProgress (позиция чтения)
 │   │   │   ├── shelf.go                # Shelf, ShelfBook
 │   │   │   └── summary.go              # BookSummary, LLMSummaryTask
 │   │   ├── repository/                 # Слой доступа к БД (pgx)
+│   │   │   ├── db.go                  # NewPool, RunMigrations
 │   │   │   ├── book.go
 │   │   │   ├── author.go
 │   │   │   ├── genre.go
 │   │   │   ├── collection.go
-│   │   │   ├── user.go                 # CRUD пользователей, refresh-токенов
+│   │   │   ├── series.go              # SeriesRepo
+│   │   │   ├── user.go                # CRUD пользователей
+│   │   │   ├── refresh_token.go       # CRUD refresh-токенов
 │   │   │   ├── user_book.go            # Статусы, оценки, прогресс, полки
 │   │   │   ├── summary.go              # Саммари, LLM-задачи, эмбеддинги
 │   │   │   └── search.go               # Полнотекстовый + векторный поиск
@@ -2408,7 +2412,9 @@ homelib/
 │   │   │   ├── download.go             # Извлечение из ZIP
 │   │   │   └── search.go               # Гибридный поиск
 │   │   ├── inpx/                       # Парсер .inpx / .inp
-│   │   │   └── parser.go
+│   │   │   ├── parser.go
+│   │   │   ├── records.go             # Парсинг записей .inp
+│   │   │   └── types.go               # BookRecord, Author, CollectionInfo
 │   │   ├── bookfile/                   # Конвертеры форматов книг
 │   │   │   ├── converter.go            # Интерфейс BookConverter
 │   │   │   ├── fb2.go                  # FB2 → HTML + извлечение аннотации
@@ -2426,15 +2432,17 @@ homelib/
 │   │       └── reader.go
 │   │
 │   ├── migrations/                     # SQL-миграции (golang-migrate)
+│   │   ├── embed.go                   # go:embed *.sql
 │   │   ├── 001_init.up.sql
 │   │   ├── 001_init.down.sql
-│   │   ├── 002_users.up.sql
-│   │   ├── 002_users.down.sql
+│   │   ├── 002_add_unique_constraints.up.sql
+│   │   ├── 002_add_unique_constraints.down.sql
 │   │   ├── 003_user_data.up.sql
 │   │   ├── 003_user_data.down.sql
 │   │   ├── 004_embedding.up.sql
 │   │   └── 004_embedding.down.sql
 │   │
+│   ├── config.example.yaml            # Шаблон конфигурации
 │   ├── go.mod
 │   ├── go.sum
 │   └── Makefile                        # Make-таргеты для бэкенда
@@ -2442,12 +2450,14 @@ homelib/
 ├── frontend/                           # Vue 3 SPA
 │   ├── src/
 │   │   ├── components/
+│   │   │   ├── AppHeader.vue          # Навигация, user menu (layout)
 │   │   │   ├── common/                 # Общие компоненты
 │   │   │   │   ├── BookCard.vue
+│   │   │   │   ├── BookFilters.vue    # Фильтры каталога
+│   │   │   │   ├── PaginationBar.vue  # Пагинация с выбором limit
+│   │   │   │   ├── SearchBar.vue
 │   │   │   │   ├── BookStatusButton.vue
 │   │   │   │   ├── BookRating.vue
-│   │   │   │   ├── SearchBar.vue
-│   │   │   │   ├── FilterPanel.vue
 │   │   │   │   ├── GenreTree.vue
 │   │   │   │   ├── ShelfList.vue
 │   │   │   │   ├── UserMenu.vue
@@ -2467,13 +2477,16 @@ homelib/
 │   │   │   ├── HomeView.vue
 │   │   │   ├── CatalogView.vue
 │   │   │   ├── BookView.vue
-│   │   │   ├── ReaderView.vue          # Страница читалки (обёртка над BookReader)
+│   │   │   ├── AuthorsView.vue        # Список авторов с поиском
 │   │   │   ├── AuthorView.vue
+│   │   │   ├── GenresView.vue         # Дерево жанров
+│   │   │   ├── SeriesView.vue         # Список серий с поиском
+│   │   │   ├── AdminImportView.vue    # Управление импортом INPX
+│   │   │   ├── ReaderView.vue          # Страница читалки (обёртка над BookReader)
 │   │   │   ├── SearchView.vue
 │   │   │   ├── MyBooksView.vue
 │   │   │   ├── MyShelvesView.vue
-│   │   │   ├── ProfileView.vue
-│   │   │   └── AdminView.vue
+│   │   │   └── ProfileView.vue
 │   │   ├── composables/                # Композиции (логика)
 │   │   │   ├── useBookContent.ts       # Загрузка контента книги с API
 │   │   │   ├── usePagination.ts        # Разбивка на страницы
@@ -2488,24 +2501,33 @@ homelib/
 │   │   │   ├── reader.ts               # Состояние читалки
 │   │   │   └── userLibrary.ts
 │   │   ├── api/                        # HTTP-клиент
-│   │   │   ├── client.ts
+│   │   │   ├── client.ts              # Axios instance, interceptors
 │   │   │   ├── auth.ts
 │   │   │   ├── books.ts
+│   │   │   ├── admin.ts               # Импорт INPX API
 │   │   │   └── me.ts
+│   │   ├── plugins/
+│   │   │   └── vuetify.ts             # Конфигурация Vuetify 3
 │   │   ├── router/
 │   │   │   └── index.ts
 │   │   ├── types/                      # TypeScript типы
 │   │   │   ├── book.ts
 │   │   │   ├── user.ts
 │   │   │   └── reader.ts               # ReaderSettings, ReadingPosition
-│   │   └── assets/
-│   │       └── styles/
-│   │           ├── main.css
-│   │           └── reader-themes.css   # Темы читалки (light/sepia/dark/night)
+│   │   ├── assets/
+│   │   │   └── styles/
+│   │   │       ├── main.css
+│   │   │       └── reader-themes.css   # Темы читалки (light/sepia/dark/night)
+│   │   ├── App.vue                    # Корневой компонент
+│   │   ├── main.ts                    # Точка входа
+│   │   └── env.d.ts                   # TypeScript declarations
 │   ├── public/
 │   ├── index.html
+│   ├── nginx.conf                     # SPA-конфиг nginx внутри контейнера
 │   ├── vite.config.ts
+│   ├── vitest.config.ts               # Конфигурация тестов Vitest
 │   ├── tsconfig.json
+│   ├── tsconfig.node.json
 │   └── package.json
 │
 ├── docker/                             # Docker-конфигурация
@@ -2515,9 +2537,8 @@ homelib/
 │   ├── frontend/
 │   │   └── Dockerfile                  # Сборка Vue + nginx
 │   ├── nginx/
-│   │   ├── nginx.dev.conf
-│   │   ├── nginx.prod.conf
-│   │   └── Dockerfile
+│   │   ├── nginx.dev.conf             # Конфиг для разработки
+│   │   └── nginx.prod.conf            # Конфиг для production (security headers, rate limiting)
 │   ├── docker-compose.dev.yml          # Разработка
 │   ├── docker-compose.stage.yml        # Staging
 │   └── docker-compose.prod.yml         # Продакшн
@@ -2538,11 +2559,18 @@ homelib/
 │   ├── config.prod.yaml
 │   └── genres.json                     # Справочник жанров
 │
+├── .github/
+│   └── workflows/
+│       └── ci.yml                     # CI pipeline (lint, test, build, docker)
+│
 ├── .env.example
 ├── .gitignore
+├── .golangci.yml                      # Конфигурация Go-линтера
 ├── Makefile                            # Корневой Makefile (вызывает backend/frontend)
 └── README.md
 ```
+
+> **Примечание:** Тест-файлы (`*_test.go`, `__tests__/*.test.ts`) расположены рядом с исходным кодом, но опущены в дереве для краткости.
 
 ### Описание ключевых директорий
 
