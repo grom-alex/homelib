@@ -1,0 +1,27 @@
+# HomeLib — конфигурация для production
+server:
+  port: 8080
+  host: "0.0.0.0"
+
+database:
+  host: "postgres"
+  port: 5432
+  user: "homelib"
+  password: ""  # ОБЯЗАТЕЛЬНО через переменную DB_PASSWORD
+  dbname: "homelib"
+  sslmode: "require"
+
+auth:
+  jwt_secret: ""  # ОБЯЗАТЕЛЬНО через переменную JWT_SECRET
+  access_token_ttl: "15m"
+  refresh_token_ttl: "720h"  # 30 дней
+  registration_enabled: false
+  cookie_secure: true
+
+library:
+  inpx_path: "/library/INPX/librusec_all_local-2022-09-04.inpx"
+  archives_path: "/library"
+
+import:
+  batch_size: 5000
+  log_every: 50000

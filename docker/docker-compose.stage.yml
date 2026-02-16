@@ -1,3 +1,5 @@
+# HomeLib — Staging
+# Использование: docker compose -f docker-compose.stage.yml --env-file ../.env up -d
 services:
   postgres:
     image: postgres:17-alpine
@@ -5,14 +7,14 @@ services:
     environment:
       POSTGRES_DB: homelib
       POSTGRES_USER: homelib
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-homelib}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     expose:
       - "5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U homelib"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
 
@@ -27,17 +29,17 @@ services:
     environment:
       DB_HOST: postgres
       DB_USER: homelib
-      DB_PASSWORD: ${DB_PASSWORD:-homelib}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: homelib
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-for-local-dev-must-be-32-chars-long}
+      JWT_SECRET: ${JWT_SECRET}
     volumes:
-      - ${LIBRARY_PATH:-/mnt/smb/media/MyHomeLib/lib.rus.ec}:/library:ro
-      - ../backend/config.yaml:/etc/homelib/config.yaml:ro
+      - ${LIBRARY_PATH}:/library:ro
+      - ../config/config.stage.yaml:/etc/homelib/config.yaml:ro
     expose:
       - "8080"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
 
@@ -52,12 +54,12 @@ services:
     environment:
       DB_HOST: postgres
       DB_USER: homelib
-      DB_PASSWORD: ${DB_PASSWORD:-homelib}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: homelib
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-for-local-dev-must-be-32-chars-long}
+      JWT_SECRET: ${JWT_SECRET}
     volumes:
-      - ${LIBRARY_PATH:-/mnt/smb/media/MyHomeLib/lib.rus.ec}:/library:ro
-      - ../backend/config.yaml:/etc/homelib/config.yaml:ro
+      - ${LIBRARY_PATH}:/library:ro
+      - ../config/config.stage.yaml:/etc/homelib/config.yaml:ro
 
   frontend:
     build:
@@ -76,9 +78,9 @@ services:
       frontend:
         condition: service_started
     ports:
-      - "80:80"
+      - "${NGINX_PORT:-80}:80"
     volumes:
-      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
 
 volumes:
   postgres_data:
