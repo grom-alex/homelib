@@ -12,12 +12,13 @@ import (
 )
 
 type AuthHandler struct {
-	authSvc    *service.AuthService
-	refreshTTL time.Duration
+	authSvc      *service.AuthService
+	refreshTTL   time.Duration
+	cookieSecure bool
 }
 
-func NewAuthHandler(authSvc *service.AuthService, refreshTTL time.Duration) *AuthHandler {
-	return &AuthHandler{authSvc: authSvc, refreshTTL: refreshTTL}
+func NewAuthHandler(authSvc *service.AuthService, refreshTTL time.Duration, cookieSecure bool) *AuthHandler {
+	return &AuthHandler{authSvc: authSvc, refreshTTL: refreshTTL, cookieSecure: cookieSecure}
 }
 
 // Register handles POST /api/auth/register.
@@ -98,11 +99,11 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		_ = h.authSvc.Logout(c.Request.Context(), refreshToken)
 	}
 
-	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+	c.SetCookie("refresh_token", "", -1, "/", "", h.cookieSecure, true)
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
 func (h *AuthHandler) setRefreshCookie(c *gin.Context, token string) {
 	maxAge := int(h.refreshTTL.Seconds())
-	c.SetCookie("refresh_token", token, maxAge, "/", "", false, true)
+	c.SetCookie("refresh_token", token, maxAge, "/", "", h.cookieSecure, true)
 }

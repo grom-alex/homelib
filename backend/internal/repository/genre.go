@@ -64,7 +64,6 @@ func (r *GenreRepo) GetAll(ctx context.Context) ([]models.GenreTreeItem, error) 
 	}
 
 	var flat []flatGenre
-	genreMap := make(map[int]*flatGenre)
 
 	for rows.Next() {
 		var g flatGenre
@@ -72,10 +71,14 @@ func (r *GenreRepo) GetAll(ctx context.Context) ([]models.GenreTreeItem, error) 
 			return nil, fmt.Errorf("scan genre: %w", err)
 		}
 		flat = append(flat, g)
-		genreMap[g.ID] = &flat[len(flat)-1]
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+
+	genreMap := make(map[int]*flatGenre, len(flat))
+	for i := range flat {
+		genreMap[flat[i].ID] = &flat[i]
 	}
 
 	// Build tree

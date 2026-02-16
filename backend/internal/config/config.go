@@ -40,6 +40,7 @@ type AuthConfig struct {
 	AccessTokenTTL      time.Duration `yaml:"access_token_ttl"`
 	RefreshTokenTTL     time.Duration `yaml:"refresh_token_ttl"`
 	RegistrationEnabled bool          `yaml:"registration_enabled"`
+	CookieSecure        bool          `yaml:"cookie_secure"`
 }
 
 type LibraryConfig struct {
@@ -84,7 +85,26 @@ func Load(path string) (*Config, error) {
 
 	applyEnvOverrides(cfg)
 
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
+}
+
+const minJWTSecretLength = 32
+
+func (c *Config) Validate() error {
+	if len(c.Auth.JWTSecret) < minJWTSecretLength {
+		return fmt.Errorf("jwt_secret must be at least %d characters long", minJWTSecretLength)
+	}
+	if c.Database.Host == "" {
+		return fmt.Errorf("database host is required")
+	}
+	if c.Database.DBName == "" {
+		return fmt.Errorf("database name is required")
+	}
+	return nil
 }
 
 func applyEnvOverrides(cfg *Config) {

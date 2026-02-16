@@ -73,6 +73,7 @@ CREATE INDEX idx_books_format     ON books (format);
 CREATE INDEX idx_books_archive    ON books (archive_name);
 CREATE INDEX idx_books_search     ON books USING gin (search_vector);
 CREATE INDEX idx_books_collection ON books (collection_id);
+CREATE INDEX idx_books_series     ON books (series_id) WHERE series_id IS NOT NULL;
 CREATE INDEX idx_books_lib_rate   ON books (lib_rate) WHERE lib_rate IS NOT NULL;
 CREATE INDEX idx_books_keywords   ON books USING gin (keywords) WHERE keywords IS NOT NULL;
 
@@ -133,4 +134,5 @@ CREATE TABLE refresh_tokens (
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX idx_refresh_tokens_user ON refresh_tokens (user_id);
+CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens (token_hash);
 CREATE INDEX idx_refresh_tokens_expires ON refresh_tokens (expires_at);

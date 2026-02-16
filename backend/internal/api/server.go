@@ -48,7 +48,7 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 		Genres:   handler.NewGenresHandler(catalogSvc),
 		Series:   handler.NewSeriesHandler(catalogSvc),
 		Admin:    handler.NewAdminHandler(importSvc),
-		Auth:     handler.NewAuthHandler(authSvc, cfg.Auth.RefreshTokenTTL),
+		Auth:     handler.NewAuthHandler(authSvc, cfg.Auth.RefreshTokenTTL, cfg.Auth.CookieSecure),
 		Download: handler.NewDownloadHandler(downloadSvc),
 	}
 

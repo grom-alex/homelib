@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getAuthor, type AuthorDetail } from '@/services/books'
 import BookCard from '@/components/BookCard.vue'
@@ -27,12 +27,18 @@ const route = useRoute()
 const author = ref<AuthorDetail | null>(null)
 const loading = ref(false)
 
-onMounted(async () => {
-  loading.value = true
-  try {
-    author.value = await getAuthor(Number(route.params.id))
-  } finally {
-    loading.value = false
-  }
-})
+watch(
+  () => route.params.id,
+  async (newId) => {
+    const id = Number(newId)
+    if (!id) return
+    loading.value = true
+    try {
+      author.value = await getAuthor(id)
+    } finally {
+      loading.value = false
+    }
+  },
+  { immediate: true },
+)
 </script>

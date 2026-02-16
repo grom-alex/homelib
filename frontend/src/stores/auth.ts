@@ -53,10 +53,16 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function init() {
+  async function init() {
     const token = sessionStorage.getItem('access_token')
     if (token) {
       accessToken.value = token
+      try {
+        const data = await authApi.refresh()
+        setAuth(data)
+      } catch {
+        clearAuth()
+      }
     }
   }
 

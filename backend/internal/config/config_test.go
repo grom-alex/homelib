@@ -23,7 +23,7 @@ database:
   dbname: "testdb"
   sslmode: "require"
 auth:
-  jwt_secret: "secret123"
+  jwt_secret: "test-secret-key-must-be-at-least-32-chars-long"
   access_token_ttl: 10m
   refresh_token_ttl: 720h
   registration_enabled: false
@@ -47,7 +47,7 @@ import:
 	assert.Equal(t, "testpass", cfg.Database.Password)
 	assert.Equal(t, "testdb", cfg.Database.DBName)
 	assert.Equal(t, "require", cfg.Database.SSLMode)
-	assert.Equal(t, "secret123", cfg.Auth.JWTSecret)
+	assert.Equal(t, "test-secret-key-must-be-at-least-32-chars-long", cfg.Auth.JWTSecret)
 	assert.Equal(t, 10*time.Minute, cfg.Auth.AccessTokenTTL)
 	assert.Equal(t, 30*24*time.Hour, cfg.Auth.RefreshTokenTTL)
 	assert.False(t, cfg.Auth.RegistrationEnabled)
@@ -64,6 +64,8 @@ database:
   user: "app"
   password: "pw"
   dbname: "homelib"
+auth:
+  jwt_secret: "default-test-secret-must-be-at-least-32-chars"
 `
 	path := writeTemp(t, content)
 
@@ -79,6 +81,38 @@ database:
 	assert.True(t, cfg.Auth.RegistrationEnabled)
 	assert.Equal(t, 3000, cfg.Import.BatchSize)
 	assert.Equal(t, 10000, cfg.Import.LogEvery)
+}
+
+func TestLoad_MissingJWTSecret(t *testing.T) {
+	content := `
+database:
+  host: "localhost"
+  user: "app"
+  password: "pw"
+  dbname: "homelib"
+`
+	path := writeTemp(t, content)
+
+	_, err := Load(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "jwt_secret must be at least")
+}
+
+func TestLoad_ShortJWTSecret(t *testing.T) {
+	content := `
+database:
+  host: "localhost"
+  user: "app"
+  password: "pw"
+  dbname: "homelib"
+auth:
+  jwt_secret: "too-short"
+`
+	path := writeTemp(t, content)
+
+	_, err := Load(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "jwt_secret must be at least")
 }
 
 func TestLoad_MissingFile(t *testing.T) {
@@ -103,7 +137,7 @@ database:
   password: "original-pass"
   dbname: "original-db"
 auth:
-  jwt_secret: "original-secret"
+  jwt_secret: "original-secret-key-must-be-long-enough-32"
 library:
   inpx_path: "/original/inpx"
   archives_path: "/original/archives"
@@ -114,7 +148,7 @@ library:
 	t.Setenv("DB_USER", "env-user")
 	t.Setenv("DB_PASSWORD", "env-pass")
 	t.Setenv("DB_NAME", "env-db")
-	t.Setenv("JWT_SECRET", "env-secret")
+	t.Setenv("JWT_SECRET", "env-secret-key-must-be-long-enough-too-32")
 	t.Setenv("LIBRARY_PATH", "/env/archives")
 	t.Setenv("INPX_PATH", "/env/inpx")
 
@@ -125,7 +159,7 @@ library:
 	assert.Equal(t, "env-user", cfg.Database.User)
 	assert.Equal(t, "env-pass", cfg.Database.Password)
 	assert.Equal(t, "env-db", cfg.Database.DBName)
-	assert.Equal(t, "env-secret", cfg.Auth.JWTSecret)
+	assert.Equal(t, "env-secret-key-must-be-long-enough-too-32", cfg.Auth.JWTSecret)
 	assert.Equal(t, "/env/archives", cfg.Library.ArchivesPath)
 	assert.Equal(t, "/env/inpx", cfg.Library.INPXPath)
 }

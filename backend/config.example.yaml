@@ -11,10 +11,11 @@ database:
   sslmode: "disable"
 
 auth:
-  jwt_secret: "change-me-in-production"
+  jwt_secret: "change-me-in-production-must-be-at-least-32-characters"
   access_token_ttl: "15m"
   refresh_token_ttl: "720h"  # 30 days
   registration_enabled: true
+  cookie_secure: false  # set to true behind HTTPS
 
 library:
   inpx_path: "/library/INPX/librusec_all_local-2022-09-04.inpx"

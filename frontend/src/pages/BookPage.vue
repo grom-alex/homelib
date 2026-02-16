@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCatalogStore } from '@/stores/catalog'
 import { downloadBook } from '@/services/books'
@@ -98,8 +98,12 @@ async function handleDownload() {
   }
 }
 
-onMounted(() => {
-  const id = Number(route.params.id)
-  if (id) catalog.fetchBook(id)
-})
+watch(
+  () => route.params.id,
+  (newId) => {
+    const id = Number(newId)
+    if (id) catalog.fetchBook(id)
+  },
+  { immediate: true },
+)
 </script>

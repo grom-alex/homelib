@@ -1,14 +1,15 @@
 services:
   postgres:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: homelib
       POSTGRES_USER: homelib
       POSTGRES_PASSWORD: homelib
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U homelib"]
       interval: 5s
@@ -19,6 +20,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -27,22 +29,41 @@ services:
       DB_USER: homelib
       DB_PASSWORD: homelib
       DB_NAME: homelib
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_SECRET: ${JWT_SECRET}
     volumes:
       - ${LIBRARY_PATH:-/mnt/smb/media/MyHomeLib/lib.rus.ec}:/library:ro
-      - ./backend/config.example.yaml:/etc/homelib/config.yaml:ro
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["/app/worker", "-config", "/etc/homelib/config.yaml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_USER: homelib
+      DB_PASSWORD: homelib
+      DB_NAME: homelib
+      JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      - ${LIBRARY_PATH:-/mnt/smb/media/MyHomeLib/lib.rus.ec}:/library:ro
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - api
 
   nginx:
     image: nginx:alpine
+    restart: unless-stopped
     depends_on:
       - api
       - frontend

@@ -60,8 +60,8 @@ describe('api service', () => {
 
   it('response interceptor retries on 401 with refresh', async () => {
     let responseRejector: (error: unknown) => Promise<unknown>
-    // Make the instance itself callable (api(originalRequest) returns result)
     const mockApiCall = vi.fn().mockResolvedValue({ data: 'retry-success' })
+    const mockPost = vi.fn().mockResolvedValue({ data: { access_token: 'new-tok' } })
     const instance = Object.assign(mockApiCall, {
       interceptors: {
         request: { use: vi.fn() },
@@ -69,10 +69,10 @@ describe('api service', () => {
           use: vi.fn((_: unknown, rej: typeof responseRejector) => { responseRejector = rej }),
         },
       },
+      post: mockPost,
     })
     const createSpy = vi.fn().mockReturnValue(instance)
-    const mockPost = vi.fn().mockResolvedValue({ data: { access_token: 'new-tok' } })
-    vi.doMock('axios', () => ({ default: { create: createSpy, post: mockPost } }))
+    vi.doMock('axios', () => ({ default: { create: createSpy } }))
     await import('../api')
 
     const error = {
@@ -81,13 +81,14 @@ describe('api service', () => {
     }
 
     const result = await responseRejector!(error)
-    expect(mockPost).toHaveBeenCalledWith('/api/auth/refresh')
+    expect(mockPost).toHaveBeenCalledWith('/auth/refresh')
     expect(sessionStorage.getItem('access_token')).toBe('new-tok')
     expect(result).toEqual({ data: 'retry-success' })
   })
 
   it('response interceptor redirects to /login on refresh failure', async () => {
     let responseRejector: (error: unknown) => Promise<unknown>
+    const mockPost = vi.fn().mockRejectedValue(new Error('refresh failed'))
     const createSpy = vi.fn().mockReturnValue({
       interceptors: {
         request: { use: vi.fn() },
@@ -95,9 +96,9 @@ describe('api service', () => {
           use: vi.fn((_: unknown, rej: typeof responseRejector) => { responseRejector = rej }),
         },
       },
+      post: mockPost,
     })
-    const mockPost = vi.fn().mockRejectedValue(new Error('refresh failed'))
-    vi.doMock('axios', () => ({ default: { create: createSpy, post: mockPost } }))
+    vi.doMock('axios', () => ({ default: { create: createSpy } }))
 
     // Mock window.location
     const originalHref = window.location.href

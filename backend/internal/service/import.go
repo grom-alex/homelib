@@ -26,8 +26,9 @@ type ImportService struct {
 	seriesRepo     *repository.SeriesRepo
 	collectionRepo *repository.CollectionRepo
 
-	mu     sync.Mutex
-	status models.ImportStatus
+	mu       sync.Mutex
+	status   models.ImportStatus
+	cancelFn context.CancelFunc
 }
 
 func NewImportService(
@@ -68,7 +69,12 @@ func (s *ImportService) StartImport() error {
 	}
 	s.mu.Unlock()
 
-	go s.runImport()
+	ctx, cancel := context.WithCancel(context.Background())
+	s.mu.Lock()
+	s.cancelFn = cancel
+	s.mu.Unlock()
+
+	go s.runImport(ctx)
 	return nil
 }
 
@@ -86,9 +92,18 @@ func (s *ImportService) SetStatusForTest(status models.ImportStatus) {
 	s.status = status
 }
 
-func (s *ImportService) runImport() {
+// CancelImport cancels a running import.
+func (s *ImportService) CancelImport() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cancelFn != nil {
+		s.cancelFn()
+	}
+}
+
+func (s *ImportService) runImport(ctx context.Context) {
 	start := time.Now()
-	stats, err := s.importINPX(context.Background())
+	stats, err := s.importINPX(ctx)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
