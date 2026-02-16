@@ -121,8 +121,8 @@ homelib/
 ├── docker/
 │   ├── backend/            # Dockerfile.api, Dockerfile.worker
 │   ├── frontend/           # Dockerfile
-│   └── nginx/              # nginx.conf
-├── docker-compose.yml
+│   ├── nginx/              # nginx.conf
+│   └── docker-compose.dev.yml  # Dev compose (stage/prod — аналогично)
 └── docs/                   # Architecture documentation (Russian)
 ```
 

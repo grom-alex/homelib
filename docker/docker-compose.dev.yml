@@ -18,7 +18,7 @@ services:
 
   api:
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: ../docker/backend/Dockerfile.api
     restart: unless-stopped
     depends_on:
@@ -29,10 +29,10 @@ services:
       DB_USER: homelib
       DB_PASSWORD: ${DB_PASSWORD:-homelib}
       DB_NAME: homelib
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-for-local-dev-must-be-32-chars-long}
     volumes:
       - ${LIBRARY_PATH:-/mnt/smb/media/MyHomeLib/lib.rus.ec}:/library:ro
-      - ./backend/config.yaml:/etc/homelib/config.yaml:ro
+      - ../backend/config.yaml:/etc/homelib/config.yaml:ro
     expose:
       - "8080"
     healthcheck:
@@ -43,7 +43,7 @@ services:
 
   worker:
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: ../docker/backend/Dockerfile.worker
     restart: unless-stopped
     depends_on:
@@ -54,14 +54,14 @@ services:
       DB_USER: homelib
       DB_PASSWORD: ${DB_PASSWORD:-homelib}
       DB_NAME: homelib
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-for-local-dev-must-be-32-chars-long}
     volumes:
       - ${LIBRARY_PATH:-/mnt/smb/media/MyHomeLib/lib.rus.ec}:/library:ro
-      - ./backend/config.yaml:/etc/homelib/config.yaml:ro
+      - ../backend/config.yaml:/etc/homelib/config.yaml:ro
 
   frontend:
     build:
-      context: ./frontend
+      context: ../frontend
       dockerfile: ../docker/frontend/Dockerfile
     restart: unless-stopped
     depends_on:
@@ -78,7 +78,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
 
 volumes:
   postgres_data:

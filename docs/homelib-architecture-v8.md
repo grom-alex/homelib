@@ -2538,7 +2538,6 @@ homelib/
 │   ├── config.prod.yaml
 │   └── genres.json                     # Справочник жанров
 │
-├── docker-compose.yml                  # Основной compose-файл
 ├── .env.example
 ├── .gitignore
 ├── Makefile                            # Корневой Makefile (вызывает backend/frontend)
@@ -2571,10 +2570,9 @@ homelib/
 
 | Файл | Назначение | Особенности |
 |------|------------|-------------|
-| `docker-compose.yml` | Основной файл | Используется для разработки и деплоя |
-| `docker-compose.dev.yml` | Локальная разработка | Hot-reload, volume mounts для кода, debug-порты, Vite dev server |
-| `docker-compose.stage.yml` | Staging/тестирование | Собранные образы, тестовые данные, логирование |
-| `docker-compose.prod.yml` | Продакшн | Оптимизированные образы, ограничения ресурсов, healthchecks |
+| `docker/docker-compose.dev.yml` | Локальная разработка | Hot-reload, volume mounts для кода, debug-порты, Vite dev server |
+| `docker/docker-compose.stage.yml` | Staging/тестирование | Собранные образы, тестовые данные, логирование |
+| `docker/docker-compose.prod.yml` | Продакшн | Оптимизированные образы, ограничения ресурсов, healthchecks |
 
 ---
 
