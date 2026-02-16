@@ -46,7 +46,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: ["worker", "-config", "/etc/homelib/config.yaml"]
+    entrypoint: ["worker"]
+    command: ["-config", "/etc/homelib/config.yaml"]
     depends_on:
       postgres:
         condition: service_healthy

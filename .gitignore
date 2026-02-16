@@ -22,6 +22,9 @@ Thumbs.db
 .env
 .env.*
 
+# Local config (contains secrets)
+backend/config.yaml
+
 # Node.js
 node_modules/
 dist/
