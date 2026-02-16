@@ -2360,6 +2360,22 @@ homelib/
 │   │       └── main.go                 # Фоновый воркер
 │   │
 │   ├── internal/                       # Внутренний код (не импортируется извне)
+│   │   ├── api/                        # HTTP-слой (обёртка для Gin)
+│   │   │   ├── handler/               # HTTP-хендлеры
+│   │   │   │   ├── auth.go            # /api/auth/*
+│   │   │   │   ├── books.go           # /api/books/*
+│   │   │   │   ├── reader.go          # /api/books/:id/content, /chapter/:n
+│   │   │   │   ├── authors.go
+│   │   │   │   ├── genres.go
+│   │   │   │   ├── series.go
+│   │   │   │   ├── search.go
+│   │   │   │   ├── me.go              # /api/me/*
+│   │   │   │   ├── admin.go           # /api/admin/*
+│   │   │   │   └── download.go        # /api/books/:id/download
+│   │   │   ├── middleware/            # Middleware
+│   │   │   │   └── auth.go            # JWT проверка, RequireAuth, RequireAdmin
+│   │   │   ├── router.go              # Маршрутизация (SetupRouter)
+│   │   │   └── server.go              # HTTP-сервер (graceful shutdown)
 │   │   ├── config/
 │   │   │   └── config.go               # Конфигурация (YAML + env)
 │   │   ├── models/                     # Доменные модели
@@ -2391,19 +2407,6 @@ homelib/
 │   │   │   ├── llm_summary.go          # LLMSummarizer — генерация через LLM
 │   │   │   ├── download.go             # Извлечение из ZIP
 │   │   │   └── search.go               # Гибридный поиск
-│   │   ├── handler/                    # HTTP-хендлеры (Gin)
-│   │   │   ├── auth.go                 # /api/auth/*
-│   │   │   ├── books.go                # /api/books/*
-│   │   │   ├── reader.go               # /api/books/:id/content, /chapter/:n
-│   │   │   ├── authors.go
-│   │   │   ├── genres.go
-│   │   │   ├── search.go
-│   │   │   ├── me.go                   # /api/me/*
-│   │   │   └── admin.go                # /api/admin/* (включая саммаризацию)
-│   │   ├── middleware/
-│   │   │   ├── auth.go                 # JWT проверка, извлечение user_id
-│   │   │   ├── admin.go                # Проверка роли admin
-│   │   │   └── cors.go
 │   │   ├── inpx/                       # Парсер .inpx / .inp
 │   │   │   └── parser.go
 │   │   ├── bookfile/                   # Конвертеры форматов книг
@@ -2535,6 +2538,7 @@ homelib/
 │   ├── config.prod.yaml
 │   └── genres.json                     # Справочник жанров
 │
+├── docker-compose.yml                  # Основной compose-файл
 ├── .env.example
 ├── .gitignore
 ├── Makefile                            # Корневой Makefile (вызывает backend/frontend)
@@ -2548,11 +2552,15 @@ homelib/
 | `backend/` | Go-бэкенд: API-сервер и воркер |
 | `backend/cmd/` | Точки входа (минимум кода, только инициализация) |
 | `backend/internal/` | Основной код, не экспортируется как библиотека |
+| `backend/internal/api/` | HTTP-слой: handler/, middleware/, router.go, server.go |
 | `backend/internal/bookfile/` | Конвертеры форматов книг (FB2/EPUB/PDF/DJVU → HTML) |
 | `backend/internal/ollama/` | Ollama Pool: балансировка, embed, generate |
 | `backend/internal/worker/` | Фоновые воркеры: саммаризация, LLM |
 | `backend/migrations/` | SQL-миграции, версионирование схемы БД |
 | `frontend/` | Vue 3 SPA, отдельный npm-проект |
+| `frontend/src/api/` | HTTP-клиент (axios), типы API |
+| `frontend/src/views/` | Vue-страницы (*View.vue) |
+| `frontend/src/components/common/` | Общие UI-компоненты |
 | `frontend/src/components/reader/` | Компоненты браузерной читалки |
 | `frontend/src/composables/` | Логика читалки (пагинация, жесты, настройки) |
 | `docker/` | Dockerfile'ы и compose-файлы для разных окружений |
@@ -2563,6 +2571,7 @@ homelib/
 
 | Файл | Назначение | Особенности |
 |------|------------|-------------|
+| `docker-compose.yml` | Основной файл | Используется для разработки и деплоя |
 | `docker-compose.dev.yml` | Локальная разработка | Hot-reload, volume mounts для кода, debug-порты, Vite dev server |
 | `docker-compose.stage.yml` | Staging/тестирование | Собранные образы, тестовые данные, логирование |
 | `docker-compose.prod.yml` | Продакшн | Оптимизированные образы, ограничения ресурсов, healthchecks |
