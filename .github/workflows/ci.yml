@@ -107,8 +107,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Build backend image
-        run: docker build -t homelib-backend ./backend
+      - name: Build backend API image
+        run: docker build -t homelib-api -f docker/backend/Dockerfile.api ./backend
+
+      - name: Build backend worker image
+        run: docker build -t homelib-worker -f docker/backend/Dockerfile.worker ./backend
 
       - name: Build frontend image
-        run: docker build -t homelib-frontend ./frontend
+        run: docker build -t homelib-frontend -f docker/frontend/Dockerfile ./frontend
