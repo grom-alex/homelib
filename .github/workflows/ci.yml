@@ -101,3 +101,19 @@ jobs:
 
       - name: Build frontend image
         run: docker build -t homelib-frontend -f docker/frontend/Dockerfile ./frontend
+
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [backend, frontend, docker]
+    steps:
+      - name: Check results
+        run: |
+          if [ "${{ needs.backend.result }}" != "success" ] || \
+             [ "${{ needs.frontend.result }}" != "success" ] || \
+             [ "${{ needs.docker.result }}" != "success" ]; then
+            echo "::error::One or more jobs failed"
+            exit 1
+          fi
+          echo "All checks passed"
