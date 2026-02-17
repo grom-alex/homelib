@@ -7,14 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/grom-alex/homelib/backend/internal/models"
-	"github.com/grom-alex/homelib/backend/internal/service"
 )
 
 type BooksHandler struct {
-	catalogSvc *service.CatalogService
+	catalogSvc CatalogServicer
 }
 
-func NewBooksHandler(catalogSvc *service.CatalogService) *BooksHandler {
+func NewBooksHandler(catalogSvc CatalogServicer) *BooksHandler {
 	return &BooksHandler{catalogSvc: catalogSvc}
 }
 

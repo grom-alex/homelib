@@ -4,15 +4,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/grom-alex/homelib/backend/internal/service"
 )
 
 type GenresHandler struct {
-	catalogSvc *service.CatalogService
+	catalogSvc CatalogServicer
 }
 
-func NewGenresHandler(catalogSvc *service.CatalogService) *GenresHandler {
+func NewGenresHandler(catalogSvc CatalogServicer) *GenresHandler {
 	return &GenresHandler{catalogSvc: catalogSvc}
 }
 

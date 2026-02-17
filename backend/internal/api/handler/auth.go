@@ -12,12 +12,12 @@ import (
 )
 
 type AuthHandler struct {
-	authSvc      *service.AuthService
+	authSvc      AuthServicer
 	refreshTTL   time.Duration
 	cookieSecure bool
 }
 
-func NewAuthHandler(authSvc *service.AuthService, refreshTTL time.Duration, cookieSecure bool) *AuthHandler {
+func NewAuthHandler(authSvc AuthServicer, refreshTTL time.Duration, cookieSecure bool) *AuthHandler {
 	return &AuthHandler{authSvc: authSvc, refreshTTL: refreshTTL, cookieSecure: cookieSecure}
 }
 

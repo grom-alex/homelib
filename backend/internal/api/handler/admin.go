@@ -4,15 +4,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/grom-alex/homelib/backend/internal/service"
 )
 
 type AdminHandler struct {
-	importSvc *service.ImportService
+	importSvc ImportServicer
 }
 
-func NewAdminHandler(importSvc *service.ImportService) *AdminHandler {
+func NewAdminHandler(importSvc ImportServicer) *AdminHandler {
 	return &AdminHandler{importSvc: importSvc}
 }
 

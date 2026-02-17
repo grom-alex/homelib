@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -19,7 +21,7 @@ func TestImportService_StartImport_RejectsParallel(t *testing.T) {
 
 	err := svc.StartImport()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "already running")
+	assert.ErrorIs(t, err, ErrImportAlreadyRunning)
 }
 
 func TestImportService_GetStatus_Idle(t *testing.T) {
@@ -40,7 +42,84 @@ func TestImportService_StartImport_InvalidFile(t *testing.T) {
 	// StartImport launches in background, so no immediate error
 	assert.NoError(t, err)
 
-	// Status should transition to running (or quickly to failed)
+	// Wait for goroutine to finish
+	time.Sleep(50 * time.Millisecond)
+
 	status := svc.GetStatus()
-	assert.Contains(t, []string{"running", "failed"}, status.Status)
+	assert.Equal(t, "failed", status.Status)
+	assert.NotNil(t, status.Error)
+	assert.Contains(t, *status.Error, "open INPX file")
+}
+
+func TestImportService_CancelImport_Running(t *testing.T) {
+	svc := NewImportService(nil, config.ImportConfig{}, config.LibraryConfig{}, nil, nil, nil, nil, nil)
+
+	cancelled := false
+	svc.mu.Lock()
+	svc.cancelFn = func() { cancelled = true }
+	svc.mu.Unlock()
+
+	svc.CancelImport()
+
+	assert.True(t, cancelled)
+
+	// cancelFn should be set to nil after calling
+	svc.mu.Lock()
+	assert.Nil(t, svc.cancelFn)
+	svc.mu.Unlock()
+}
+
+func TestImportService_CancelImport_NotRunning(t *testing.T) {
+	svc := NewImportService(nil, config.ImportConfig{}, config.LibraryConfig{}, nil, nil, nil, nil, nil)
+
+	// Should not panic when no cancelFn is set
+	svc.CancelImport()
+}
+
+func TestImportService_SetAppContext(t *testing.T) {
+	svc := NewImportService(nil, config.ImportConfig{}, config.LibraryConfig{}, nil, nil, nil, nil, nil)
+
+	ctx := context.WithValue(context.Background(), struct{}{}, "test")
+	svc.SetAppContext(ctx)
+
+	assert.Equal(t, ctx, svc.appCtx)
+}
+
+func TestImportService_SetStatusForTest(t *testing.T) {
+	svc := NewImportService(nil, config.ImportConfig{}, config.LibraryConfig{}, nil, nil, nil, nil, nil)
+
+	expected := models.ImportStatus{Status: "running", TotalRecords: 100}
+	svc.SetStatusForTest(expected)
+
+	status := svc.GetStatus()
+	assert.Equal(t, "running", status.Status)
+	assert.Equal(t, 100, status.TotalRecords)
+}
+
+func TestImportService_StartImport_WithParentContext(t *testing.T) {
+	svc := NewImportService(nil, config.ImportConfig{BatchSize: 100}, config.LibraryConfig{INPXPath: "/nonexistent/file.inpx"}, nil, nil, nil, nil, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err := svc.StartImport(ctx)
+	assert.NoError(t, err)
+
+	// Wait for goroutine to finish
+	time.Sleep(50 * time.Millisecond)
+
+	status := svc.GetStatus()
+	assert.Equal(t, "failed", status.Status)
+}
+
+func TestImportService_StartImport_DefaultBatchSize(t *testing.T) {
+	svc := NewImportService(nil, config.ImportConfig{BatchSize: 0}, config.LibraryConfig{INPXPath: "/nonexistent/file.inpx"}, nil, nil, nil, nil, nil)
+
+	err := svc.StartImport()
+	assert.NoError(t, err)
+
+	time.Sleep(50 * time.Millisecond)
+
+	status := svc.GetStatus()
+	assert.Equal(t, "failed", status.Status)
 }

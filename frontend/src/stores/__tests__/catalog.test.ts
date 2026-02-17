@@ -98,4 +98,48 @@ describe('catalog store', () => {
     await store.fetchBooks()
     expect(store.totalPages).toBe(3)
   })
+
+  it('fetchBooks aborts previous request', async () => {
+    let resolveFirst: (v: unknown) => void
+    const firstCall = new Promise((resolve) => { resolveFirst = resolve })
+    vi.mocked(booksApi.getBooks)
+      .mockImplementationOnce(() => firstCall as never)
+      .mockResolvedValueOnce({ items: mockBooks as never[], total: 2, page: 1, limit: 20 })
+
+    const store = useCatalogStore()
+    const first = store.fetchBooks()
+    const second = store.fetchBooks()
+
+    resolveFirst!({ items: [], total: 0, page: 1, limit: 20 })
+    await first
+    await second
+
+    expect(store.books).toEqual(mockBooks)
+  })
+
+  it('fetchBooks sets fallback error for non-Error rejection', async () => {
+    vi.mocked(booksApi.getBooks).mockRejectedValue('string error')
+    const store = useCatalogStore()
+    await store.fetchBooks()
+
+    expect(store.error).toBe('Failed to load books')
+  })
+
+  it('fetchBook sets fallback error for non-Error rejection', async () => {
+    vi.mocked(booksApi.getBook).mockRejectedValue('string error')
+    const store = useCatalogStore()
+    await store.fetchBook(1)
+
+    expect(store.error).toBe('Failed to load book')
+  })
+
+  it('fetchBook sets error on failure', async () => {
+    vi.mocked(booksApi.getBook).mockRejectedValue(new Error('Not found'))
+    const store = useCatalogStore()
+    await store.fetchBook(1)
+
+    expect(store.error).toBe('Not found')
+    expect(store.currentBook).toBeNull()
+    expect(store.bookLoading).toBe(false)
+  })
 })

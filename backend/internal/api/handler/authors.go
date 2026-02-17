@@ -5,15 +5,13 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/grom-alex/homelib/backend/internal/service"
 )
 
 type AuthorsHandler struct {
-	catalogSvc *service.CatalogService
+	catalogSvc CatalogServicer
 }
 
-func NewAuthorsHandler(catalogSvc *service.CatalogService) *AuthorsHandler {
+func NewAuthorsHandler(catalogSvc CatalogServicer) *AuthorsHandler {
 	return &AuthorsHandler{catalogSvc: catalogSvc}
 }
 

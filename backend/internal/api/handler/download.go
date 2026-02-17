@@ -8,15 +8,13 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/grom-alex/homelib/backend/internal/service"
 )
 
 type DownloadHandler struct {
-	downloadSvc *service.DownloadService
+	downloadSvc DownloadServicer
 }
 
-func NewDownloadHandler(downloadSvc *service.DownloadService) *DownloadHandler {
+func NewDownloadHandler(downloadSvc DownloadServicer) *DownloadHandler {
 	return &DownloadHandler{downloadSvc: downloadSvc}
 }
 

@@ -5,15 +5,13 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/grom-alex/homelib/backend/internal/service"
 )
 
 type SeriesHandler struct {
-	catalogSvc *service.CatalogService
+	catalogSvc CatalogServicer
 }
 
-func NewSeriesHandler(catalogSvc *service.CatalogService) *SeriesHandler {
+func NewSeriesHandler(catalogSvc CatalogServicer) *SeriesHandler {
 	return &SeriesHandler{catalogSvc: catalogSvc}
 }
 
