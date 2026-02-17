@@ -20,6 +20,7 @@ HomeLib is a personal/home library web application for managing, searching, and 
 - Для каждой фичи/исправления создаётся отдельная ветка от `master`
 - Именование веток: `NNN-short-name` (например, `001-github-ci-setup`)
 - Изменения вливаются в `master` через Pull Request
+- PR мержится через **regular merge** (НЕ squash) — сохраняем полную историю коммитов
 - PR требует прохождения CI (сборка, тесты, линтеры) перед мержем
 - Репозиторий: `git@github.com:grom-alex/homelib.git`
 

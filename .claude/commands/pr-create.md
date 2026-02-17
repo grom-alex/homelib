@@ -24,15 +24,10 @@ git branch --show-current
 
 # Check for uncommitted changes
 git status
-
-# Run linting
-cd backend && gofmt -l .
-cd frontend && npm run lint
 ```
 
 If on master branch, abort with error.
 If there are uncommitted changes, ask user to commit first.
-If linting fails, fix issues before creating PR.
 
 ### 2. Gather PR Information
 
@@ -46,12 +41,15 @@ git diff master..HEAD --stat
 
 ### 3. Determine PR Title
 
-PR title MUST follow project convention:
-- `Feature: Description` - for new features
-- `Fix: Description` - for bug fixes
-- `Refactor: Description` - for refactoring
-- `Docs: Description` - for documentation
-- `Chore: Description` - for maintenance tasks
+PR title MUST follow conventional commits (lowercase):
+- `feat: description` - for new features
+- `fix: description` - for bug fixes
+- `refactor: description` - for refactoring
+- `docs: description` - for documentation
+- `infra: description` - for infrastructure/CI/Docker changes
+- `chore: description` - for maintenance tasks
+
+Scope is optional: `fix(ci): description`, `feat(auth): description`
 
 If user provided a title in arguments, validate it matches convention.
 Otherwise, derive from branch name and commits.
@@ -96,5 +94,5 @@ After PR is created:
 ## Arguments
 
 User can provide:
-- PR title as argument (e.g., `/pr-create Feature: Add user authentication`)
+- PR title as argument (e.g., `/pr-create feat: add user authentication`)
 - `--draft`: Create as draft PR
