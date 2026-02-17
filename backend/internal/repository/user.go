@@ -67,6 +67,43 @@ func (r *UserRepo) CountUsers(ctx context.Context) (int, error) {
 	return count, nil
 }
 
+// RegisterUser atomically checks user count and creates a user within a transaction.
+// First user gets "admin" role. Returns the created user.
+func (r *UserRepo) RegisterUser(ctx context.Context, user *models.User, registrationEnabled bool) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// Lock users table to prevent race condition on first registration
+	var count int
+	err = tx.QueryRow(ctx, "SELECT COUNT(*) FROM users FOR UPDATE").Scan(&count)
+	if err != nil {
+		return fmt.Errorf("count users: %w", err)
+	}
+
+	if !registrationEnabled && count > 0 {
+		return fmt.Errorf("registration is disabled")
+	}
+
+	if count == 0 {
+		user.Role = "admin"
+	}
+
+	err = tx.QueryRow(ctx,
+		`INSERT INTO users (email, username, display_name, password_hash, role)
+		 VALUES ($1, $2, $3, $4, $5)
+		 RETURNING id, created_at, updated_at`,
+		user.Email, user.Username, user.DisplayName, user.PasswordHash, user.Role,
+	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("create user: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
 func (r *UserRepo) UpdateLastLogin(ctx context.Context, id string) error {
 	_, err := r.pool.Exec(ctx,
 		"UPDATE users SET last_login_at = NOW() WHERE id = $1", id)

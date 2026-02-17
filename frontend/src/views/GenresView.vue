@@ -2,6 +2,10 @@
   <v-container>
     <h1 class="text-h4 mb-4">Жанры</h1>
 
+    <v-alert v-if="error" type="error" class="mb-4" closable @click:close="error = ''">
+      {{ error }}
+    </v-alert>
+
     <v-progress-linear v-if="loading" indeterminate color="primary" class="mb-4" />
 
     <v-treeview
@@ -25,6 +29,7 @@ import { getGenres, type GenreTreeItem } from '@/api/books'
 
 const genres = ref<GenreTreeItem[]>([])
 const loading = ref(false)
+const error = ref('')
 
 interface TreeItem {
   id: number
@@ -44,8 +49,11 @@ const treeItems = computed(() => genres.value.map(mapGenreToTree))
 
 onMounted(async () => {
   loading.value = true
+  error.value = ''
   try {
     genres.value = await getGenres()
+  } catch {
+    error.value = 'Не удалось загрузить список жанров'
   } finally {
     loading.value = false
   }

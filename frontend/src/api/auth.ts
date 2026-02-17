@@ -1,4 +1,5 @@
 import api from './client'
+import { refreshClient } from './client'
 
 export interface UserInfo {
   id: string
@@ -36,7 +37,7 @@ export async function login(input: LoginInput): Promise<AuthResponse> {
 }
 
 export async function refresh(): Promise<AuthResponse> {
-  const { data } = await api.post<AuthResponse>('/auth/refresh')
+  const { data } = await refreshClient.post<AuthResponse>('/auth/refresh')
   return data
 }
 

@@ -38,15 +38,11 @@ type AuthResult struct {
 }
 
 // Register creates a new user. First user becomes admin.
+// Uses a transaction to prevent race conditions on first registration.
 func (s *AuthService) Register(ctx context.Context, input models.CreateUserInput) (*AuthResult, error) {
-	if !s.cfg.RegistrationEnabled {
-		count, err := s.userRepo.CountUsers(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("count users: %w", err)
-		}
-		if count > 0 {
-			return nil, fmt.Errorf("registration is disabled")
-		}
+	// Validate password length in bytes (bcrypt silently truncates at 72 bytes)
+	if len([]byte(input.Password)) > 72 {
+		return nil, fmt.Errorf("password too long (max 72 bytes)")
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
@@ -54,26 +50,16 @@ func (s *AuthService) Register(ctx context.Context, input models.CreateUserInput
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
 
-	// First user = admin
-	role := "user"
-	count, err := s.userRepo.CountUsers(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("count users: %w", err)
-	}
-	if count == 0 {
-		role = "admin"
-	}
-
 	user := &models.User{
 		Email:        strings.ToLower(strings.TrimSpace(input.Email)),
 		Username:     strings.TrimSpace(input.Username),
 		DisplayName:  strings.TrimSpace(input.DisplayName),
 		PasswordHash: string(hash),
-		Role:         role,
+		Role:         "user",
 		IsActive:     true,
 	}
 
-	if err := s.userRepo.Create(ctx, user); err != nil {
+	if err := s.userRepo.RegisterUser(ctx, user, s.cfg.RegistrationEnabled); err != nil {
 		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
 			return nil, fmt.Errorf("user already exists")
 		}

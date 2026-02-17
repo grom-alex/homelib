@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 
 	"github.com/grom-alex/homelib/backend/internal/archive"
 	"github.com/grom-alex/homelib/backend/internal/config"
@@ -34,7 +35,23 @@ func (s *DownloadService) DownloadBook(ctx context.Context, bookID int64) (*Down
 		return nil, fmt.Errorf("book not found: %w", err)
 	}
 
+	if archiveName == "" || fileInArchive == "" {
+		return nil, fmt.Errorf("book not found: missing archive info")
+	}
+
+	// Prevent path traversal: ensure resolved path stays within ArchivesPath
 	archivePath := filepath.Join(s.libCfg.ArchivesPath, archiveName)
+	absArchivePath, err := filepath.Abs(archivePath)
+	if err != nil {
+		return nil, fmt.Errorf("invalid archive path: %w", err)
+	}
+	absBasePath, err := filepath.Abs(s.libCfg.ArchivesPath)
+	if err != nil {
+		return nil, fmt.Errorf("invalid base path: %w", err)
+	}
+	if !strings.HasPrefix(absArchivePath, absBasePath+string(filepath.Separator)) && absArchivePath != absBasePath {
+		return nil, fmt.Errorf("book not found: invalid archive path")
+	}
 
 	reader, size, err := archive.ExtractFile(archivePath, fileInArchive)
 	if err != nil {

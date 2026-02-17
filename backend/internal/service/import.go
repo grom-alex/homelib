@@ -55,8 +55,9 @@ func NewImportService(
 }
 
 // StartImport begins an INPX import in the background.
+// The parent context is used so the import respects application shutdown signals.
 // Returns an error if an import is already running.
-func (s *ImportService) StartImport() error {
+func (s *ImportService) StartImport(parentCtx ...context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -64,7 +65,11 @@ func (s *ImportService) StartImport() error {
 		return fmt.Errorf("import is already running")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	base := context.Background()
+	if len(parentCtx) > 0 && parentCtx[0] != nil {
+		base = parentCtx[0]
+	}
+	ctx, cancel := context.WithCancel(base)
 	now := time.Now()
 	s.status = models.ImportStatus{
 		Status:    "running",
@@ -438,21 +443,30 @@ func (s *ImportService) processBatch(
 	stats.BooksAdded = inserted
 	stats.BooksUpdated = updated
 
-	// Set M:N relationships
+	// Set M:N relationships in bulk (2 queries each instead of N*M)
+	bookAuthors := make(map[int64][]int64)
+	bookGenres := make(map[int64][]int32)
 	for i, book := range books {
 		if book.ID == 0 {
 			continue
 		}
 		if len(metas[i].authorIDs) > 0 {
-			if err := s.bookRepo.SetBookAuthors(ctx, tx, book.ID, metas[i].authorIDs); err != nil {
-				return stats, err
-			}
+			bookAuthors[book.ID] = metas[i].authorIDs
 		}
 		if len(metas[i].genreIDs) > 0 {
-			if err := s.bookRepo.SetBookGenres(ctx, tx, book.ID, metas[i].genreIDs); err != nil {
-				return stats, err
+			gIDs := make([]int32, len(metas[i].genreIDs))
+			for j, id := range metas[i].genreIDs {
+				gIDs[j] = int32(id)
 			}
+			bookGenres[book.ID] = gIDs
 		}
+	}
+
+	if err := s.bookRepo.BatchSetBookAuthors(ctx, tx, bookAuthors); err != nil {
+		return stats, err
+	}
+	if err := s.bookRepo.BatchSetBookGenres(ctx, tx, bookGenres); err != nil {
+		return stats, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"time"
 
@@ -31,8 +32,14 @@ type DatabaseConfig struct {
 }
 
 func (d DatabaseConfig) DSN() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		d.User, d.Password, d.Host, d.Port, d.DBName, d.SSLMode)
+	u := &url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(d.User, d.Password),
+		Host:     fmt.Sprintf("%s:%d", d.Host, d.Port),
+		Path:     d.DBName,
+		RawQuery: fmt.Sprintf("sslmode=%s", url.QueryEscape(d.SSLMode)),
+	}
+	return u.String()
 }
 
 type AuthConfig struct {

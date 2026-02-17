@@ -62,12 +62,16 @@ func (a Author) FullName() string {
 	return strings.Join(parts, " ")
 }
 
-// SortName returns the name in "LastName, FirstName" form for sorting.
+// SortName returns the name in "LastName, FirstName MiddleName" form for sorting and dedup.
 func (a Author) SortName() string {
 	if a.FirstName == "" {
 		return a.LastName
 	}
-	return a.LastName + ", " + a.FirstName
+	name := a.LastName + ", " + a.FirstName
+	if a.MiddleName != "" {
+		name += " " + a.MiddleName
+	}
+	return name
 }
 
 // BookRecord represents a single book entry parsed from an .inp file.

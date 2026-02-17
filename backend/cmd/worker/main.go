@@ -46,7 +46,7 @@ func main() {
 
 		importSvc := service.NewImportService(pool, cfg.Import, cfg.Library, bookRepo, authorRepo, genreRepo, seriesRepo, collectionRepo)
 
-		if err := importSvc.StartImport(); err != nil {
+		if err := importSvc.StartImport(ctx); err != nil {
 			log.Fatalf("Failed to start import: %v", err)
 		}
 

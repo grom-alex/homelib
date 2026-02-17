@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockPost = vi.fn()
+const mockRefreshPost = vi.fn()
 vi.mock('../client', () => ({
   default: {
     post: (...args: unknown[]) => mockPost(...args),
+  },
+  refreshClient: {
+    post: (...args: unknown[]) => mockRefreshPost(...args),
   },
 }))
 
@@ -30,11 +34,11 @@ describe('auth service', () => {
     expect(result).toEqual(response)
   })
 
-  it('refresh calls POST /auth/refresh', async () => {
+  it('refresh calls POST /auth/refresh via refreshClient', async () => {
     const response = { user: { id: '1', email: 'a@b.com', username: 'u', display_name: 'U', role: 'user' }, access_token: 'new' }
-    mockPost.mockResolvedValue({ data: response })
+    mockRefreshPost.mockResolvedValue({ data: response })
     const result = await refresh()
-    expect(mockPost).toHaveBeenCalledWith('/auth/refresh')
+    expect(mockRefreshPost).toHaveBeenCalledWith('/auth/refresh')
     expect(result).toEqual(response)
   })
 

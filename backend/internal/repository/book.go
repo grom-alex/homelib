@@ -20,43 +20,54 @@ func NewBookRepo(pool *pgxpool.Pool) *BookRepo {
 }
 
 // BatchUpsert inserts or updates books using ON CONFLICT (collection_id, lib_id).
+// Uses pgx.Batch to send all upserts in a single network round-trip.
 // Returns the number of inserted and updated books.
 func (r *BookRepo) BatchUpsert(ctx context.Context, tx pgx.Tx, books []models.Book) (inserted, updated int, err error) {
-	for i := range books {
-		var id int64
-		var isNew bool
+	if len(books) == 0 {
+		return 0, 0, nil
+	}
 
-		err := tx.QueryRow(ctx,
-			`INSERT INTO books (collection_id, title, lang, year, format, file_size,
-				archive_name, file_in_archive, series_id, series_num, series_type,
-				lib_id, lib_rate, is_deleted, description, keywords, date_added)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-			 ON CONFLICT (collection_id, lib_id) DO UPDATE SET
-				title = EXCLUDED.title,
-				lang = EXCLUDED.lang,
-				year = EXCLUDED.year,
-				format = EXCLUDED.format,
-				file_size = EXCLUDED.file_size,
-				archive_name = EXCLUDED.archive_name,
-				file_in_archive = EXCLUDED.file_in_archive,
-				series_id = EXCLUDED.series_id,
-				series_num = EXCLUDED.series_num,
-				series_type = EXCLUDED.series_type,
-				lib_rate = EXCLUDED.lib_rate,
-				is_deleted = EXCLUDED.is_deleted,
-				description = EXCLUDED.description,
-				keywords = EXCLUDED.keywords,
-				date_added = EXCLUDED.date_added,
-				updated_at = NOW()
-			 RETURNING id, (xmax = 0) as is_new`,
+	const upsertSQL = `INSERT INTO books (collection_id, title, lang, year, format, file_size,
+			archive_name, file_in_archive, series_id, series_num, series_type,
+			lib_id, lib_rate, is_deleted, description, keywords, date_added)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+		 ON CONFLICT (collection_id, lib_id) DO UPDATE SET
+			title = EXCLUDED.title,
+			lang = EXCLUDED.lang,
+			year = EXCLUDED.year,
+			format = EXCLUDED.format,
+			file_size = EXCLUDED.file_size,
+			archive_name = EXCLUDED.archive_name,
+			file_in_archive = EXCLUDED.file_in_archive,
+			series_id = EXCLUDED.series_id,
+			series_num = EXCLUDED.series_num,
+			series_type = EXCLUDED.series_type,
+			lib_rate = EXCLUDED.lib_rate,
+			is_deleted = EXCLUDED.is_deleted,
+			description = EXCLUDED.description,
+			keywords = EXCLUDED.keywords,
+			date_added = EXCLUDED.date_added,
+			updated_at = NOW()
+		 RETURNING id, (xmax = 0) as is_new`
+
+	batch := &pgx.Batch{}
+	for i := range books {
+		batch.Queue(upsertSQL,
 			books[i].CollectionID, books[i].Title, books[i].Lang, books[i].Year, books[i].Format, books[i].FileSize,
 			books[i].ArchiveName, books[i].FileInArchive, books[i].SeriesID, books[i].SeriesNum, books[i].SeriesType,
 			books[i].LibID, books[i].LibRate, books[i].IsDeleted, books[i].Description, books[i].Keywords, books[i].DateAdded,
-		).Scan(&id, &isNew)
-		if err != nil {
+		)
+	}
+
+	br := tx.SendBatch(ctx, batch)
+	defer func() { _ = br.Close() }()
+
+	for i := range books {
+		var id int64
+		var isNew bool
+		if err := br.QueryRow().Scan(&id, &isNew); err != nil {
 			return inserted, updated, fmt.Errorf("upsert book lib_id=%s: %w", books[i].LibID, err)
 		}
-
 		books[i].ID = id
 		if isNew {
 			inserted++
@@ -68,41 +79,86 @@ func (r *BookRepo) BatchUpsert(ctx context.Context, tx pgx.Tx, books []models.Bo
 	return inserted, updated, nil
 }
 
-// SetBookAuthors replaces all author associations for a book.
-func (r *BookRepo) SetBookAuthors(ctx context.Context, tx pgx.Tx, bookID int64, authorIDs []int64) error {
-	_, err := tx.Exec(ctx, `DELETE FROM book_authors WHERE book_id = $1`, bookID)
+// BatchSetBookAuthors replaces author associations for all specified books in bulk.
+// Uses 2 queries (DELETE + INSERT via unnest) instead of N*M individual statements.
+func (r *BookRepo) BatchSetBookAuthors(ctx context.Context, tx pgx.Tx, bookAuthors map[int64][]int64) error {
+	if len(bookAuthors) == 0 {
+		return nil
+	}
+
+	bookIDs := make([]int64, 0, len(bookAuthors))
+	for id := range bookAuthors {
+		bookIDs = append(bookIDs, id)
+	}
+
+	_, err := tx.Exec(ctx, `DELETE FROM book_authors WHERE book_id = ANY($1)`, bookIDs)
 	if err != nil {
 		return fmt.Errorf("delete book_authors: %w", err)
 	}
 
-	for _, authorID := range authorIDs {
-		_, err := tx.Exec(ctx,
-			`INSERT INTO book_authors (book_id, author_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-			bookID, authorID,
-		)
-		if err != nil {
-			return fmt.Errorf("insert book_author: %w", err)
+	var insertBookIDs, insertAuthorIDs []int64
+	for bookID, authorIDs := range bookAuthors {
+		for _, authorID := range authorIDs {
+			insertBookIDs = append(insertBookIDs, bookID)
+			insertAuthorIDs = append(insertAuthorIDs, authorID)
 		}
+	}
+
+	if len(insertBookIDs) == 0 {
+		return nil
+	}
+
+	_, err = tx.Exec(ctx,
+		`INSERT INTO book_authors (book_id, author_id)
+		 SELECT * FROM unnest($1::bigint[], $2::bigint[])
+		 ON CONFLICT DO NOTHING`,
+		insertBookIDs, insertAuthorIDs,
+	)
+	if err != nil {
+		return fmt.Errorf("batch insert book_authors: %w", err)
 	}
 
 	return nil
 }
 
-// SetBookGenres replaces all genre associations for a book.
-func (r *BookRepo) SetBookGenres(ctx context.Context, tx pgx.Tx, bookID int64, genreIDs []int) error {
-	_, err := tx.Exec(ctx, `DELETE FROM book_genres WHERE book_id = $1`, bookID)
+// BatchSetBookGenres replaces genre associations for all specified books in bulk.
+// Uses 2 queries (DELETE + INSERT via unnest) instead of N*M individual statements.
+func (r *BookRepo) BatchSetBookGenres(ctx context.Context, tx pgx.Tx, bookGenres map[int64][]int32) error {
+	if len(bookGenres) == 0 {
+		return nil
+	}
+
+	bookIDs := make([]int64, 0, len(bookGenres))
+	for id := range bookGenres {
+		bookIDs = append(bookIDs, id)
+	}
+
+	_, err := tx.Exec(ctx, `DELETE FROM book_genres WHERE book_id = ANY($1)`, bookIDs)
 	if err != nil {
 		return fmt.Errorf("delete book_genres: %w", err)
 	}
 
-	for _, genreID := range genreIDs {
-		_, err := tx.Exec(ctx,
-			`INSERT INTO book_genres (book_id, genre_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-			bookID, genreID,
-		)
-		if err != nil {
-			return fmt.Errorf("insert book_genre: %w", err)
+	var insertBookIDs []int64
+	var insertGenreIDs []int32
+	for bookID, genreIDs := range bookGenres {
+		for _, genreID := range genreIDs {
+			insertBookIDs = append(insertBookIDs, bookID)
+			insertGenreIDs = append(insertGenreIDs, genreID)
 		}
+	}
+
+	if len(insertBookIDs) == 0 {
+		return nil
+	}
+
+	_, err = tx.Exec(ctx,
+		`INSERT INTO book_genres (book_id, genre_id)
+		 SELECT * FROM unnest($1::bigint[], $2::int[])
+		 ON CONFLICT DO NOTHING`,
+		insertBookIDs, insertGenreIDs,
+	)
+	if err != nil {
+		return fmt.Errorf("batch insert book_genres: %w", err)
 	}
 
 	return nil

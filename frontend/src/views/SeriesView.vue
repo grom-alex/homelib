@@ -15,6 +15,10 @@
       @click:clear="query = ''; fetchData()"
     />
 
+    <v-alert v-if="error" type="error" class="mb-4" closable @click:close="error = ''">
+      {{ error }}
+    </v-alert>
+
     <v-progress-linear v-if="loading" indeterminate color="primary" class="mb-4" />
 
     <v-list>
@@ -42,6 +46,7 @@ import { getSeries, type SeriesListItem } from '@/api/books'
 
 const seriesList = ref<SeriesListItem[]>([])
 const loading = ref(false)
+const error = ref('')
 const query = ref('')
 const page = ref(1)
 const total = ref(0)
@@ -60,11 +65,14 @@ function onSearch() {
 
 async function fetchData() {
   loading.value = true
+  error.value = ''
   try {
     const result = await getSeries({ q: query.value || undefined, page: page.value, limit })
     seriesList.value = result.items
     total.value = result.total
     totalPages.value = Math.ceil(result.total / limit)
+  } catch {
+    error.value = 'Не удалось загрузить список серий'
   } finally {
     loading.value = false
   }

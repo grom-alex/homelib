@@ -15,7 +15,7 @@
 
             <v-window v-model="tab">
               <v-window-item value="login">
-                <v-form @submit.prevent="handleLogin">
+                <v-form ref="loginFormRef" @submit.prevent="handleLogin">
                   <v-text-field
                     v-model="loginForm.email"
                     label="Email"
@@ -39,7 +39,7 @@
               </v-window-item>
 
               <v-window-item value="register">
-                <v-form @submit.prevent="handleRegister">
+                <v-form ref="registerFormRef" @submit.prevent="handleRegister">
                   <v-text-field
                     v-model="registerForm.email"
                     label="Email"
@@ -84,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -94,6 +94,9 @@ const router = useRouter()
 const tab = ref('login')
 const loading = ref(false)
 const error = ref('')
+
+const loginFormRef: Ref<{ validate: () => Promise<{ valid: boolean }> } | null> = ref(null)
+const registerFormRef: Ref<{ validate: () => Promise<{ valid: boolean }> } | null> = ref(null)
 
 const loginForm = reactive({ email: '', password: '' })
 const registerForm = reactive({ email: '', username: '', display_name: '', password: '' })
@@ -105,6 +108,8 @@ const rules = {
 }
 
 async function handleLogin() {
+  const { valid } = await loginFormRef.value!.validate()
+  if (!valid) return
   loading.value = true
   error.value = ''
   try {
@@ -123,6 +128,8 @@ async function handleLogin() {
 }
 
 async function handleRegister() {
+  const { valid } = await registerFormRef.value!.validate()
+  if (!valid) return
   loading.value = true
   error.value = ''
   try {

@@ -8,7 +8,6 @@ vi.mock('@/router', () => ({
 describe('api service', () => {
   beforeEach(() => {
     vi.resetModules()
-    sessionStorage.clear()
   })
 
   it('creates axios instance with /api baseURL', async () => {
@@ -26,7 +25,7 @@ describe('api service', () => {
     )
   })
 
-  it('request interceptor adds Bearer token from sessionStorage', async () => {
+  it('request interceptor adds Bearer token from memory', async () => {
     let requestInterceptor: (config: { headers: Record<string, string> }) => { headers: Record<string, string> }
     const createSpy = vi.fn().mockReturnValue({
       interceptors: {
@@ -37,9 +36,9 @@ describe('api service', () => {
       },
     })
     vi.doMock('axios', () => ({ default: { create: createSpy } }))
-    await import('../client')
+    const mod = await import('../client')
 
-    sessionStorage.setItem('access_token', 'my-token')
+    mod.setAccessToken('my-token')
     const config = { headers: {} as Record<string, string> }
     const result = requestInterceptor!(config)
     expect(result.headers.Authorization).toBe('Bearer my-token')
@@ -93,7 +92,6 @@ describe('api service', () => {
 
     const result = await responseRejector!(error)
     expect(mockRefreshPost).toHaveBeenCalledWith('/auth/refresh')
-    expect(sessionStorage.getItem('access_token')).toBe('new-tok')
     expect(result).toEqual({ data: 'retry-success' })
   })
 
@@ -121,14 +119,12 @@ describe('api service', () => {
     await import('../client')
     const router = (await import('@/router')).default
 
-    sessionStorage.setItem('access_token', 'old-tok')
     const error = {
       response: { status: 401 },
       config: { headers: {}, _retry: false, url: '/books' },
     }
 
     await expect(responseRejector!(error)).rejects.toBeDefined()
-    expect(sessionStorage.getItem('access_token')).toBeNull()
     expect(router.push).toHaveBeenCalledWith({ name: 'login' })
   })
 

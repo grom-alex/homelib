@@ -1,6 +1,13 @@
 import axios from 'axios'
 import router from '@/router'
 
+// Access token stored in memory only (not sessionStorage/localStorage)
+let accessToken: string | null = null
+
+export function setAccessToken(token: string | null) {
+  accessToken = token
+}
+
 const api = axios.create({
   baseURL: '/api',
   headers: {
@@ -10,9 +17,8 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('access_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`
   }
   return config
 })
@@ -30,7 +36,7 @@ function addRefreshSubscriber(cb: (token: string) => void) {
 }
 
 // Separate instance for refresh to avoid interceptor loop
-const refreshClient = axios.create({
+export const refreshClient = axios.create({
   baseURL: '/api',
   withCredentials: true,
 })
@@ -58,12 +64,12 @@ api.interceptors.response.use(
 
       try {
         const { data } = await refreshClient.post('/auth/refresh')
-        sessionStorage.setItem('access_token', data.access_token)
+        accessToken = data.access_token
         originalRequest.headers.Authorization = `Bearer ${data.access_token}`
         onRefreshed(data.access_token)
         return api(originalRequest)
       } catch {
-        sessionStorage.removeItem('access_token')
+        accessToken = null
         refreshSubscribers = []
         router.push({ name: 'login' })
         return Promise.reject(error)

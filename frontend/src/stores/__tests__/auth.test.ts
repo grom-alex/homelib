@@ -9,6 +9,11 @@ vi.mock('@/api/auth', () => ({
   logout: vi.fn(),
 }))
 
+vi.mock('@/api/client', () => ({
+  default: {},
+  setAccessToken: vi.fn(),
+}))
+
 import * as authApi from '@/api/auth'
 
 const mockUser = {
@@ -22,7 +27,6 @@ const mockUser = {
 describe('auth store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    sessionStorage.clear()
     vi.clearAllMocks()
   })
 
@@ -44,7 +48,6 @@ describe('auth store', () => {
     expect(store.isAuthenticated).toBe(true)
     expect(store.user).toEqual(mockUser)
     expect(store.accessToken).toBe('tok123')
-    expect(sessionStorage.getItem('access_token')).toBe('tok123')
   })
 
   it('logout clears state', async () => {
@@ -55,7 +58,6 @@ describe('auth store', () => {
     await store.logout()
     expect(store.isAuthenticated).toBe(false)
     expect(store.user).toBeNull()
-    expect(sessionStorage.getItem('access_token')).toBeNull()
   })
 
   it('isAdmin returns true for admin role', () => {
@@ -107,14 +109,14 @@ describe('auth store', () => {
     expect(store.isAuthenticated).toBe(false)
   })
 
-  it('init restores token and refreshes session', async () => {
+  it('init refreshes session via httpOnly cookie', async () => {
     vi.mocked(authApi.refresh).mockResolvedValue({
       user: mockUser,
       access_token: 'refreshed',
     })
-    sessionStorage.setItem('access_token', 'stored')
     const store = useAuthStore()
     await store.init()
+    expect(authApi.refresh).toHaveBeenCalled()
     expect(store.accessToken).toBe('refreshed')
     expect(store.user).toEqual(mockUser)
     expect(store.initialized).toBe(true)
@@ -122,7 +124,6 @@ describe('auth store', () => {
 
   it('init clears auth if refresh fails', async () => {
     vi.mocked(authApi.refresh).mockRejectedValue(new Error('expired'))
-    sessionStorage.setItem('access_token', 'stored')
     const store = useAuthStore()
     await store.init()
     expect(store.accessToken).toBeNull()
@@ -135,19 +136,11 @@ describe('auth store', () => {
       user: mockUser,
       access_token: 'refreshed',
     })
-    sessionStorage.setItem('access_token', 'stored')
     const store = useAuthStore()
     await store.init()
     vi.mocked(authApi.refresh).mockClear()
     await store.init()
     expect(authApi.refresh).not.toHaveBeenCalled()
-  })
-
-  it('init skips refresh if no stored token', async () => {
-    const store = useAuthStore()
-    await store.init()
-    expect(authApi.refresh).not.toHaveBeenCalled()
-    expect(store.initialized).toBe(true)
   })
 
   it('clearAuth removes everything', () => {

@@ -2,11 +2,13 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserInfo, RegisterInput, LoginInput } from '@/api/auth'
 import * as authApi from '@/api/auth'
+import { setAccessToken } from '@/api/client'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserInfo | null>(null)
   const accessToken = ref<string | null>(null)
   const initialized = ref(false)
+  let initPromise: Promise<void> | null = null
 
   const isAuthenticated = computed(() => !!accessToken.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
@@ -14,13 +16,13 @@ export const useAuthStore = defineStore('auth', () => {
   function setAuth(data: { user: UserInfo; access_token: string }) {
     user.value = data.user
     accessToken.value = data.access_token
-    sessionStorage.setItem('access_token', data.access_token)
+    setAccessToken(data.access_token)
   }
 
   function clearAuth() {
     user.value = null
     accessToken.value = null
-    sessionStorage.removeItem('access_token')
+    setAccessToken(null)
   }
 
   async function login(input: LoginInput) {
@@ -56,17 +58,21 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function init() {
     if (initialized.value) return
-    const token = sessionStorage.getItem('access_token')
-    if (token) {
-      accessToken.value = token
-      try {
-        const data = await authApi.refresh()
-        setAuth(data)
-      } catch {
-        clearAuth()
-      }
+    if (initPromise) return initPromise
+    initPromise = doInit()
+    return initPromise
+  }
+
+  async function doInit() {
+    try {
+      const data = await authApi.refresh()
+      setAuth(data)
+    } catch {
+      clearAuth()
+    } finally {
+      initialized.value = true
+      initPromise = null
     }
-    initialized.value = true
   }
 
   return {
