@@ -42,7 +42,7 @@ NGINX_PORT="${NGINX_PORT:-80}"
 SKIP_CONFIRM=false
 SKIP_HEALTH=false
 DRY_RUN=false
-HEALTH_TIMEOUT=60
+HEALTH_TIMEOUT=120
 REMOTE_APP_DIR="/opt/homelib"
 
 ssh_exec() {
@@ -258,7 +258,27 @@ ssh_exec "
     echo 'Starting services...'
     docker compose up -d --remove-orphans
 
-    echo 'Deployment commands executed'
+    # Перезапуск nginx для обновления DNS (upstream IP мог измениться)
+    echo 'Restarting nginx to refresh upstream DNS...'
+    docker compose restart nginx
+
+    # Ожидание готовности контейнеров
+    echo 'Waiting for containers to start...'
+    WAIT_TIMEOUT=90
+    ELAPSED=0
+    while [ \$ELAPSED -lt \$WAIT_TIMEOUT ]; do
+        STATUSES=\$(docker compose ps --format '{{.Status}}' 2>/dev/null)
+        if echo \"\$STATUSES\" | grep -qi 'starting'; then
+            sleep 5
+            ELAPSED=\$((ELAPSED + 5))
+            echo \"  Waiting for containers... (\${ELAPSED}s/\${WAIT_TIMEOUT}s)\"
+        else
+            echo 'All containers started'
+            break
+        fi
+    done
+
+    docker compose ps
 "
 log_info "Deployment complete"
 
