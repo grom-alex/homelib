@@ -42,6 +42,22 @@ func (r *RefreshTokenRepo) GetUserIDByTokenHash(ctx context.Context, tokenHash s
 	return userID, nil
 }
 
+// DeleteAndReturnUserID atomically deletes a valid (unexpired) refresh token
+// and returns its user_id. This prevents race conditions in token rotation.
+func (r *RefreshTokenRepo) DeleteAndReturnUserID(ctx context.Context, tokenHash string) (string, error) {
+	var userID string
+	err := r.pool.QueryRow(ctx,
+		`DELETE FROM refresh_tokens
+		 WHERE token_hash = $1 AND expires_at > NOW()
+		 RETURNING user_id`,
+		tokenHash,
+	).Scan(&userID)
+	if err != nil {
+		return "", fmt.Errorf("delete refresh token: %w", err)
+	}
+	return userID, nil
+}
+
 func (r *RefreshTokenRepo) Delete(ctx context.Context, tokenHash string) error {
 	_, err := r.pool.Exec(ctx,
 		"DELETE FROM refresh_tokens WHERE token_hash = $1", tokenHash)

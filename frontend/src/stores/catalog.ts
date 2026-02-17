@@ -8,6 +8,7 @@ export const useCatalogStore = defineStore('catalog', () => {
   const total = ref(0)
   const currentBook = ref<BookDetail | null>(null)
   const loading = ref(false)
+  const bookLoading = ref(false)
   const error = ref<string | null>(null)
 
   const filters = ref<BookFilters>({
@@ -19,22 +20,35 @@ export const useCatalogStore = defineStore('catalog', () => {
 
   const totalPages = computed(() => Math.ceil(total.value / (filters.value.limit || 20)))
 
+  let fetchBooksController: AbortController | null = null
+
   async function fetchBooks() {
+    if (fetchBooksController) {
+      fetchBooksController.abort()
+    }
+    fetchBooksController = new AbortController()
+    const controller = fetchBooksController
+
     loading.value = true
     error.value = null
     try {
-      const result = await booksApi.getBooks(filters.value)
-      books.value = result.items
-      total.value = result.total
+      const result = await booksApi.getBooks(filters.value, controller.signal)
+      if (!controller.signal.aborted) {
+        books.value = result.items
+        total.value = result.total
+      }
     } catch (e: unknown) {
+      if (controller.signal.aborted) return
       error.value = e instanceof Error ? e.message : 'Failed to load books'
     } finally {
-      loading.value = false
+      if (!controller.signal.aborted) {
+        loading.value = false
+      }
     }
   }
 
   async function fetchBook(id: number) {
-    loading.value = true
+    bookLoading.value = true
     error.value = null
     currentBook.value = null
     try {
@@ -42,7 +56,7 @@ export const useCatalogStore = defineStore('catalog', () => {
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : 'Failed to load book'
     } finally {
-      loading.value = false
+      bookLoading.value = false
     }
   }
 
@@ -66,6 +80,7 @@ export const useCatalogStore = defineStore('catalog', () => {
     total,
     currentBook,
     loading,
+    bookLoading,
     error,
     filters,
     totalPages,

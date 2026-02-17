@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -31,12 +31,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	result, err := h.authSvc.Register(c.Request.Context(), input)
 	if err != nil {
-		msg := err.Error()
 		switch {
-		case strings.Contains(msg, "already exists"):
-			c.JSON(http.StatusConflict, gin.H{"error": msg})
-		case strings.Contains(msg, "registration is disabled"):
-			c.JSON(http.StatusForbidden, gin.H{"error": msg})
+		case errors.Is(err, service.ErrUserAlreadyExists):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		case errors.Is(err, service.ErrRegistrationDisabled):
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		case errors.Is(err, service.ErrPasswordTooLong):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "registration failed"})
 		}

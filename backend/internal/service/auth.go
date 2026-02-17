@@ -42,7 +42,7 @@ type AuthResult struct {
 func (s *AuthService) Register(ctx context.Context, input models.CreateUserInput) (*AuthResult, error) {
 	// Validate password length in bytes (bcrypt silently truncates at 72 bytes)
 	if len([]byte(input.Password)) > 72 {
-		return nil, fmt.Errorf("password too long (max 72 bytes)")
+		return nil, ErrPasswordTooLong
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
@@ -61,7 +61,10 @@ func (s *AuthService) Register(ctx context.Context, input models.CreateUserInput
 
 	if err := s.userRepo.RegisterUser(ctx, user, s.cfg.RegistrationEnabled); err != nil {
 		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
-			return nil, fmt.Errorf("user already exists")
+			return nil, ErrUserAlreadyExists
+		}
+		if strings.Contains(err.Error(), "registration is disabled") {
+			return nil, ErrRegistrationDisabled
 		}
 		return nil, err
 	}
@@ -73,15 +76,15 @@ func (s *AuthService) Register(ctx context.Context, input models.CreateUserInput
 func (s *AuthService) Login(ctx context.Context, input models.LoginInput) (*AuthResult, error) {
 	user, err := s.userRepo.GetByEmail(ctx, strings.ToLower(strings.TrimSpace(input.Email)))
 	if err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, ErrInvalidCredentials
 	}
 
 	if !user.IsActive {
-		return nil, fmt.Errorf("account is deactivated")
+		return nil, ErrAccountDeactivated
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)); err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, ErrInvalidCredentials
 	}
 
 	_ = s.userRepo.UpdateLastLogin(ctx, user.ID)
@@ -89,17 +92,16 @@ func (s *AuthService) Login(ctx context.Context, input models.LoginInput) (*Auth
 	return s.createTokenPair(ctx, user)
 }
 
-// RefreshToken rotates the refresh token and returns new tokens.
+// RefreshToken atomically rotates the refresh token and returns new tokens.
+// Uses DELETE ... RETURNING to prevent race conditions with concurrent requests.
 func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) (*AuthResult, error) {
 	tokenHash := hashToken(refreshTokenStr)
 
-	userID, err := s.refreshRepo.GetUserIDByTokenHash(ctx, tokenHash)
+	// Atomic: delete old token and get user_id in one query
+	userID, err := s.refreshRepo.DeleteAndReturnUserID(ctx, tokenHash)
 	if err != nil {
-		return nil, fmt.Errorf("invalid refresh token")
+		return nil, ErrInvalidRefreshToken
 	}
-
-	// Delete old token (rotation)
-	_ = s.refreshRepo.Delete(ctx, tokenHash)
 
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
@@ -107,7 +109,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) 
 	}
 
 	if !user.IsActive {
-		return nil, fmt.Errorf("account is deactivated")
+		return nil, ErrAccountDeactivated
 	}
 
 	return s.createTokenPair(ctx, user)

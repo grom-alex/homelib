@@ -50,6 +50,12 @@ const router = createRouter({
       component: () => import('@/views/AdminImportView.vue'),
       meta: { admin: true },
     },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/NotFoundView.vue'),
+      meta: { guest: true },
+    },
   ],
 })
 
@@ -58,7 +64,10 @@ router.beforeEach(async (to) => {
   if (!auth.initialized) {
     await auth.init()
   }
-  if (to.meta.guest) return true
+  if (to.meta.guest) {
+    if (to.name === 'login' && auth.isAuthenticated) return { name: 'catalog' }
+    return true
+  }
   if (!auth.isAuthenticated) return { name: 'login' }
   if (to.meta.admin && !auth.isAdmin) return { name: 'catalog' }
   return true

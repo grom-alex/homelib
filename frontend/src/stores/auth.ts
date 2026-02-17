@@ -67,10 +67,11 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const data = await authApi.refresh()
       setAuth(data)
+      initialized.value = true
     } catch {
       clearAuth()
-    } finally {
       initialized.value = true
+    } finally {
       initPromise = null
     }
   }

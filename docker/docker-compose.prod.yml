@@ -67,7 +67,6 @@ services:
       DB_USER: homelib
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: homelib
-      JWT_SECRET: ${JWT_SECRET}
     volumes:
       - ${LIBRARY_PATH}:/library:ro
       - ../config/config.prod.yaml:/etc/homelib/config.yaml:ro

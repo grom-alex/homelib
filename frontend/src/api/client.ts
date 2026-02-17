@@ -24,15 +24,19 @@ api.interceptors.request.use((config) => {
 })
 
 let isRefreshing = false
-let refreshSubscribers: Array<(token: string) => void> = []
+let refreshSubscribers: Array<{
+  resolve: (token: string) => void
+  reject: (error: unknown) => void
+}> = []
 
 function onRefreshed(token: string) {
-  refreshSubscribers.forEach((cb) => cb(token))
+  refreshSubscribers.forEach((sub) => sub.resolve(token))
   refreshSubscribers = []
 }
 
-function addRefreshSubscriber(cb: (token: string) => void) {
-  refreshSubscribers.push(cb)
+function onRefreshFailed(error: unknown) {
+  refreshSubscribers.forEach((sub) => sub.reject(error))
+  refreshSubscribers = []
 }
 
 // Separate instance for refresh to avoid interceptor loop
@@ -51,10 +55,13 @@ api.interceptors.response.use(
       !originalRequest.url?.includes('/auth/refresh')
     ) {
       if (isRefreshing) {
-        return new Promise((resolve) => {
-          addRefreshSubscriber((token: string) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`
-            resolve(api(originalRequest))
+        return new Promise((resolve, reject) => {
+          refreshSubscribers.push({
+            resolve: (token: string) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`
+              resolve(api(originalRequest))
+            },
+            reject,
           })
         })
       }
@@ -68,9 +75,9 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${data.access_token}`
         onRefreshed(data.access_token)
         return api(originalRequest)
-      } catch {
+      } catch (refreshError) {
         accessToken = null
-        refreshSubscribers = []
+        onRefreshFailed(refreshError)
         router.push({ name: 'login' })
         return Promise.reject(error)
       } finally {

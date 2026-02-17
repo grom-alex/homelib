@@ -25,6 +25,7 @@ type ImportService struct {
 	genreRepo      *repository.GenreRepo
 	seriesRepo     *repository.SeriesRepo
 	collectionRepo *repository.CollectionRepo
+	appCtx         context.Context
 
 	mu       sync.Mutex
 	status   models.ImportStatus
@@ -50,8 +51,15 @@ func NewImportService(
 		genreRepo:      genreRepo,
 		seriesRepo:     seriesRepo,
 		collectionRepo: collectionRepo,
+		appCtx:         context.Background(),
 		status:         models.ImportStatus{Status: "idle"},
 	}
+}
+
+// SetAppContext sets the application-level context used as parent for import goroutines.
+// This ensures imports are cancelled on graceful shutdown.
+func (s *ImportService) SetAppContext(ctx context.Context) {
+	s.appCtx = ctx
 }
 
 // StartImport begins an INPX import in the background.
@@ -62,10 +70,10 @@ func (s *ImportService) StartImport(parentCtx ...context.Context) error {
 	defer s.mu.Unlock()
 
 	if s.status.Status == "running" {
-		return fmt.Errorf("import is already running")
+		return ErrImportAlreadyRunning
 	}
 
-	base := context.Background()
+	base := s.appCtx
 	if len(parentCtx) > 0 && parentCtx[0] != nil {
 		base = parentCtx[0]
 	}

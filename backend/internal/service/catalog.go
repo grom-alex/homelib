@@ -140,6 +140,9 @@ func (s *CatalogService) GetStats(ctx context.Context) (*Stats, error) {
 		}
 		stats.Languages = append(stats.Languages, lang)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate languages: %w", err)
+	}
 
 	// Formats
 	rows2, err := s.pool.Query(ctx,
@@ -154,6 +157,9 @@ func (s *CatalogService) GetStats(ctx context.Context) (*Stats, error) {
 			return nil, err
 		}
 		stats.Formats = append(stats.Formats, format)
+	}
+	if err := rows2.Err(); err != nil {
+		return nil, fmt.Errorf("iterate formats: %w", err)
 	}
 
 	return stats, nil

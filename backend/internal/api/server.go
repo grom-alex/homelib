@@ -19,6 +19,7 @@ import (
 type Server struct {
 	httpServer *http.Server
 	pool       *pgxpool.Pool
+	importSvc  *service.ImportService
 }
 
 func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
@@ -56,12 +57,15 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 
 	return &Server{
 		httpServer: &http.Server{
-			Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
-			Handler:      router,
-			ReadTimeout:  30 * time.Second,
-			WriteTimeout: 30 * time.Second,
+			Addr:              fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
+			Handler:           router,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			ReadHeaderTimeout: 10 * time.Second,
+			IdleTimeout:       120 * time.Second,
 		},
-		pool: pool,
+		pool:      pool,
+		importSvc: importSvc,
 	}
 }
 
@@ -83,6 +87,9 @@ func (v *authServiceValidator) ValidateToken(tokenString string) (*middleware.Cl
 }
 
 func (s *Server) Start(ctx context.Context) error {
+	// Set app context so imports started via API are cancelled on shutdown
+	s.importSvc.SetAppContext(ctx)
+
 	errCh := make(chan error, 1)
 
 	go func() {

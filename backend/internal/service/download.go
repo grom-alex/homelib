@@ -39,15 +39,15 @@ func (s *DownloadService) DownloadBook(ctx context.Context, bookID int64) (*Down
 		return nil, fmt.Errorf("book not found: missing archive info")
 	}
 
-	// Prevent path traversal: ensure resolved path stays within ArchivesPath
+	// Prevent path traversal: resolve symlinks and ensure path stays within ArchivesPath
 	archivePath := filepath.Join(s.libCfg.ArchivesPath, archiveName)
-	absArchivePath, err := filepath.Abs(archivePath)
-	if err != nil {
-		return nil, fmt.Errorf("invalid archive path: %w", err)
-	}
-	absBasePath, err := filepath.Abs(s.libCfg.ArchivesPath)
+	absBasePath, err := filepath.EvalSymlinks(s.libCfg.ArchivesPath)
 	if err != nil {
 		return nil, fmt.Errorf("invalid base path: %w", err)
+	}
+	absArchivePath, err := filepath.EvalSymlinks(archivePath)
+	if err != nil {
+		return nil, fmt.Errorf("book not found: invalid archive path")
 	}
 	if !strings.HasPrefix(absArchivePath, absBasePath+string(filepath.Separator)) && absArchivePath != absBasePath {
 		return nil, fmt.Errorf("book not found: invalid archive path")

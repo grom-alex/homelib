@@ -19,24 +19,30 @@ func NewSeriesRepo(pool *pgxpool.Pool) *SeriesRepo {
 }
 
 // UpsertSeries inserts series names, ignoring duplicates.
+// Uses pgx.Batch for a single network round-trip.
 // Returns a map of name → id.
 func (r *SeriesRepo) UpsertSeries(ctx context.Context, tx pgx.Tx, names []string) (map[string]int64, error) {
 	if len(names) == 0 {
 		return make(map[string]int64), nil
 	}
 
-	result := make(map[string]int64, len(names))
+	const upsertSQL = `INSERT INTO series (name)
+		 VALUES ($1)
+		 ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+		 RETURNING id`
 
+	batch := &pgx.Batch{}
+	for _, name := range names {
+		batch.Queue(upsertSQL, name)
+	}
+
+	br := tx.SendBatch(ctx, batch)
+	defer func() { _ = br.Close() }()
+
+	result := make(map[string]int64, len(names))
 	for _, name := range names {
 		var id int64
-		err := tx.QueryRow(ctx,
-			`INSERT INTO series (name)
-			 VALUES ($1)
-			 ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-			 RETURNING id`,
-			name,
-		).Scan(&id)
-		if err != nil {
+		if err := br.QueryRow().Scan(&id); err != nil {
 			return nil, fmt.Errorf("upsert series %q: %w", name, err)
 		}
 		result[name] = id

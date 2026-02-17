@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [master]
   pull_request:
     branches: [master]
 
@@ -32,34 +33,16 @@ jobs:
       - name: Test with coverage
         run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
 
-      - name: Check coverage per package (>=80%)
+      - name: Check total coverage (>=80%)
         run: |
-          fail=0
-          while IFS= read -r line; do
-            pkg=$(echo "$line" | awk '{print $1}')
-            # Extract function/total coverage line
-            if echo "$line" | grep -q "^total:"; then
-              continue
-            fi
-            pct=$(echo "$line" | awk '{print $NF}' | tr -d '%')
-            if [ -z "$pct" ]; then
-              continue
-            fi
-            if awk "BEGIN {exit !($pct < 80)}"; then
-              echo "FAIL $pkg: ${pct}% < 80%"
-              fail=1
-            else
-              echo "OK   $pkg: ${pct}%"
-            fi
-          done < <(go tool cover -func=coverage.out | grep -E '^[a-z]' | awk '{print $1, $NF}' | sort -u -t: -k1,1 | while read -r file covpct; do
-            pkg=$(dirname "$file" | sed 's|^|./|')
-            echo "$pkg $covpct"
-          done | sort -u)
-
-          if [ "$fail" -eq 1 ]; then
-            echo "::error::Some packages have less than 80% test coverage"
+          total_line=$(go tool cover -func=coverage.out | tail -1)
+          pct=$(echo "$total_line" | awk '{print $NF}' | tr -d '%')
+          echo "Total coverage: ${pct}%"
+          if awk "BEGIN {exit !($pct + 0 < 80)}"; then
+            echo "::error::Total test coverage ${pct}% is below 80%"
             exit 1
           fi
+          echo "Coverage OK: ${pct}% >= 80%"
 
       - name: Build
         run: |

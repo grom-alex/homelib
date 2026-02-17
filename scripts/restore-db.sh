@@ -20,14 +20,21 @@ if [ ! -f "$BACKUP_FILE" ]; then
 fi
 
 echo "ВНИМАНИЕ: Текущая база данных будет перезаписана!"
+echo "Сервисы api и worker будут остановлены на время восстановления."
 read -rp "Продолжить? (y/N): " confirm
 if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
   echo "Отменено."
   exit 0
 fi
 
+echo "=== Остановка api и worker ==="
+docker compose -f "$DOCKER_DIR/$COMPOSE_FILE" stop api worker
+
 echo "=== Восстановление из $BACKUP_FILE ==="
 gunzip -c "$BACKUP_FILE" | docker compose -f "$DOCKER_DIR/$COMPOSE_FILE" exec -T postgres \
   psql -U homelib homelib
+
+echo "=== Запуск api и worker ==="
+docker compose -f "$DOCKER_DIR/$COMPOSE_FILE" start api worker
 
 echo "Восстановление завершено."

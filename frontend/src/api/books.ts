@@ -105,11 +105,11 @@ export interface CatalogStats {
   formats: string[]
 }
 
-export async function getBooks(filters: BookFilters = {}): Promise<PaginatedResponse<BookListItem>> {
+export async function getBooks(filters: BookFilters = {}, signal?: AbortSignal): Promise<PaginatedResponse<BookListItem>> {
   const params = Object.fromEntries(
-    Object.entries(filters).filter(([, v]) => v !== undefined && v !== ''),
+    Object.entries(filters).filter(([, v]) => v !== undefined && v !== '' && v !== null),
   )
-  const { data } = await api.get<PaginatedResponse<BookListItem>>('/books', { params })
+  const { data } = await api.get<PaginatedResponse<BookListItem>>('/books', { params, signal })
   return data
 }
 
@@ -121,17 +121,30 @@ export async function getBook(id: number): Promise<BookDetail> {
 export async function downloadBook(id: number): Promise<void> {
   const response = await api.get(`/books/${id}/download`, { responseType: 'blob' })
   const disposition = response.headers['content-disposition'] || ''
-  const match = disposition.match(/filename="?(.+?)"?$/)
-  const filename = match ? match[1] : `book_${id}`
+
+  let filename = `book_${id}`
+  // Try RFC 6266 filename*=UTF-8''... first, then plain filename="..."
+  const utf8Match = disposition.match(/filename\*=UTF-8''(.+?)(?:;|$)/i)
+  if (utf8Match) {
+    filename = decodeURIComponent(utf8Match[1])
+  } else {
+    const plainMatch = disposition.match(/filename="(.+?)"/)
+    if (plainMatch) {
+      filename = plainMatch[1]
+    }
+  }
 
   const url = window.URL.createObjectURL(response.data)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  window.URL.revokeObjectURL(url)
+  try {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  } finally {
+    window.URL.revokeObjectURL(url)
+  }
 }
 
 export async function getAuthors(params: { q?: string; page?: number; limit?: number } = {}): Promise<PaginatedResponse<AuthorListItem>> {

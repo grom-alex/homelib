@@ -19,24 +19,30 @@ func NewAuthorRepo(pool *pgxpool.Pool) *AuthorRepo {
 }
 
 // UpsertAuthors inserts authors, ignoring duplicates on (name, name_sort).
+// Uses pgx.Batch for a single network round-trip.
 // Returns a map of name_sort → id for the upserted authors.
 func (r *AuthorRepo) UpsertAuthors(ctx context.Context, tx pgx.Tx, authors []models.Author) (map[string]int64, error) {
 	if len(authors) == 0 {
 		return make(map[string]int64), nil
 	}
 
-	result := make(map[string]int64, len(authors))
+	const upsertSQL = `INSERT INTO authors (name, name_sort)
+		 VALUES ($1, $2)
+		 ON CONFLICT (name_sort) DO UPDATE SET name = EXCLUDED.name
+		 RETURNING id`
 
+	batch := &pgx.Batch{}
+	for _, a := range authors {
+		batch.Queue(upsertSQL, a.Name, a.NameSort)
+	}
+
+	br := tx.SendBatch(ctx, batch)
+	defer func() { _ = br.Close() }()
+
+	result := make(map[string]int64, len(authors))
 	for _, a := range authors {
 		var id int64
-		err := tx.QueryRow(ctx,
-			`INSERT INTO authors (name, name_sort)
-			 VALUES ($1, $2)
-			 ON CONFLICT (name_sort) DO UPDATE SET name = EXCLUDED.name
-			 RETURNING id`,
-			a.Name, a.NameSort,
-		).Scan(&id)
-		if err != nil {
+		if err := br.QueryRow().Scan(&id); err != nil {
 			return nil, fmt.Errorf("upsert author %q: %w", a.Name, err)
 		}
 		result[a.NameSort] = id

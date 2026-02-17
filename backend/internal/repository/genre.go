@@ -19,24 +19,30 @@ func NewGenreRepo(pool *pgxpool.Pool) *GenreRepo {
 }
 
 // UpsertGenres inserts genre codes, ignoring duplicates.
+// Uses pgx.Batch for a single network round-trip.
 // Returns a map of code → id.
 func (r *GenreRepo) UpsertGenres(ctx context.Context, tx pgx.Tx, codes []string) (map[string]int, error) {
 	if len(codes) == 0 {
 		return make(map[string]int), nil
 	}
 
-	result := make(map[string]int, len(codes))
+	const upsertSQL = `INSERT INTO genres (code, name)
+		 VALUES ($1, $1)
+		 ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
+		 RETURNING id`
 
+	batch := &pgx.Batch{}
+	for _, code := range codes {
+		batch.Queue(upsertSQL, code)
+	}
+
+	br := tx.SendBatch(ctx, batch)
+	defer func() { _ = br.Close() }()
+
+	result := make(map[string]int, len(codes))
 	for _, code := range codes {
 		var id int
-		err := tx.QueryRow(ctx,
-			`INSERT INTO genres (code, name)
-			 VALUES ($1, $1)
-			 ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
-			 RETURNING id`,
-			code,
-		).Scan(&id)
-		if err != nil {
+		if err := br.QueryRow().Scan(&id); err != nil {
 			return nil, fmt.Errorf("upsert genre %q: %w", code, err)
 		}
 		result[code] = id
