@@ -1,0 +1,125 @@
+package handler
+
+import (
+	"errors"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/grom-alex/homelib/backend/internal/models"
+	"github.com/grom-alex/homelib/backend/internal/service"
+)
+
+type AuthHandler struct {
+	authSvc      AuthServicer
+	refreshTTL   time.Duration
+	cookieSecure bool
+}
+
+func NewAuthHandler(authSvc AuthServicer, refreshTTL time.Duration, cookieSecure bool) *AuthHandler {
+	return &AuthHandler{authSvc: authSvc, refreshTTL: refreshTTL, cookieSecure: cookieSecure}
+}
+
+// Register handles POST /api/auth/register.
+func (h *AuthHandler) Register(c *gin.Context) {
+	var input models.CreateUserInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input: " + err.Error()})
+		return
+	}
+
+	result, err := h.authSvc.Register(c.Request.Context(), input)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrUserAlreadyExists):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		case errors.Is(err, service.ErrRegistrationDisabled):
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		case errors.Is(err, service.ErrPasswordTooLong):
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "registration failed"})
+		}
+		return
+	}
+
+	h.setRefreshCookie(c, result.RefreshToken)
+	c.JSON(http.StatusCreated, gin.H{
+		"user":         result.User,
+		"access_token": result.AccessToken,
+	})
+}
+
+// Login handles POST /api/auth/login.
+func (h *AuthHandler) Login(c *gin.Context) {
+	var input models.LoginInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
+		return
+	}
+
+	result, err := h.authSvc.Login(c.Request.Context(), input)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		return
+	}
+
+	h.setRefreshCookie(c, result.RefreshToken)
+	c.JSON(http.StatusOK, gin.H{
+		"user":         result.User,
+		"access_token": result.AccessToken,
+	})
+}
+
+// Refresh handles POST /api/auth/refresh.
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	refreshToken, err := c.Cookie("refresh_token")
+	if err != nil || refreshToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no refresh token"})
+		return
+	}
+
+	result, err := h.authSvc.RefreshToken(c.Request.Context(), refreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+		return
+	}
+
+	h.setRefreshCookie(c, result.RefreshToken)
+	c.JSON(http.StatusOK, gin.H{
+		"user":         result.User,
+		"access_token": result.AccessToken,
+	})
+}
+
+// Logout handles POST /api/auth/logout.
+func (h *AuthHandler) Logout(c *gin.Context) {
+	refreshToken, _ := c.Cookie("refresh_token")
+	if refreshToken != "" {
+		_ = h.authSvc.Logout(c.Request.Context(), refreshToken)
+	}
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		MaxAge:   -1,
+		Path:     "/",
+		Secure:   h.cookieSecure,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
+}
+
+func (h *AuthHandler) setRefreshCookie(c *gin.Context, token string) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    token,
+		MaxAge:   int(h.refreshTTL.Seconds()),
+		Path:     "/",
+		Secure:   h.cookieSecure,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}

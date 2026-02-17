@@ -1,19 +1,15 @@
 <!--
   Sync Impact Report
   ===========================================================================
-  Version change: 1.0.0 → 1.1.0
-  Modified principles: none
+  Version change: 1.2.1 → 1.3.0
+  Modified principles:
+    - §6 Operational Model — добавлен §6.VII (архитектура как строгая спецификация)
   Added sections:
-    - 6.VI. GitHub Flow как модель разработки (new principle)
+    - §6.VII Архитектурная документация как строгая спецификация
   Removed sections: N/A
   Templates requiring updates:
-    - .specify/templates/plan-template.md — ✅ compatible
-    - .specify/templates/spec-template.md — ✅ compatible
-    - .specify/templates/tasks-template.md — ✅ compatible
-    - .specify/templates/checklist-template.md — ✅ compatible
-    - .specify/templates/agent-file-template.md — ✅ compatible
-    - .specify/templates/commands/*.md — N/A (directory empty)
-    - CLAUDE.md — ✅ updated (Development Workflow section added)
+    - CLAUDE.md — ✅ updated (architecture doc reference v7→v8, structure rule added)
+    - docs/homelib-architecture-v8.md — ✅ created (backend api/ wrapper, docker/ directory)
   Follow-up TODOs: none
   ===========================================================================
 -->
@@ -298,6 +294,16 @@ Ollama-инстансов (healthcheck каждые 30 секунд через `
 - PR ДОЛЖЕН пройти CI-проверки (сборка, тесты, линтеры) перед мержем.
 - GitHub Actions используется как CI/CD платформа.
 
+### VII. Архитектурная документация как строгая спецификация
+
+Актуальный документ архитектуры (`docs/homelib-architecture-v8.md`)
+является СТРОГОЙ спецификацией структуры проекта. Структура файлов
+и директорий ДОЛЖНА соответствовать описанному в разделе 7 документа
+архитектуры. Отклонения от структуры ЗАПРЕЩЕНЫ без предварительного
+обновления документа архитектуры. При создании новых файлов или
+директорий НЕОБХОДИМО убедиться, что они соответствуют описанной
+структуре или обновить документ архитектуры до внесения изменений.
+
 ## 7. Change Governance
 
 ### Статус конституции
@@ -334,6 +340,16 @@ Ollama-инстансов (healthcheck каждые 30 секунд через `
 - Не вводить внешних SaaS-зависимостей (§1.VII)
 - Быть развёртываемым через Docker Compose (§6.I)
 - Иметь настраиваемую конфигурацию через YAML (§6.V)
+- Иметь покрытие unit-тестами не менее 80%
+
+### Требования к тестированию
+
+Покрытие кода unit-тестами ДОЛЖНО составлять не менее 80% для каждого
+пакета/модуля — как для бэкенда (Go packages), так и для фронтенда
+(Vue 3 components/composables/stores). CI-пайплайн ДОЛЖЕН проверять
+уровень покрытия и блокировать мерж при несоответствии порогу.
+Исключения допускаются ТОЛЬКО для сгенерированного кода, миграций БД,
+конфигурационных файлов и чисто декларативных шаблонов (HTML/CSS).
 
 ### Compliance review
 
@@ -342,4 +358,4 @@ Ollama-инстансов (healthcheck каждые 30 секунд через `
 Нарушения принципов ДОЛЖНЫ быть явно задокументированы и обоснованы
 в секции «Complexity Tracking» плана реализации.
 
-**Version**: 1.1.0 | **Ratified**: 2026-02-15 | **Last Amended**: 2026-02-15
+**Version**: 1.3.0 | **Ratified**: 2026-02-15 | **Last Amended**: 2026-02-17

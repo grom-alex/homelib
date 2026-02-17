@@ -1,0 +1,525 @@
+# Books Catalog API Contracts
+# MVP HomeLib — 002-mvp-backend-init
+
+paths:
+  /api/books:
+    get:
+      summary: Список книг с фильтрацией, пагинацией и сортировкой
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          description: Поисковый запрос (полнотекстовый поиск по tsvector)
+          schema:
+            type: string
+        - name: author_id
+          in: query
+          description: Фильтр по автору (ID)
+          schema:
+            type: integer
+        - name: genre_id
+          in: query
+          description: Фильтр по жанру (ID)
+          schema:
+            type: integer
+        - name: series_id
+          in: query
+          description: Фильтр по серии (ID)
+          schema:
+            type: integer
+        - name: lang
+          in: query
+          description: Фильтр по языку (ru, en, uk...)
+          schema:
+            type: string
+        - name: format
+          in: query
+          description: Фильтр по формату (fb2, epub, pdf, djvu)
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Номер страницы (начиная с 1)
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Записей на странице
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: sort
+          in: query
+          description: Сортировка
+          schema:
+            type: string
+            enum: [title, author, date_added, year, lib_rate]
+            default: title
+        - name: order
+          in: query
+          description: Направление сортировки
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        "200":
+          description: Список книг
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  books:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BookListItem"
+                  total:
+                    type: integer
+                    description: Общее количество книг (для пагинации)
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/books/{id}:
+    get:
+      summary: Детальная информация о книге
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Полная информация о книге
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookDetail"
+        "404":
+          description: Книга не найдена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/books/{id}/download:
+    get:
+      summary: Скачивание файла книги из ZIP-архива
+      description: Извлекает файл из ZIP на лету без распаковки архива
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Файл книги
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                example: "application/x-fictionbook+xml"
+            Content-Disposition:
+              schema:
+                type: string
+                example: "attachment; filename=\"book.fb2\""
+            Content-Length:
+              schema:
+                type: integer
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Книга не найдена
+        "500":
+          description: Архив недоступен или повреждён
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "file not available"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/authors:
+    get:
+      summary: Список авторов
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          description: Поиск по имени (trigram)
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        "200":
+          description: Список авторов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authors:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuthorListItem"
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/authors/{id}:
+    get:
+      summary: Автор и его книги
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Автор с книгами
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorDetail"
+        "404":
+          description: Автор не найден
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/genres:
+    get:
+      summary: Дерево жанров
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Иерархический список жанров
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  genres:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GenreTreeItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/series:
+    get:
+      summary: Список серий
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          description: Поиск по названию (trigram)
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        "200":
+          description: Список серий
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  series:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SeriesListItem"
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/stats:
+    get:
+      summary: Общая статистика библиотеки
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Статистика
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  books_count:
+                    type: integer
+                  authors_count:
+                    type: integer
+                  genres_count:
+                    type: integer
+                  series_count:
+                    type: integer
+                  languages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        lang:
+                          type: string
+                        count:
+                          type: integer
+                  formats:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        format:
+                          type: string
+                        count:
+                          type: integer
+
+components:
+  schemas:
+    BookListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        lang:
+          type: string
+        year:
+          type: integer
+        format:
+          type: string
+        file_size:
+          type: integer
+        lib_rate:
+          type: integer
+        is_deleted:
+          type: boolean
+        authors:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        genres:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        series:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            num:
+              type: integer
+
+    BookDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        lang:
+          type: string
+        year:
+          type: integer
+        format:
+          type: string
+        file_size:
+          type: integer
+        lib_rate:
+          type: integer
+        is_deleted:
+          type: boolean
+        description:
+          type: string
+          nullable: true
+        keywords:
+          type: array
+          items:
+            type: string
+        date_added:
+          type: string
+          format: date
+        authors:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        genres:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              code:
+                type: string
+              name:
+                type: string
+        series:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            num:
+              type: integer
+            type:
+              type: string
+              enum: [a, p]
+        collection:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+
+    AuthorListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        books_count:
+          type: integer
+
+    AuthorDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        books:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookListItem"
+        books_count:
+          type: integer
+
+    GenreTreeItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        name:
+          type: string
+        meta_group:
+          type: string
+        books_count:
+          type: integer
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/GenreTreeItem"
+
+    SeriesListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        books_count:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+  responses:
+    Unauthorized:
+      description: Не аутентифицирован
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "unauthorized"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

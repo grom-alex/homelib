@@ -10,7 +10,7 @@ Always respond in Russian (русский язык).
 
 HomeLib is a personal/home library web application for managing, searching, and reading digital book collections. It features AI-powered semantic search and automated metadata enhancement through distributed GPU processing.
 
-**Current Status:** Architecture documentation only (in `/docs/`). Implementation not yet started.
+**Current Status:** MVP implemented (backend API + worker + frontend SPA). Active development.
 
 ## Development Workflow
 
@@ -85,32 +85,45 @@ HomeLib is a personal/home library web application for managing, searching, and 
 - User tables: `users`, `user_books`, `reading_progress`, `shelves`
 - Semantic search: `book_summaries` with `vector(768)` embedding
 
-## Planned Directory Structure
+## Project Structure
+
+Структура проекта ДОЛЖНА соответствовать `docs/homelib-architecture-v8.md` (раздел 7).
+Архитектурный документ является **строгой спецификацией** для файловой структуры.
+Отклонения от структуры запрещены без предварительного обновления архитектурного документа.
 
 ```
 homelib/
 ├── backend/
 │   ├── cmd/
-│   │   ├── api/        # API server entry point
-│   │   └── worker/     # Worker process entry point
+│   │   ├── api/            # API server entry point
+│   │   └── worker/         # Worker process entry point
 │   ├── internal/
-│   │   ├── api/        # HTTP handlers
-│   │   ├── models/     # Data models
-│   │   ├── repository/ # Database access
-│   │   ├── service/    # Business logic
-│   │   ├── worker/     # Background tasks
-│   │   ├── inpx/       # INPX parsing
-│   │   └── archive/    # ZIP file handling
+│   │   ├── api/            # HTTP layer (handler/, middleware/, router.go, server.go)
+│   │   ├── config/         # Configuration (YAML + env)
+│   │   ├── models/         # Data models
+│   │   ├── repository/     # Database access (pgx)
+│   │   ├── service/        # Business logic
+│   │   ├── worker/         # Background tasks
+│   │   ├── inpx/           # INPX parsing
+│   │   └── archive/        # ZIP file handling
+│   ├── migrations/         # SQL migrations
 │   └── go.mod
 ├── frontend/
 │   ├── src/
+│   │   ├── api/            # HTTP client (axios)
+│   │   ├── views/          # Page components (*View.vue)
 │   │   ├── components/
-│   │   ├── pages/
-│   │   ├── store/      # Pinia stores
-│   │   └── services/   # API client
+│   │   │   ├── common/     # Shared UI components
+│   │   │   └── reader/     # Book reader components
+│   │   ├── stores/         # Pinia stores
+│   │   └── router/
 │   └── package.json
-├── docker-compose.yml
-└── docs/               # Architecture documentation (Russian)
+├── docker/
+│   ├── backend/            # Dockerfile.api, Dockerfile.worker
+│   ├── frontend/           # Dockerfile
+│   ├── nginx/              # nginx.conf
+│   └── docker-compose.dev.yml  # Dev compose (stage/prod — аналогично)
+└── docs/                   # Architecture documentation (Russian)
 ```
 
 ## Book Formats
@@ -141,6 +154,14 @@ Key parsing details:
 - Roles: `user`, `admin`
 - First registered user becomes admin (or via CLI command)
 
+## Testing Requirements
+
+- Покрытие unit-тестами: минимум **80%** для каждого пакета/модуля (бэкенд и фронтенд)
+- CI блокирует мерж при покрытии ниже порога
+- Исключения: сгенерированный код, миграции БД, конфигурационные файлы, декларативные шаблоны (HTML/CSS)
+- **Backend (Go):** `go test -race -coverprofile=coverage.out ./...` + `go tool cover -func=coverage.out`
+- **Frontend (Vue 3):** `vitest --coverage` (или аналогичный инструмент)
+
 ## Key Design Decisions
 
 1. **Summary embedding instead of full-text:** 500K vectors vs 75M chunks (~80x storage reduction)
@@ -150,11 +171,15 @@ Key parsing details:
 
 ## Documentation
 
-Architecture documentation is in Russian in [docs/](docs/). The most current version is `homelib-architecture-v7.md`.
+Architecture documentation is in Russian in [docs/](docs/). The most current version is `homelib-architecture-v8.md`.
+
+**ВАЖНО:** Документ архитектуры (`docs/homelib-architecture-v8.md`, раздел 7) является строгой спецификацией файловой структуры проекта. Любые новые файлы и директории ДОЛЖНЫ соответствовать описанной структуре. При необходимости отклонений — сначала обновить документ архитектуры.
 
 ## Active Technologies
 - Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`) (001-github-ci-setup)
 - N/A (конфигурационные файлы) (001-github-ci-setup)
+- Go 1.25, Node.js 22 LTS (frontend build) (002-mvp-backend-init)
+- PostgreSQL 17 + pg_trgm + tsvector (pgvector НЕ используется в MVP) (002-mvp-backend-init)
 
 ## Recent Changes
 - 001-github-ci-setup: Added Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`)

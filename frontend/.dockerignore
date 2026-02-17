@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+.git
+.github
+.gitignore
+*.md
+docs/
+specs/
+.vscode/
+.idea/
+src/**/__tests__
+vitest.config.ts

@@ -1,0 +1,3 @@
+-- No-op: unique constraints already exist in 001_init.up.sql
+-- authors.name_sort: UNIQUE INDEX idx_authors_name_sort
+-- series.name: UNIQUE constraint on column definition

@@ -1,0 +1,129 @@
+# Admin API Contracts
+# MVP HomeLib — 002-mvp-backend-init
+
+paths:
+  /api/admin/import:
+    post:
+      summary: Запуск импорта INPX-файла
+      description: |
+        Запускает импорт INPX-файла, указанного в конфигурации (library.inpx_path).
+        Импорт идемпотентный: повторный запуск не создаёт дубликатов.
+        Параллельный импорт запрещён — система вернёт ошибку если импорт уже выполняется.
+      security:
+        - bearerAuth: []
+      responses:
+        "202":
+          description: Импорт запущен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "import started"
+                  import_id:
+                    type: string
+                    description: ID текущего импорта для отслеживания
+        "409":
+          description: Импорт уже выполняется
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "import is already running"
+        "500":
+          description: Ошибка запуска (файл не найден, ошибка парсинга)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/import/status:
+    get:
+      summary: Статус текущего/последнего импорта
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Статус импорта
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [idle, running, completed, failed]
+                  started_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  finished_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  stats:
+                    type: object
+                    nullable: true
+                    properties:
+                      books_added:
+                        type: integer
+                      books_updated:
+                        type: integer
+                      books_deleted:
+                        type: integer
+                      authors_added:
+                        type: integer
+                      genres_added:
+                        type: integer
+                      series_added:
+                        type: integer
+                      errors:
+                        type: integer
+                      duration_ms:
+                        type: integer
+                  error:
+                    type: string
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+  responses:
+    Unauthorized:
+      description: Не аутентифицирован
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "unauthorized"
+    Forbidden:
+      description: Нет прав администратора
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "admin only"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

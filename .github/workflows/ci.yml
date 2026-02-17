@@ -2,44 +2,118 @@ name: CI
 
 on:
   push:
-    branches-ignore: [master]
+    branches: [master]
   pull_request:
     branches: [master]
 
 jobs:
-  CI:
+  backend:
+    name: Backend (Go)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Check for Go code
-        id: check
-        run: |
-          if [ -f go.mod ]; then
-            echo "has_go=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_go=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Setup Go
-        if: steps.check.outputs.has_go == 'true'
         uses: actions/setup-go@v6
         with:
           go-version: '1.25'
 
       - name: Lint
-        if: steps.check.outputs.has_go == 'true'
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.9
+          working-directory: backend
 
-      - name: Test
-        if: steps.check.outputs.has_go == 'true'
-        run: go test -race ./...
+      - name: Test with coverage
+        run: |
+          go test -race -covermode=atomic -coverprofile=coverage.out \
+            -coverpkg=./internal/api/handler,./internal/api/middleware,./internal/service,./internal/models,./internal/config,./internal/archive,./internal/inpx \
+            ./internal/...
+
+      - name: Check total coverage (>=55%)
+        run: |
+          total_line=$(go tool cover -func=coverage.out | tail -1)
+          pct=$(echo "$total_line" | awk '{print $NF}' | tr -d '%')
+          echo "Total coverage: ${pct}%"
+          if awk "BEGIN {exit !($pct + 0 < 55)}"; then
+            echo "::error::Total test coverage ${pct}% is below 55%"
+            exit 1
+          fi
+          echo "Coverage OK: ${pct}% >= 55%"
 
       - name: Build
-        if: steps.check.outputs.has_go == 'true'
-        run: go build ./cmd/...
+        run: |
+          go build -o /dev/null ./cmd/api
+          go build -o /dev/null ./cmd/worker
+
+  frontend:
+    name: Frontend (Vue 3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test with coverage
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [backend, frontend]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build backend API image
+        run: docker build -t homelib-api -f docker/backend/Dockerfile.api ./backend
+
+      - name: Build backend worker image
+        run: docker build -t homelib-worker -f docker/backend/Dockerfile.worker ./backend
+
+      - name: Build frontend image
+        run: docker build -t homelib-frontend -f docker/frontend/Dockerfile ./frontend
+
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [backend, frontend, docker]
+    steps:
+      - name: Check results
+        run: |
+          if [ "${{ needs.backend.result }}" != "success" ] || \
+             [ "${{ needs.frontend.result }}" != "success" ] || \
+             [ "${{ needs.docker.result }}" != "success" ]; then
+            echo "::error::One or more jobs failed"
+            exit 1
+          fi
+          echo "All checks passed"

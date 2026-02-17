@@ -21,6 +21,21 @@ Thumbs.db
 # Environment
 .env
 .env.*
+!.env.example
+
+# Local config (contains secrets)
+backend/config.yaml
+
+# Node.js
+node_modules/
+dist/
+build/
+*.log
+
+# Coverage
+coverage/
+coverage.out
+*.coverprofile
 
 # Temporary
 *.tmp
