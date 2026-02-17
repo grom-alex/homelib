@@ -56,9 +56,8 @@ build_image() {
     log_info "Image: $image_name"
     log_info "Context: $context_dir"
 
-    # Build image (disable BuildKit for compatibility with -f flag)
     # shellcheck disable=SC2086  # Extra args intentionally unquoted
-    if DOCKER_BUILDKIT=0 docker build \
+    if docker build \
         -t "$image_name" \
         -f "$dockerfile" \
         $extra_args \

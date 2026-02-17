@@ -19,19 +19,17 @@
 #   DEPLOY_SSH_KEY       Path to SSH private key
 #   DOCKER_REGISTRY      Docker registry (default: registry.gromas.ru)
 #   IMAGE_PREFIX         Path prefix in registry (default: apps/homelib)
+#   NGINX_PORT           Nginx port (default: 80)
 
-set -e  # Exit on error
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+set -euo pipefail
 
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Load shared logging library
+# shellcheck source=scripts/lib/logging.sh
+. "$SCRIPT_DIR/lib/logging.sh"
 
 # Default values
 IMAGE_TAG=""
@@ -40,36 +38,18 @@ PROD_USER="${PROD_USER:-deploy}"
 SSH_KEY="${DEPLOY_SSH_KEY:-$HOME/.ssh/deploy_key}"
 DOCKER_REGISTRY="${DOCKER_REGISTRY:-registry.gromas.ru}"
 IMAGE_PREFIX="${IMAGE_PREFIX:-apps/homelib}"
+NGINX_PORT="${NGINX_PORT:-80}"
 SKIP_CONFIRM=false
 SKIP_HEALTH=false
 DRY_RUN=false
 HEALTH_TIMEOUT=60
 REMOTE_APP_DIR="/opt/homelib"
 
-# Functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-log_step() {
-    echo ""
-    echo -e "${BLUE}===${NC} $1 ${BLUE}===${NC}"
-    echo ""
-}
-
 ssh_exec() {
     if [ "$DRY_RUN" = true ]; then
         echo "[DRY RUN] Would execute on ${PROD_HOST}: $1"
     else
-        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "${PROD_USER}@${PROD_HOST}" "$1"
+        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "${PROD_USER}@${PROD_HOST}" "$1"
     fi
 }
 
@@ -79,7 +59,7 @@ scp_file() {
     if [ "$DRY_RUN" = true ]; then
         echo "[DRY RUN] Would copy $src to ${PROD_HOST}:$dst"
     else
-        scp -i "$SSH_KEY" -o StrictHostKeyChecking=no "$src" "${PROD_USER}@${PROD_HOST}:$dst"
+        scp -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "$src" "${PROD_USER}@${PROD_HOST}:$dst"
     fi
 }
 
@@ -132,6 +112,7 @@ while [[ $# -gt 0 ]]; do
             echo "  PROD_HOST            Production VM hostname/IP"
             echo "  DOCKER_REGISTRY      Docker registry (default: registry.gromas.ru)"
             echo "  IMAGE_PREFIX         Path prefix in registry (default: apps/homelib)"
+            echo "  NGINX_PORT           Nginx port (default: 80)"
             exit 0
             ;;
         *)
@@ -160,17 +141,13 @@ if [ ! -f "$SSH_KEY" ] && [ "$DRY_RUN" = false ]; then
 fi
 
 # Display deployment plan
-log_step "Production Deployment Plan"
-echo ""
-echo -e "${RED}╔══════════════════════════════════════════════════════════╗${NC}"
-echo -e "${RED}║                    ⚠️  PRODUCTION DEPLOYMENT              ║${NC}"
-echo -e "${RED}╠══════════════════════════════════════════════════════════╣${NC}"
-echo -e "${RED}║${NC}  Target:          ${PROD_HOST}                             ${RED}║${NC}"
-echo -e "${RED}║${NC}  User:            ${PROD_USER}                                   ${RED}║${NC}"
-echo -e "${RED}║${NC}  Image Tag:       ${IMAGE_TAG}                          ${RED}║${NC}"
-echo -e "${RED}║${NC}  Registry:        ${DOCKER_REGISTRY}/${IMAGE_PREFIX}     ${RED}║${NC}"
-echo -e "${RED}╚══════════════════════════════════════════════════════════╝${NC}"
-echo ""
+log_section "Production Deployment Plan"
+log_warn "PRODUCTION DEPLOYMENT"
+log_info "Target:     ${PROD_HOST}"
+log_info "User:       ${PROD_USER}"
+log_info "Image Tag:  ${IMAGE_TAG}"
+log_info "Registry:   ${DOCKER_REGISTRY}/${IMAGE_PREFIX}"
+log_info "Nginx Port: ${NGINX_PORT}"
 
 if [ "$DRY_RUN" = true ]; then
     log_warn "DRY RUN MODE - No changes will be made"
@@ -191,9 +168,9 @@ if [ "$SKIP_CONFIRM" = false ] && [ "$DRY_RUN" = false ]; then
 fi
 
 # Step 1: Test SSH connection
-log_step "Step 1: Testing SSH Connection"
+log_section "Step 1: Testing SSH Connection"
 if [ "$DRY_RUN" = false ]; then
-    if ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o ConnectTimeout=10 "${PROD_USER}@${PROD_HOST}" "echo 'SSH connection successful'" > /dev/null 2>&1; then
+    if ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "${PROD_USER}@${PROD_HOST}" "echo 'SSH connection successful'" > /dev/null 2>&1; then
         log_info "SSH connection successful"
     else
         log_error "Cannot connect to ${PROD_HOST}"
@@ -204,7 +181,7 @@ else
 fi
 
 # Step 2: Check current state
-log_step "Step 2: Checking Current State"
+log_section "Step 2: Checking Current State"
 ssh_exec "
     cd ${REMOTE_APP_DIR}
     echo 'Current containers:'
@@ -215,7 +192,7 @@ ssh_exec "
 "
 
 # Step 3: Backup current state
-log_step "Step 3: Backing Up Current State"
+log_section "Step 3: Backing Up Current State"
 ssh_exec "
     cd ${REMOTE_APP_DIR}
 
@@ -230,13 +207,13 @@ ssh_exec "
 log_info "State backup complete"
 
 # Step 4: Setup JWT Keys
-log_step "Step 4: Setting Up JWT Keys"
+log_section "Step 4: Setting Up JWT Keys"
 ssh_exec "
     KEYS_DIR='${REMOTE_APP_DIR}/keys'
     mkdir -p \"\$KEYS_DIR\"
 
     # Check if keys exist
-    if [[ -f \"\$KEYS_DIR/private.pem\" ]] && [[ -f \"\$KEYS_DIR/public.pem\" ]]; then
+    if [ -f \"\$KEYS_DIR/private.pem\" ] && [ -f \"\$KEYS_DIR/public.pem\" ]; then
         echo 'JWT keys already exist, ensuring correct permissions...'
     else
         echo 'Generating new JWT keys...'
@@ -245,27 +222,35 @@ ssh_exec "
         echo 'JWT keys generated successfully'
     fi
 
-    # Make keys readable by Docker container (runs as non-root user)
-    chmod 644 \"\$KEYS_DIR/private.pem\" \"\$KEYS_DIR/public.pem\"
+    # Private key readable only by owner, public key world-readable
+    chmod 600 \"\$KEYS_DIR/private.pem\"
+    chmod 644 \"\$KEYS_DIR/public.pem\"
 "
 log_info "JWT keys ready"
 
 # Step 5: Copy deployment files
-log_step "Step 5: Copying Deployment Files"
+log_section "Step 5: Copying Deployment Files"
 ssh_exec "mkdir -p ${REMOTE_APP_DIR}/nginx"
 scp_file "${PROJECT_ROOT}/docker/docker-compose.prod.yml" "${REMOTE_APP_DIR}/docker-compose.yml"
 scp_file "${PROJECT_ROOT}/docker/nginx/nginx.prod.conf" "${REMOTE_APP_DIR}/nginx/nginx.conf"
+scp_file "${PROJECT_ROOT}/config/config.prod.yaml" "${REMOTE_APP_DIR}/config.yaml"
 log_info "Deployment files copied"
 
-# Step 6: Pull and deploy
-log_step "Step 6: Pulling and Deploying"
+# Step 6: Update .env on remote server and deploy
+log_section "Step 6: Pulling and Deploying"
 ssh_exec "
     cd ${REMOTE_APP_DIR}
 
-    # Set environment
-    export IMAGE_TAG='${IMAGE_TAG}'
-    export DOCKER_REGISTRY='${DOCKER_REGISTRY}'
-    export IMAGE_PREFIX='${IMAGE_PREFIX}'
+    # Update IMAGE_TAG in .env (create if not exists)
+    if [ -f .env ]; then
+        if grep -q '^IMAGE_TAG=' .env; then
+            sed -i 's|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|' .env
+        else
+            echo 'IMAGE_TAG=${IMAGE_TAG}' >> .env
+        fi
+    else
+        echo 'IMAGE_TAG=${IMAGE_TAG}' > .env
+    fi
 
     echo 'Pulling images...'
     docker compose pull
@@ -279,10 +264,10 @@ log_info "Deployment complete"
 
 # Step 7: Health check
 if [ "$SKIP_HEALTH" = false ]; then
-    log_step "Step 7: Health Check (${HEALTH_TIMEOUT}s timeout)"
+    log_section "Step 7: Health Check (${HEALTH_TIMEOUT}s timeout)"
 
     if [ "$DRY_RUN" = true ]; then
-        echo "[DRY RUN] Would perform health check on ${PROD_HOST}"
+        echo "[DRY RUN] Would perform health check on ${PROD_HOST}:${NGINX_PORT}"
     else
         ATTEMPTS=$((HEALTH_TIMEOUT / 5))
         HEALTHY=false
@@ -290,8 +275,8 @@ if [ "$SKIP_HEALTH" = false ]; then
         for i in $(seq 1 $ATTEMPTS); do
             echo "Health check attempt $i/${ATTEMPTS}..."
 
-            # Check health via nginx reverse proxy (port 80)
-            if curl -sf "http://${PROD_HOST}/health" > /dev/null 2>&1; then
+            # Check health via nginx reverse proxy with correct port
+            if curl -sf "http://${PROD_HOST}:${NGINX_PORT}/health" > /dev/null 2>&1; then
                 HEALTHY=true
                 echo "  Health check: OK"
                 break
@@ -303,7 +288,7 @@ if [ "$SKIP_HEALTH" = false ]; then
         done
 
         if [ "$HEALTHY" = true ]; then
-            log_info "All services healthy!"
+            log_success "All services healthy!"
         else
             log_error "Health check failed after ${HEALTH_TIMEOUT}s"
             log_warn ""
@@ -311,38 +296,32 @@ if [ "$SKIP_HEALTH" = false ]; then
             log_warn "To rollback, run:"
             log_warn "  ssh ${PROD_USER}@${PROD_HOST}"
             log_warn "  cd ${REMOTE_APP_DIR}"
-            log_warn "  ./rollback.sh production <previous-tag>"
+            log_warn "  # Check previous tag: cat .previous-images"
+            log_warn "  # Update .env with previous IMAGE_TAG and run: docker compose up -d"
             log_warn ""
             exit 1
         fi
     fi
 else
-    log_step "Step 7: Health Check Skipped"
+    log_section "Step 7: Health Check Skipped"
     log_warn "Health check was skipped with --skip-health flag"
     log_warn "Manually verify the deployment!"
 fi
 
 # Summary
-log_step "Deployment Summary"
-echo ""
-echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║           ✅ PRODUCTION DEPLOYMENT SUCCESSFUL            ║${NC}"
-echo -e "${GREEN}╠══════════════════════════════════════════════════════════╣${NC}"
-echo -e "${GREEN}║${NC}  Environment:  Production                                ${GREEN}║${NC}"
-echo -e "${GREEN}║${NC}  Host:         ${PROD_HOST}                               ${GREEN}║${NC}"
-echo -e "${GREEN}║${NC}  Image Tag:    ${IMAGE_TAG}                        ${GREEN}║${NC}"
-echo -e "${GREEN}║${NC}  URL:          http://${PROD_HOST}                         ${GREEN}║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
-echo ""
+log_section "Deployment Summary"
+
+log_success "PRODUCTION DEPLOYMENT SUCCESSFUL"
+log_info "Environment:  Production"
+log_info "Host:         ${PROD_HOST}"
+log_info "Image Tag:    ${IMAGE_TAG}"
+log_info "URL:          http://${PROD_HOST}:${NGINX_PORT}"
 
 if [ "$DRY_RUN" = false ]; then
     log_info "Post-Deployment Actions:"
     log_info "1. Monitor logs: ssh ${PROD_USER}@${PROD_HOST} 'cd ${REMOTE_APP_DIR} && docker compose logs -f'"
     log_info "2. Verify user flows work correctly"
     log_info "3. Monitor error rates in logs"
-    echo ""
-    log_info "To rollback if issues found:"
-    log_info "  ./scripts/rollback.sh production <previous-tag>"
 fi
 
 exit 0

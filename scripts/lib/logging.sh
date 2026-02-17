@@ -39,9 +39,9 @@ _log_color() {
     message="$2"
 
     if [ "$USE_COLORS" = "true" ]; then
-        printf "%b%s%b" "$color" "$message" "$COLOR_RESET"
+        printf "%b%s%b\n" "$color" "$message" "$COLOR_RESET"
     else
-        printf "%s" "$message"
+        printf "%s\n" "$message"
     fi
 }
 
@@ -51,7 +51,7 @@ log_debug() {
     if [ "$CURRENT_LOG_LEVEL" -le "$LOG_LEVEL_DEBUG" ]; then
         timestamp=$(_log_timestamp)
         message="$*"
-        _log_color "$COLOR_GRAY" "[DEBUG] [$timestamp] $message\n" >&2
+        _log_color "$COLOR_GRAY" "[DEBUG] [$timestamp] $message" >&2
     fi
 }
 
@@ -61,7 +61,7 @@ log_info() {
     if [ "$CURRENT_LOG_LEVEL" -le "$LOG_LEVEL_INFO" ]; then
         timestamp=$(_log_timestamp)
         message="$*"
-        _log_color "$COLOR_BLUE" "[INFO]  [$timestamp] $message\n" >&2
+        _log_color "$COLOR_BLUE" "[INFO]  [$timestamp] $message" >&2
     fi
 }
 
@@ -71,7 +71,7 @@ log_success() {
     if [ "$CURRENT_LOG_LEVEL" -le "$LOG_LEVEL_INFO" ]; then
         timestamp=$(_log_timestamp)
         message="$*"
-        _log_color "$COLOR_GREEN" "[OK]    [$timestamp] $message\n" >&2
+        _log_color "$COLOR_GREEN" "[OK]    [$timestamp] $message" >&2
     fi
 }
 
@@ -81,7 +81,7 @@ log_warn() {
     if [ "$CURRENT_LOG_LEVEL" -le "$LOG_LEVEL_WARN" ]; then
         timestamp=$(_log_timestamp)
         message="$*"
-        _log_color "$COLOR_YELLOW" "[WARN]  [$timestamp] $message\n" >&2
+        _log_color "$COLOR_YELLOW" "[WARN]  [$timestamp] $message" >&2
     fi
 }
 
@@ -91,7 +91,7 @@ log_error() {
     if [ "$CURRENT_LOG_LEVEL" -le "$LOG_LEVEL_ERROR" ]; then
         timestamp=$(_log_timestamp)
         message="$*"
-        _log_color "$COLOR_RED" "[ERROR] [$timestamp] $message\n" >&2
+        _log_color "$COLOR_RED" "[ERROR] [$timestamp] $message" >&2
     fi
 }
 
@@ -100,7 +100,7 @@ log_error() {
 log_fatal() {
     timestamp=$(_log_timestamp)
     message="$*"
-    _log_color "$COLOR_RED" "[FATAL] [$timestamp] $message\n" >&2
+    _log_color "$COLOR_RED" "[FATAL] [$timestamp] $message" >&2
     exit 1
 }
 
@@ -110,9 +110,9 @@ log_section() {
     message="$*"
     separator="=================================================="
     printf "\n"
-    _log_color "$COLOR_BLUE" "$separator\n"
-    _log_color "$COLOR_BLUE" "  $message\n"
-    _log_color "$COLOR_BLUE" "$separator\n"
+    _log_color "$COLOR_BLUE" "$separator"
+    _log_color "$COLOR_BLUE" "  $message"
+    _log_color "$COLOR_BLUE" "$separator"
 }
 
 # Disable colored output (useful for CI logs)

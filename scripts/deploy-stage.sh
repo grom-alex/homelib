@@ -9,8 +9,6 @@
 #   -k, --key PATH       SSH key path (default: ~/.ssh/deploy_key)
 #   --skip-health        Skip health check after deployment
 #   --dry-run            Show what would be done without executing
-#   --build              Build images locally and transfer to staging server
-#                        (use when Docker registry is not available)
 #
 # Environment Variables (can be set in .env file):
 #   STAGE_HOST           Stage VM hostname/IP
@@ -19,21 +17,19 @@
 #   DOCKER_REGISTRY      Docker registry (default: registry.gromas.ru)
 #   IMAGE_PREFIX         Path prefix in registry (default: apps/homelib)
 #   IMAGE_TAG            Image tag to deploy (default: latest)
+#   NGINX_PORT           Nginx port on staging (default: 80)
 #
 # Note: Script automatically loads .env from project root if present
 
-set -e  # Exit on error
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+set -euo pipefail
 
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Load shared logging library
+# shellcheck source=scripts/lib/logging.sh
+. "$SCRIPT_DIR/lib/logging.sh"
 
 # Load .env file if exists (for STAGE_HOST and other defaults)
 if [ -f "${PROJECT_ROOT}/.env" ]; then
@@ -50,35 +46,17 @@ STAGE_USER="${STAGE_USER:-deploy}"
 SSH_KEY="${DEPLOY_SSH_KEY:-$HOME/.ssh/deploy_key}"
 DOCKER_REGISTRY="${DOCKER_REGISTRY:-registry.gromas.ru}"
 IMAGE_PREFIX="${IMAGE_PREFIX:-apps/homelib}"
+NGINX_PORT="${NGINX_PORT:-80}"
 SKIP_HEALTH=false
 DRY_RUN=false
 HEALTH_TIMEOUT=60
 REMOTE_APP_DIR="/opt/homelib"
 
-# Functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-log_step() {
-    echo ""
-    echo -e "${BLUE}===${NC} $1 ${BLUE}===${NC}"
-    echo ""
-}
-
 ssh_exec() {
     if [ "$DRY_RUN" = true ]; then
         echo "[DRY RUN] Would execute on ${STAGE_HOST}: $1"
     else
-        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "${STAGE_USER}@${STAGE_HOST}" "$1"
+        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "${STAGE_USER}@${STAGE_HOST}" "$1"
     fi
 }
 
@@ -88,7 +66,7 @@ scp_file() {
     if [ "$DRY_RUN" = true ]; then
         echo "[DRY RUN] Would copy $src to ${STAGE_HOST}:$dst"
     else
-        scp -i "$SSH_KEY" -o StrictHostKeyChecking=no "$src" "${STAGE_USER}@${STAGE_HOST}:$dst"
+        scp -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "$src" "${STAGE_USER}@${STAGE_HOST}:$dst"
     fi
 }
 
@@ -135,6 +113,7 @@ while [[ $# -gt 0 ]]; do
             echo "  DOCKER_REGISTRY      Docker registry (default: registry.gromas.ru)"
             echo "  IMAGE_PREFIX         Path prefix in registry (default: apps/homelib)"
             echo "  IMAGE_TAG            Image tag to deploy"
+            echo "  NGINX_PORT           Nginx port on staging (default: 80)"
             exit 0
             ;;
         *)
@@ -157,12 +136,13 @@ if [ ! -f "$SSH_KEY" ] && [ "$DRY_RUN" = false ]; then
 fi
 
 # Display deployment plan
-log_step "Deployment Plan"
+log_section "Deployment Plan"
 log_info "Target:          ${STAGE_HOST}"
 log_info "User:            ${STAGE_USER}"
 log_info "SSH Key:         ${SSH_KEY}"
 log_info "Image Tag:       ${IMAGE_TAG}"
 log_info "Registry:        ${DOCKER_REGISTRY}/${IMAGE_PREFIX}"
+log_info "Nginx Port:      ${NGINX_PORT}"
 log_info "Skip Health:     ${SKIP_HEALTH}"
 log_info "Dry Run:         ${DRY_RUN}"
 
@@ -171,9 +151,9 @@ if [ "$DRY_RUN" = true ]; then
 fi
 
 # Step 1: Test SSH connection
-log_step "Step 1: Testing SSH Connection"
+log_section "Step 1: Testing SSH Connection"
 if [ "$DRY_RUN" = false ]; then
-    if ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no -o ConnectTimeout=10 "${STAGE_USER}@${STAGE_HOST}" "echo 'SSH connection successful'" > /dev/null 2>&1; then
+    if ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "${STAGE_USER}@${STAGE_HOST}" "echo 'SSH connection successful'" > /dev/null 2>&1; then
         log_info "SSH connection successful"
     else
         log_error "Cannot connect to ${STAGE_HOST}"
@@ -184,7 +164,7 @@ else
 fi
 
 # Step 2: Backup current state for rollback (FR-017)
-log_step "Step 2: Backing Up Current State"
+log_section "Step 2: Backing Up Current State"
 ssh_exec "
     cd ${REMOTE_APP_DIR}
 
@@ -201,22 +181,38 @@ ssh_exec "
 log_info "Backup complete"
 
 # Step 3: Copy deployment files
-log_step "Step 3: Copying Deployment Files"
+log_section "Step 3: Copying Deployment Files"
 ssh_exec "mkdir -p ${REMOTE_APP_DIR}/nginx"
 scp_file "${PROJECT_ROOT}/docker/docker-compose.stage.yml" "${REMOTE_APP_DIR}/docker-compose.yml"
 scp_file "${PROJECT_ROOT}/docker/nginx/nginx.prod.conf" "${REMOTE_APP_DIR}/nginx/nginx.conf"
 scp_file "${PROJECT_ROOT}/config/config.stage.yaml" "${REMOTE_APP_DIR}/config.yaml"
 log_info "Deployment files copied"
 
-# Step 4: Pull and deploy (FR-015)
-log_step "Step 4: Pulling and Deploying"
+# Step 4: Update .env on remote server with IMAGE_TAG
+log_section "Step 4: Updating Remote Environment"
 ssh_exec "
     cd ${REMOTE_APP_DIR}
 
-    # Set environment
-    export IMAGE_TAG='${IMAGE_TAG}'
-    export DOCKER_REGISTRY='${DOCKER_REGISTRY}'
-    export IMAGE_PREFIX='${IMAGE_PREFIX}'
+    # Update IMAGE_TAG in .env (create if not exists)
+    if [ -f .env ]; then
+        # Replace IMAGE_TAG if exists, append if not
+        if grep -q '^IMAGE_TAG=' .env; then
+            sed -i 's|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|' .env
+        else
+            echo 'IMAGE_TAG=${IMAGE_TAG}' >> .env
+        fi
+    else
+        echo 'IMAGE_TAG=${IMAGE_TAG}' > .env
+    fi
+
+    echo 'Remote .env updated with IMAGE_TAG=${IMAGE_TAG}'
+"
+log_info "Remote environment updated"
+
+# Step 5: Pull and deploy (FR-015)
+log_section "Step 5: Pulling and Deploying"
+ssh_exec "
+    cd ${REMOTE_APP_DIR}
 
     echo 'Pulling images...'
     docker compose pull
@@ -228,12 +224,12 @@ ssh_exec "
 "
 log_info "Deployment complete"
 
-# Step 5: Health check (FR-016)
+# Step 6: Health check (FR-016)
 if [ "$SKIP_HEALTH" = false ]; then
-    log_step "Step 5: Health Check (${HEALTH_TIMEOUT}s timeout)"
+    log_section "Step 6: Health Check (${HEALTH_TIMEOUT}s timeout)"
 
     if [ "$DRY_RUN" = true ]; then
-        echo "[DRY RUN] Would perform health check on ${STAGE_HOST}"
+        echo "[DRY RUN] Would perform health check on ${STAGE_HOST}:${NGINX_PORT}"
     else
         ATTEMPTS=$((HEALTH_TIMEOUT / 5))
         HEALTHY=false
@@ -241,8 +237,8 @@ if [ "$SKIP_HEALTH" = false ]; then
         for i in $(seq 1 $ATTEMPTS); do
             echo "Health check attempt $i/${ATTEMPTS}..."
 
-            # Check health via nginx reverse proxy (port 80)
-            if curl -sf "http://${STAGE_HOST}/health" > /dev/null 2>&1; then
+            # Check health via nginx reverse proxy with correct port
+            if curl -sf "http://${STAGE_HOST}:${NGINX_PORT}/health" > /dev/null 2>&1; then
                 HEALTHY=true
                 echo "  Health check: OK"
                 break
@@ -254,7 +250,7 @@ if [ "$SKIP_HEALTH" = false ]; then
         done
 
         if [ "$HEALTHY" = true ]; then
-            log_info "All services healthy!"
+            log_success "All services healthy!"
         else
             log_error "Health check failed after ${HEALTH_TIMEOUT}s"
             log_warn "Initiating automatic rollback..."
@@ -267,10 +263,11 @@ if [ "$SKIP_HEALTH" = false ]; then
                     echo 'Rolling back...'
                     docker compose down
 
-                    # Extract previous tag
-                    PREV_TAG=\$(cat .previous-images | grep backend | head -1 | sed 's/.*://')
+                    # Extract previous tag (search for api image)
+                    PREV_TAG=\$(grep 'api' .previous-images | head -1 | sed 's/.*://')
                     if [ -n \"\$PREV_TAG\" ]; then
-                        export IMAGE_TAG=\"\$PREV_TAG\"
+                        # Update .env with previous tag
+                        sed -i \"s|^IMAGE_TAG=.*|IMAGE_TAG=\$PREV_TAG|\" .env
                         docker compose up -d
                         echo \"Rolled back to \$PREV_TAG\"
                     else
@@ -286,20 +283,18 @@ if [ "$SKIP_HEALTH" = false ]; then
         fi
     fi
 else
-    log_step "Step 5: Health Check Skipped"
+    log_section "Step 6: Health Check Skipped"
     log_warn "Health check was skipped with --skip-health flag"
 fi
 
 # Summary
-log_step "Deployment Summary"
-echo ""
-log_info "Stage deployment completed successfully!"
-echo ""
-echo "  Environment:  Stage"
-echo "  Host:         ${STAGE_HOST}"
-echo "  Image Tag:    ${IMAGE_TAG}"
-echo "  URL:          http://${STAGE_HOST}"
-echo ""
+log_section "Deployment Summary"
+
+log_success "Stage deployment completed successfully!"
+log_info "Environment:  Stage"
+log_info "Host:         ${STAGE_HOST}"
+log_info "Image Tag:    ${IMAGE_TAG}"
+log_info "URL:          http://${STAGE_HOST}:${NGINX_PORT}"
 
 if [ "$DRY_RUN" = false ]; then
     log_info "View logs: ssh ${STAGE_USER}@${STAGE_HOST} 'cd ${REMOTE_APP_DIR} && docker compose logs -f'"

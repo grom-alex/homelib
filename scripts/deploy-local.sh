@@ -269,16 +269,16 @@ validate_deployment() {
 
     log_section "Validating Deployment"
 
-    # Determine health check URL based on environment (via nginx on port 80)
+    # Determine health check URL based on environment (via nginx)
     case "$ENVIRONMENT" in
         local)
-            HEALTH_URL="http://localhost/health"
+            HEALTH_URL="http://localhost:${NGINX_PORT:-80}/health"
             ;;
         staging)
-            HEALTH_URL="http://$STAGE_HOST/health"
+            HEALTH_URL="http://$STAGE_HOST:${NGINX_PORT:-80}/health"
             ;;
         production)
-            HEALTH_URL="http://$PROD_HOST/health"
+            HEALTH_URL="http://$PROD_HOST:${NGINX_PORT:-80}/health"
             ;;
     esac
 
