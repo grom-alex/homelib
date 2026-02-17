@@ -3,45 +3,44 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=scripts/lib/logging.sh
+. "$SCRIPT_DIR/lib/logging.sh"
+# shellcheck source=scripts/lib/prerequisites.sh
+. "$SCRIPT_DIR/lib/prerequisites.sh"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-echo "=== Настройка окружения разработчика HomeLib ==="
+log_section "Настройка окружения разработчика HomeLib"
 
 # 1. Проверка зависимостей
-echo "1. Проверка зависимостей..."
-for cmd in go node npm docker; do
-  if command -v "$cmd" &>/dev/null; then
-    echo "   $cmd: $(command -v "$cmd")"
-  else
-    echo "   ОШИБКА: $cmd не найден. Установите перед продолжением."
-    exit 1
-  fi
-done
+log_info "1. Проверка зависимостей..."
+check_docker
+check_docker_compose
+check_go "1.25"
+check_node "22"
+prereq_summary
 
 # 2. Создание .env
 if [ ! -f "$PROJECT_ROOT/.env" ]; then
-  echo "2. Создание .env из .env.example..."
+  log_info "2. Создание .env из .env.example..."
   cp "$PROJECT_ROOT/.env.example" "$PROJECT_ROOT/.env"
-  echo "   Отредактируйте .env при необходимости."
+  log_warn "Отредактируйте .env при необходимости."
 else
-  echo "2. .env уже существует, пропускаем."
+  log_info "2. .env уже существует, пропускаем."
 fi
 
 # 3. Установка Go-зависимостей
-echo "3. Установка Go-зависимостей..."
+log_info "3. Установка Go-зависимостей..."
 cd "$PROJECT_ROOT/backend"
 go mod download
 
 # 4. Установка Node-зависимостей
-echo "4. Установка Node-зависимостей..."
+log_info "4. Установка Node-зависимостей..."
 cd "$PROJECT_ROOT/frontend"
 npm ci
 
 # 5. Запуск Docker Compose
-echo "5. Запуск сервисов (docker compose)..."
+log_info "5. Запуск сервисов (docker compose)..."
 docker compose -f "$PROJECT_ROOT/docker/docker-compose.dev.yml" up -d
 
-echo ""
-echo "=== Готово! ==="
-echo "HomeLib доступен на http://localhost"
-echo "Для остановки: make stop"
+log_success "Готово! HomeLib доступен на http://localhost"
+log_info "Для остановки: make stop"

@@ -180,6 +180,8 @@ Architecture documentation is in Russian in [docs/](docs/). The most current ver
 - N/A (конфигурационные файлы) (001-github-ci-setup)
 - Go 1.25, Node.js 22 LTS (frontend build) (002-mvp-backend-init)
 - PostgreSQL 17 + pg_trgm + tsvector (pgvector НЕ используется в MVP) (002-mvp-backend-init)
+- Bash (POSIX-compatible shell scripts) + Docker, Docker Compose v2, ssh, git, go 1.25, node 22 (003-build-deploy-scripts)
+- N/A (скрипты не добавляют хранилище) (003-build-deploy-scripts)
 
 ## Recent Changes
 - 001-github-ci-setup: Added Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`)
