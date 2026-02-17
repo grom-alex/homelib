@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -169,6 +170,6 @@ func TestAuthService_Register_PasswordTooLong(t *testing.T) {
 		Password:    longPassword,
 	}
 
-	_, err := svc.Register(nil, input)
+	_, err := svc.Register(context.TODO(), input)
 	assert.ErrorIs(t, err, ErrPasswordTooLong)
 }

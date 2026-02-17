@@ -79,7 +79,8 @@ func TestImportService_CancelImport_NotRunning(t *testing.T) {
 func TestImportService_SetAppContext(t *testing.T) {
 	svc := NewImportService(nil, config.ImportConfig{}, config.LibraryConfig{}, nil, nil, nil, nil, nil)
 
-	ctx := context.WithValue(context.Background(), struct{}{}, "test")
+	type ctxKey struct{}
+	ctx := context.WithValue(context.Background(), ctxKey{}, "test")
 	svc.SetAppContext(ctx)
 
 	assert.Equal(t, ctx, svc.appCtx)
