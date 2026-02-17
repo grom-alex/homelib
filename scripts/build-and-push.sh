@@ -171,7 +171,7 @@ else
 
     cd "${PROJECT_ROOT}/frontend"
     log_info "Running frontend tests..."
-    if npm run test -- --run 2>/dev/null || npx vitest run 2>/dev/null; then
+    if npm run test -- --run || npx vitest run; then
         log_info "Frontend tests passed"
     else
         log_error "Frontend tests failed!"
