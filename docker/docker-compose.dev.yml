@@ -54,6 +54,7 @@ services:
       DB_USER: homelib
       DB_PASSWORD: ${DB_PASSWORD:-homelib}
       DB_NAME: homelib
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-for-local-dev-must-be-32-chars-long}
     volumes:
       - ${LIBRARY_PATH:-/mnt/smb/media/MyHomeLib/lib.rus.ec}:/library:ro
       - ../backend/config.yaml:/etc/homelib/config.yaml:ro

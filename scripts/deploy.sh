@@ -1,51 +1,120 @@
-#!/usr/bin/env bash
-# Деплой HomeLib
-set -euo pipefail
+#!/bin/sh
+# Deployment wrapper script for HomeLib
+# Usage: ./scripts/deploy.sh <environment> [image_tag]
+#
+# Examples:
+#   ./scripts/deploy.sh staging sha-abc1234
+#   ./scripts/deploy.sh production v1.0.0
+#   IMAGE_TAG=v1.0.0 ./scripts/deploy.sh production
 
+set -e  # Exit on error
+
+# ============================================================================
+# Script Directory and Library Loading
+# ============================================================================
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-DOCKER_DIR="$PROJECT_ROOT/docker"
-ENV="${1:-prod}"
-COMPOSE_FILE="docker-compose.${ENV}.yml"
+# shellcheck source=scripts/lib/logging.sh
+. "$SCRIPT_DIR/lib/logging.sh"
 
-if [ ! -f "$DOCKER_DIR/$COMPOSE_FILE" ]; then
-  echo "Ошибка: файл $DOCKER_DIR/$COMPOSE_FILE не найден."
-  echo "Доступные окружения: dev, stage, prod"
-  exit 1
+# ============================================================================
+# Exit Codes
+# ============================================================================
+EXIT_SUCCESS=0
+EXIT_PREREQUISITE_FAILURE=1
+EXIT_EXECUTION_ERROR=2
+
+# ============================================================================
+# Usage Information
+# ============================================================================
+usage() {
+    cat <<EOF
+Usage: $0 <environment> [image_tag]
+
+Deployment wrapper script for HomeLib — routes to environment-specific deploy scripts
+
+ENVIRONMENTS:
+    staging      Deploy to staging via deploy-stage.sh
+    production   Deploy to production via deploy-prod.sh
+
+ARGUMENTS:
+    image_tag    Docker image tag to deploy (or set IMAGE_TAG env var)
+
+OPTIONS:
+    --help, -h   Show this help message
+
+EXAMPLES:
+    $0 staging sha-abc1234
+    $0 production v1.0.0
+    IMAGE_TAG=v1.0.0 $0 production
+
+EXIT CODES:
+    0 - Success
+    1 - Prerequisite check failed
+    2 - Deployment execution error
+EOF
+}
+
+# ============================================================================
+# Argument Parsing
+# ============================================================================
+if [ $# -lt 1 ]; then
+    log_error "Usage: $0 <environment> [image_tag]"
+    log_error "Environments: staging, production"
+    log_error "Example: $0 staging sha-abc1234"
+    exit $EXIT_PREREQUISITE_FAILURE
 fi
 
-echo "=== Деплой HomeLib (окружение: $ENV) ==="
+# Check for --help before anything else
+case "$1" in
+    --help|-h)
+        usage
+        exit $EXIT_SUCCESS
+        ;;
+esac
 
-# Проверка .env
-if [ ! -f "$PROJECT_ROOT/.env" ]; then
-  echo "Ошибка: файл .env не найден. Скопируйте .env.example и заполните значения."
-  exit 1
+ENVIRONMENT="$1"
+IMAGE_TAG="${2:-${IMAGE_TAG:-}}"
+
+# Validate environment
+case "$ENVIRONMENT" in
+    staging|production) ;;
+    *)
+        log_error "Invalid environment: $ENVIRONMENT"
+        log_error "Must be one of: staging, production"
+        exit $EXIT_PREREQUISITE_FAILURE
+        ;;
+esac
+
+# Check if IMAGE_TAG is set
+if [ -z "$IMAGE_TAG" ]; then
+    log_error "IMAGE_TAG not provided"
+    log_error "Either pass as second argument or set IMAGE_TAG environment variable"
+    log_error "Example: IMAGE_TAG=v1.0.0 $0 $ENVIRONMENT"
+    exit $EXIT_PREREQUISITE_FAILURE
 fi
 
-# Проверка обязательных переменных для не-dev окружений
-if [ "$ENV" != "dev" ]; then
-  source "$PROJECT_ROOT/.env"
-  if [ -z "${DB_PASSWORD:-}" ] || [ -z "${JWT_SECRET:-}" ]; then
-    echo "Ошибка: DB_PASSWORD и JWT_SECRET обязательны для $ENV."
-    exit 1
-  fi
-  if [ -z "${LIBRARY_PATH:-}" ]; then
-    echo "Ошибка: LIBRARY_PATH обязателен."
-    exit 1
-  fi
-fi
+export IMAGE_TAG
 
-echo "1. Сборка образов..."
-docker compose -f "$DOCKER_DIR/$COMPOSE_FILE" --env-file "$PROJECT_ROOT/.env" build
+log_info "Deploying to ${ENVIRONMENT} with image tag: ${IMAGE_TAG}"
 
-echo "2. Остановка текущих сервисов..."
-docker compose -f "$DOCKER_DIR/$COMPOSE_FILE" --env-file "$PROJECT_ROOT/.env" down
-
-echo "3. Запуск сервисов..."
-docker compose -f "$DOCKER_DIR/$COMPOSE_FILE" --env-file "$PROJECT_ROOT/.env" up -d
-
-echo "4. Ожидание готовности..."
-sleep 5
-docker compose -f "$DOCKER_DIR/$COMPOSE_FILE" --env-file "$PROJECT_ROOT/.env" ps
-
-echo "=== Деплой завершён ==="
+# ============================================================================
+# Route to Environment-Specific Script
+# ============================================================================
+case "$ENVIRONMENT" in
+    staging)
+        if [ -x "$SCRIPT_DIR/deploy-stage.sh" ]; then
+            exec "$SCRIPT_DIR/deploy-stage.sh" --tag "$IMAGE_TAG"
+        else
+            log_error "deploy-stage.sh not found or not executable"
+            exit $EXIT_EXECUTION_ERROR
+        fi
+        ;;
+    production)
+        if [ -x "$SCRIPT_DIR/deploy-prod.sh" ]; then
+            exec "$SCRIPT_DIR/deploy-prod.sh" --tag "$IMAGE_TAG"
+        else
+            log_error "deploy-prod.sh not found or not executable"
+            exit $EXIT_EXECUTION_ERROR
+        fi
+        ;;
+esac

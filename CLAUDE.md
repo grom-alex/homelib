@@ -20,6 +20,7 @@ HomeLib is a personal/home library web application for managing, searching, and 
 - Для каждой фичи/исправления создаётся отдельная ветка от `master`
 - Именование веток: `NNN-short-name` (например, `001-github-ci-setup`)
 - Изменения вливаются в `master` через Pull Request
+- PR мержится через **regular merge** (НЕ squash) — сохраняем полную историю коммитов
 - PR требует прохождения CI (сборка, тесты, линтеры) перед мержем
 - Репозиторий: `git@github.com:grom-alex/homelib.git`
 
@@ -154,6 +155,26 @@ Key parsing details:
 - Roles: `user`, `admin`
 - First registered user becomes admin (or via CLI command)
 
+## Versioning
+
+Версия проекта хранится в файле `version` в корне репозитория (формат: `MAJOR.MINOR.PATCH`).
+
+**Формат тега образа:** `v<VERSION>-sha-<COMMIT>` (например, `v0.2.0-sha-abc1234`)
+
+**Правила инкремента версии:**
+
+| Часть | Когда увеличивать | Пример |
+|-------|-------------------|--------|
+| **MAJOR** | Ломающие изменения API, несовместимые миграции БД, смена архитектуры | `0.2.0 → 1.0.0` |
+| **MINOR** | Новые фичи, новые эндпоинты API, неломающие миграции БД | `0.1.0 → 0.2.0` |
+| **PATCH** | Баг-фиксы, мелкие улучшения, обновления зависимостей | `0.1.0 → 0.1.1` |
+
+**Сборка:** `./scripts/build-and-push.sh [--bump patch|minor|major]`
+**Деплой:** `./scripts/deploy-stage.sh --tag v0.2.0-sha-abc1234`
+
+Версия `0.x.y` означает pre-release (API может меняться без major bump).
+Переход на `1.0.0` — когда API считается стабильным для внешних потребителей.
+
 ## Testing Requirements
 
 - Покрытие unit-тестами: минимум **80%** для каждого пакета/модуля (бэкенд и фронтенд)
@@ -180,6 +201,8 @@ Architecture documentation is in Russian in [docs/](docs/). The most current ver
 - N/A (конфигурационные файлы) (001-github-ci-setup)
 - Go 1.25, Node.js 22 LTS (frontend build) (002-mvp-backend-init)
 - PostgreSQL 17 + pg_trgm + tsvector (pgvector НЕ используется в MVP) (002-mvp-backend-init)
+- Bash (POSIX-compatible shell scripts) + Docker, Docker Compose v2, ssh, git, go 1.25, node 22 (003-build-deploy-scripts)
+- N/A (скрипты не добавляют хранилище) (003-build-deploy-scripts)
 
 ## Recent Changes
 - 001-github-ci-setup: Added Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`)
