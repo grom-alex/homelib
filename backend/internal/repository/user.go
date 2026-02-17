@@ -4,16 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/grom-alex/homelib/backend/internal/models"
 )
 
 type UserRepo struct {
-	pool *pgxpool.Pool
+	pool Pool
 }
 
-func NewUserRepo(pool *pgxpool.Pool) *UserRepo {
+func NewUserRepo(pool Pool) *UserRepo {
 	return &UserRepo{pool: pool}
 }
 
@@ -76,10 +74,14 @@ func (r *UserRepo) RegisterUser(ctx context.Context, user *models.User, registra
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	// Lock users table to prevent race condition on first registration
+	// Lock users table to prevent race condition on first registration.
+	// LOCK TABLE blocks concurrent INSERT/UPDATE/DELETE for the duration of the transaction.
+	if _, err = tx.Exec(ctx, "LOCK TABLE users IN EXCLUSIVE MODE"); err != nil {
+		return fmt.Errorf("lock users table: %w", err)
+	}
+
 	var count int
-	err = tx.QueryRow(ctx, "SELECT COUNT(*) FROM users FOR UPDATE").Scan(&count)
-	if err != nil {
+	if err = tx.QueryRow(ctx, "SELECT COUNT(*) FROM users").Scan(&count); err != nil {
 		return fmt.Errorf("count users: %w", err)
 	}
 

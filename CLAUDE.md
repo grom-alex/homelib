@@ -6,6 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Always respond in Russian (русский язык).
 
+## MCP Tools
+
+- **Context7** (`mcp__context7`): Использовать для получения актуальной документации библиотек при проектировании фичей, решении проблем и написании кода. Вызывать `resolve-library-id` → `query-docs`.
+- **Chrome DevTools** (`mcp__chrome-devtools`): Использовать для отладки фронтенда на стейдже/проде — снимки страниц, скриншоты, консольные ошибки, сетевые запросы, performance traces.
+
+## Debugging Rules
+
+- **Отладка — всегда локально.** Для отладки и воспроизведения проблем использовать локальный деплой (`docker compose` / `deploy-local.sh`).
+- **Стейдж — только read-only запросы.** На стейдже допускаются только GET-запросы для сбора информации о проблеме (логи, статус, скриншоты). Модификация данных на стейдже запрещена.
+- **Стейдж как fallback.** Если проблему не удаётся воспроизвести локально — обращаться к стейджу за дополнительными данными (логи, конфиги).
+
 ## Project Overview
 
 HomeLib is a personal/home library web application for managing, searching, and reading digital book collections. It features AI-powered semantic search and automated metadata enhancement through distributed GPU processing.
@@ -203,6 +214,7 @@ Architecture documentation is in Russian in [docs/](docs/). The most current ver
 - PostgreSQL 17 + pg_trgm + tsvector (pgvector НЕ используется в MVP) (002-mvp-backend-init)
 - Bash (POSIX-compatible shell scripts) + Docker, Docker Compose v2, ssh, git, go 1.25, node 22 (003-build-deploy-scripts)
 - N/A (скрипты не добавляют хранилище) (003-build-deploy-scripts)
+- Go 1.25 (latest patch 1.25.7) + Gin (HTTP framework), pgx/v5 (PostgreSQL driver), golang-jwt/jwt/v5, bcrypt (004-fix-registration)
 
 ## Recent Changes
 - 001-github-ci-setup: Added Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`)

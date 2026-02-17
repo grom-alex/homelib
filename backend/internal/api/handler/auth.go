@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -39,6 +40,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		case errors.Is(err, service.ErrPasswordTooLong):
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		default:
+			log.Printf("ERROR: registration failed: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "registration failed"})
 		}
 		return

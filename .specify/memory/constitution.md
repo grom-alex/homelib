@@ -1,15 +1,13 @@
 <!--
   Sync Impact Report
   ===========================================================================
-  Version change: 1.2.1 → 1.3.0
-  Modified principles:
-    - §6 Operational Model — добавлен §6.VII (архитектура как строгая спецификация)
+  Version change: 1.3.0 → 1.4.0
+  Modified principles: N/A
   Added sections:
-    - §6.VII Архитектурная документация как строгая спецификация
+    - §7 Change Governance — добавлен «Test-Driven Development (TDD)»
   Removed sections: N/A
   Templates requiring updates:
-    - CLAUDE.md — ✅ updated (architecture doc reference v7→v8, structure rule added)
-    - docs/homelib-architecture-v8.md — ✅ created (backend api/ wrapper, docker/ directory)
+    - CLAUDE.md — не требуется (TDD — рекомендация, не структурное изменение)
   Follow-up TODOs: none
   ===========================================================================
 -->
@@ -351,6 +349,16 @@ Ollama-инстансов (healthcheck каждые 30 секунд через `
 Исключения допускаются ТОЛЬКО для сгенерированного кода, миграций БД,
 конфигурационных файлов и чисто декларативных шаблонов (HTML/CSS).
 
+### Test-Driven Development (TDD)
+
+При разработке нового функционала РЕКОМЕНДУЕТСЯ использовать подход
+Test-Driven Development: сначала написать тесты, убедиться что они
+падают (red), затем реализовать код до прохождения тестов (green).
+Это обеспечивает полное покрытие нового кода тестами и помогает
+проектировать чистые интерфейсы. TDD ОБЯЗАТЕЛЕН для исправления
+багов — перед фиксом ДОЛЖЕН быть написан тест, воспроизводящий
+ошибку.
+
 ### Compliance review
 
 При создании спецификации или плана реализации новой фичи ДОЛЖНА
@@ -358,4 +366,4 @@ Ollama-инстансов (healthcheck каждые 30 секунд через `
 Нарушения принципов ДОЛЖНЫ быть явно задокументированы и обоснованы
 в секции «Complexity Tracking» плана реализации.
 
-**Version**: 1.3.0 | **Ratified**: 2026-02-15 | **Last Amended**: 2026-02-17
+**Version**: 1.4.0 | **Ratified**: 2026-02-15 | **Last Amended**: 2026-02-18
