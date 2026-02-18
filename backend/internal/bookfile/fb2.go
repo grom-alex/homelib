@@ -140,12 +140,6 @@ type fb2Binary struct {
 	Data        string `xml:",chardata"`
 }
 
-type fb2Link struct {
-	Href    string `xml:"href,attr"`
-	Type    string `xml:"type,attr"`
-	Content string `xml:",innerxml"`
-}
-
 // FB2Converter implements BookConverter for FB2 format.
 type FB2Converter struct {
 	book    *fb2FictionBook
@@ -510,7 +504,7 @@ func (c *FB2Converter) convertFootnoteRefs(content string) string {
 		if strings.Contains(tagContent, `type="note"`) {
 			href := extractAttrValue(tagContent, "href")
 			noteID := strings.TrimPrefix(href, "#")
-			result.WriteString(fmt.Sprintf(`<a class="footnote-ref" data-note-id="%s">`, html.EscapeString(noteID)))
+			fmt.Fprintf(&result, `<a class="footnote-ref" data-note-id="%s">`, html.EscapeString(noteID))
 		} else {
 			result.WriteString(tagContent)
 		}
@@ -553,7 +547,7 @@ func (c *FB2Converter) convertInlineImages(content string) string {
 		href := extractAttrValue(tagContent, "href")
 		imgID := strings.TrimPrefix(href, "#")
 		if imgID != "" {
-			result.WriteString(fmt.Sprintf(`<img src="/api/books/%d/image/%s" alt="" loading="lazy"/>`, c.bookID, imgID))
+			fmt.Fprintf(&result, `<img src="/api/books/%d/image/%s" alt="" loading="lazy"/>`, c.bookID, imgID)
 		}
 	}
 
@@ -571,7 +565,7 @@ func (c *FB2Converter) appendFootnoteBodies(b *strings.Builder, sec *fb2Section)
 	for noteID, noteSec := range c.notes {
 		marker := fmt.Sprintf(`data-note-id="%s"`, noteID)
 		if strings.Contains(sectionHTML, marker) {
-			b.WriteString(fmt.Sprintf(`<div class="footnote-body" id="%s">`, html.EscapeString(noteID)))
+			fmt.Fprintf(b, `<div class="footnote-body" id="%s">`, html.EscapeString(noteID))
 			for _, elem := range noteSec.Content {
 				if elem.XMLName.Local == "p" {
 					b.WriteString("<p>")
