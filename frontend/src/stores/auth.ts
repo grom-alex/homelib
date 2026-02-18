@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserInfo, RegisterInput, LoginInput } from '@/api/auth'
 import * as authApi from '@/api/auth'
-import { setAccessToken } from '@/api/client'
+import { setAccessToken, setOnAuthExpired } from '@/api/client'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserInfo | null>(null)
@@ -24,6 +24,9 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken.value = null
     setAccessToken(null)
   }
+
+  // Sync store state when interceptor detects expired session
+  setOnAuthExpired(() => clearAuth())
 
   async function login(input: LoginInput) {
     const data = await authApi.login(input)

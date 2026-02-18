@@ -85,13 +85,42 @@ make deploy-prod      # Деплой в production
 ## Конфигурация
 
 Приложение использует YAML-конфигурацию (`config/`) с переопределением через переменные окружения.
+Полный пример с комментариями: [`backend/config.example.yaml`](backend/config.example.yaml).
+
+### Переменные окружения
 
 | Переменная | Описание | По умолчанию (dev) |
 |------------|----------|-------------------|
 | `DB_PASSWORD` | Пароль PostgreSQL | `homelib` |
+| `DB_USER` | Пользователь PostgreSQL | `homelib` |
+| `DB_NAME` | Имя базы данных | `homelib` |
+| `DB_HOST` | Хост PostgreSQL | `postgres` |
 | `JWT_SECRET` | Секрет JWT (мин. 32 символа) | dev-значение |
-| `LIBRARY_PATH` | Путь к библиотеке | `/mnt/smb/media/...` |
-| `NGINX_PORT` | Внешний порт | `80` |
+| `LIBRARY_PATH` | Путь к каталогу ZIP-архивов | `/mnt/smb/media/...` |
+| `INPX_PATH` | Путь к INPX-файлу | см. config |
+| `NGINX_PORT` | Внешний порт Nginx | `80` |
+
+### Параметры YAML-конфигурации
+
+| Секция | Параметр | Описание | По умолчанию |
+|--------|----------|----------|-------------|
+| `server` | `port` | Порт HTTP-сервера | `8080` |
+| `server` | `host` | Адрес прослушивания | `0.0.0.0` |
+| `database` | `host` | Хост PostgreSQL | — |
+| `database` | `port` | Порт PostgreSQL | `5432` |
+| `database` | `user` | Пользователь БД | — |
+| `database` | `password` | Пароль БД | — |
+| `database` | `dbname` | Имя базы данных | — |
+| `database` | `sslmode` | Режим SSL (`disable` / `require` / `verify-full`) | `disable` |
+| `auth` | `jwt_secret` | Секрет для подписи JWT (мин. 32 символа) | — |
+| `auth` | `access_token_ttl` | Время жизни access token (JWT в памяти браузера) | `15m` |
+| `auth` | `refresh_token_ttl` | Время жизни refresh token (httpOnly cookie). Определяет, как долго пользователь остаётся залогиненным без повторного ввода пароля | `720h` (30 дней) |
+| `auth` | `registration_enabled` | Разрешена ли регистрация. Первый пользователь регистрируется всегда | `true` |
+| `auth` | `cookie_secure` | Флаг Secure для cookie. `true` — только HTTPS, `false` — и HTTP. На HTTP-окружениях **обязательно** `false` | `false` |
+| `library` | `inpx_path` | Путь к INPX-файлу внутри контейнера | — |
+| `library` | `archives_path` | Путь к каталогу ZIP-архивов | — |
+| `import` | `batch_size` | Размер пакета INSERT при импорте | `3000` |
+| `import` | `log_every` | Логировать прогресс каждые N записей | `10000` |
 
 ## Окружения
 

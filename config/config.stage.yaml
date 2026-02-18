@@ -16,7 +16,7 @@ auth:
   access_token_ttl: "15m"
   refresh_token_ttl: "720h"  # 30 дней
   registration_enabled: false
-  cookie_secure: true
+  cookie_secure: false
 
 library:
   inpx_path: "/library/INPX/librusec_all_local-2022-09-04.inpx"
