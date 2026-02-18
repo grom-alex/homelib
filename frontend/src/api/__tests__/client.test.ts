@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock router
 vi.mock('@/router', () => ({
-  default: { push: vi.fn() },
+  default: {
+    push: vi.fn(),
+    currentRoute: { value: { fullPath: '/books' } },
+  },
 }))
 
 describe('api service', () => {
@@ -95,7 +98,7 @@ describe('api service', () => {
     expect(result).toEqual({ data: 'retry-success' })
   })
 
-  it('response interceptor navigates to /login on refresh failure', async () => {
+  it('response interceptor navigates to /login with redirect query on refresh failure', async () => {
     let responseRejector: (error: unknown) => Promise<unknown>
     const mockRefreshPost = vi.fn().mockRejectedValue(new Error('refresh failed'))
 
@@ -125,7 +128,43 @@ describe('api service', () => {
     }
 
     await expect(responseRejector!(error)).rejects.toBeDefined()
-    expect(router.push).toHaveBeenCalledWith({ name: 'login' })
+    expect(router.push).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'login', query: expect.objectContaining({ redirect: expect.any(String) }) }),
+    )
+  })
+
+  it('response interceptor calls onAuthExpired callback before navigating to login', async () => {
+    let responseRejector: (error: unknown) => Promise<unknown>
+    const mockRefreshPost = vi.fn().mockRejectedValue(new Error('refresh failed'))
+
+    const apiInstance = {
+      interceptors: {
+        request: { use: vi.fn() },
+        response: {
+          use: vi.fn((_: unknown, rej: typeof responseRejector) => { responseRejector = rej }),
+        },
+      },
+    }
+    const refreshInstance = { post: mockRefreshPost }
+
+    let callCount = 0
+    const createSpy = vi.fn(() => {
+      callCount++
+      return callCount === 1 ? apiInstance : refreshInstance
+    })
+    vi.doMock('axios', () => ({ default: { create: createSpy } }))
+
+    const mod = await import('../client')
+    const onExpired = vi.fn()
+    mod.setOnAuthExpired(onExpired)
+
+    const error = {
+      response: { status: 401 },
+      config: { headers: {}, _retry: false, url: '/books' },
+    }
+
+    await expect(responseRejector!(error)).rejects.toBeDefined()
+    expect(onExpired).toHaveBeenCalledTimes(1)
   })
 
   it('response interceptor passes through non-401 errors', async () => {

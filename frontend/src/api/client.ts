@@ -3,9 +3,14 @@ import router from '@/router'
 
 // Access token stored in memory only (not sessionStorage/localStorage)
 let accessToken: string | null = null
+let onAuthExpired: (() => void) | null = null
 
 export function setAccessToken(token: string | null) {
   accessToken = token
+}
+
+export function setOnAuthExpired(callback: () => void) {
+  onAuthExpired = callback
 }
 
 const api = axios.create({
@@ -77,8 +82,9 @@ api.interceptors.response.use(
         return api(originalRequest)
       } catch (refreshError) {
         accessToken = null
+        if (onAuthExpired) onAuthExpired()
         onRefreshFailed(refreshError)
-        router.push({ name: 'login' })
+        router.push({ name: 'login', query: { redirect: router.currentRoute.value.fullPath } })
         return Promise.reject(error)
       } finally {
         isRefreshing = false

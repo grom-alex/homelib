@@ -12,9 +12,11 @@ vi.mock('@/api/auth', () => ({
 vi.mock('@/api/client', () => ({
   default: {},
   setAccessToken: vi.fn(),
+  setOnAuthExpired: vi.fn(),
 }))
 
 import * as authApi from '@/api/auth'
+import { setOnAuthExpired } from '@/api/client'
 
 const mockUser = {
   id: '1',
@@ -149,5 +151,20 @@ describe('auth store', () => {
     store.clearAuth()
     expect(store.user).toBeNull()
     expect(store.accessToken).toBeNull()
+  })
+
+  it('registers onAuthExpired callback that clears auth state', () => {
+    const store = useAuthStore()
+    store.setAuth({ user: mockUser, access_token: 'tok' })
+
+    expect(setOnAuthExpired).toHaveBeenCalledTimes(1)
+    expect(setOnAuthExpired).toHaveBeenCalledWith(expect.any(Function))
+
+    // Simulate the callback being invoked (as interceptor would do)
+    const callback = vi.mocked(setOnAuthExpired).mock.calls[0][0]
+    callback()
+
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.user).toBeNull()
   })
 })

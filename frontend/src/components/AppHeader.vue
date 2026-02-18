@@ -43,7 +43,11 @@ const auth = useAuthStore()
 const router = useRouter()
 
 async function handleLogout() {
-  await auth.logout()
+  try {
+    await auth.logout()
+  } catch {
+    auth.clearAuth()
+  }
   router.push('/login')
 }
 </script>

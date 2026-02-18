@@ -215,6 +215,8 @@ Architecture documentation is in Russian in [docs/](docs/). The most current ver
 - Bash (POSIX-compatible shell scripts) + Docker, Docker Compose v2, ssh, git, go 1.25, node 22 (003-build-deploy-scripts)
 - N/A (скрипты не добавляют хранилище) (003-build-deploy-scripts)
 - Go 1.25 (latest patch 1.25.7) + Gin (HTTP framework), pgx/v5 (PostgreSQL driver), golang-jwt/jwt/v5, bcrypt (004-fix-registration)
+- Go 1.25 (backend), TypeScript + Vue 3 (frontend) + Gin (HTTP), pgx/v5 (DB), axios (HTTP client), Pinia (state), Vue Router (005-fix-session-expiry)
+- PostgreSQL 17 (refresh_tokens table) (005-fix-session-expiry)
 
 ## Recent Changes
 - 001-github-ci-setup: Added Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`)

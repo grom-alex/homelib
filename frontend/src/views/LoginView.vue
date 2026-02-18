@@ -85,11 +85,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, type Ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 
 const tab = ref('login')
 const loading = ref(false)
@@ -114,7 +115,7 @@ async function handleLogin() {
   error.value = ''
   try {
     await auth.login(loginForm)
-    router.push('/books')
+    router.push((route.query.redirect as string) || '/books')
   } catch (e: unknown) {
     if (e && typeof e === 'object' && 'response' in e) {
       const axiosError = e as { response?: { data?: { error?: string } } }
@@ -134,7 +135,7 @@ async function handleRegister() {
   error.value = ''
   try {
     await auth.register(registerForm)
-    router.push('/books')
+    router.push((route.query.redirect as string) || '/books')
   } catch (e: unknown) {
     if (e && typeof e === 'object' && 'response' in e) {
       const axiosError = e as { response?: { data?: { error?: string } } }
