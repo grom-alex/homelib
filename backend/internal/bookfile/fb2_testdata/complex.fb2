@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <genre>poetry</genre>
+      <author>
+        <first-name>Анна</first-name>
+        <last-name>Поэтова</last-name>
+      </author>
+      <book-title>Сборник с элементами</book-title>
+      <lang>ru</lang>
+      <coverpage>
+        <image l:href="#cover.jpg"/>
+      </coverpage>
+    </title-info>
+  </description>
+  <body>
+    <section>
+      <title><p>Часть первая</p></title>
+      <epigraph>
+        <p>Быть или не быть — вот в чём вопрос.</p>
+        <text-author>У. Шекспир</text-author>
+      </epigraph>
+      <p>Вступительный текст первой части.</p>
+      <section>
+        <title><p>Глава 1. Стихи</p></title>
+        <poem>
+          <title><p>Зимнее утро</p></title>
+          <stanza>
+            <v>Мороз и солнце; день чудесный!</v>
+            <v>Ещё ты дремлешь, друг прелестный —</v>
+            <v>Пора, красавица, проснись:</v>
+          </stanza>
+          <stanza>
+            <v>Открой сомкнуты негой взоры</v>
+            <v>Навстречу северной Авроры,</v>
+            <v>Звездою севера явись!</v>
+          </stanza>
+          <text-author>А.С. Пушкин</text-author>
+        </poem>
+        <p>Комментарий после стихотворения.</p>
+      </section>
+      <section>
+        <title><p>Глава 2. Цитаты и изображения</p></title>
+        <cite>
+          <p>Все счастливые семьи похожи друг на друга, каждая несчастливая семья несчастлива по-своему.</p>
+          <text-author>Л.Н. Толстой</text-author>
+        </cite>
+        <p>Далее следует изображение:</p>
+        <p><image l:href="#img1.png"/></p>
+        <p>Текст после изображения.</p>
+      </section>
+    </section>
+    <section>
+      <title><p>Часть вторая</p></title>
+      <p>Текст второй части с <a l:href="#note1" type="note">[1]</a> сноской.</p>
+      <p>Ещё текст с <a l:href="#note2" type="note">[2]</a> другой сноской.</p>
+    </section>
+  </body>
+  <body name="notes">
+    <title><p>Примечания</p></title>
+    <section id="note1">
+      <title><p>1</p></title>
+      <p>Это текст первой сноски. Содержит пояснение к основному тексту.</p>
+    </section>
+    <section id="note2">
+      <title><p>2</p></title>
+      <p>Текст второй сноски с <emphasis>форматированием</emphasis>.</p>
+    </section>
+  </body>
+  <binary id="cover.jpg" content-type="image/jpeg">
+/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRof
+Hh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwh
+MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAAR
+CAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAFBABAAAA
+AAAAAAAAAAAAAAD/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFREBAQAAAAAAAAAAAAAAAAAAAAH/
+2gAMAwEAAhEDEQA/AKgA/9k=
+</binary>
+  <binary id="img1.png" content-type="image/png">
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==
+</binary>
+</FictionBook>

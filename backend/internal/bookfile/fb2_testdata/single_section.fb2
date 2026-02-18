@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
+  <description>
+    <title-info>
+      <genre>prose_classic</genre>
+      <author>
+        <first-name>Пётр</first-name>
+        <last-name>Одинов</last-name>
+      </author>
+      <book-title>Книга без оглавления</book-title>
+      <lang>ru</lang>
+    </title-info>
+  </description>
+  <body>
+    <section>
+      <p>Это книга с единственной секцией и без заголовка.</p>
+      <p>Весь текст находится в одном блоке.</p>
+      <p>Оглавление должно быть пустым или содержать один пункт.</p>
+    </section>
+  </body>
+</FictionBook>

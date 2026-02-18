@@ -2,9 +2,11 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 
+	"github.com/grom-alex/homelib/backend/internal/bookfile"
 	"github.com/grom-alex/homelib/backend/internal/models"
 	"github.com/grom-alex/homelib/backend/internal/service"
 )
@@ -146,6 +148,77 @@ func (m *mockImportService) CancelImport() {
 	if m.cancelFn != nil {
 		m.cancelFn()
 	}
+}
+
+// --- Reader service mock ---
+
+type mockReaderService struct {
+	getBookContentFn func(ctx context.Context, bookID int64) (*bookfile.BookContent, error)
+	getChapterFn     func(ctx context.Context, bookID int64, chapterID string) (*bookfile.ChapterContent, error)
+	getBookImageFn   func(ctx context.Context, bookID int64, imageID string) (*bookfile.ImageData, error)
+}
+
+func (m *mockReaderService) GetBookContent(ctx context.Context, bookID int64) (*bookfile.BookContent, error) {
+	if m.getBookContentFn != nil {
+		return m.getBookContentFn(ctx, bookID)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockReaderService) GetChapter(ctx context.Context, bookID int64, chapterID string) (*bookfile.ChapterContent, error) {
+	if m.getChapterFn != nil {
+		return m.getChapterFn(ctx, bookID, chapterID)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockReaderService) GetBookImage(ctx context.Context, bookID int64, imageID string) (*bookfile.ImageData, error) {
+	if m.getBookImageFn != nil {
+		return m.getBookImageFn(ctx, bookID, imageID)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+// --- Progress repo mock ---
+
+type mockProgressRepo struct {
+	getFn    func(ctx context.Context, userID string, bookID int64) (*models.ReadingProgress, error)
+	upsertFn func(ctx context.Context, p *models.ReadingProgress) error
+}
+
+func (m *mockProgressRepo) Get(ctx context.Context, userID string, bookID int64) (*models.ReadingProgress, error) {
+	if m.getFn != nil {
+		return m.getFn(ctx, userID, bookID)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockProgressRepo) Upsert(ctx context.Context, p *models.ReadingProgress) error {
+	if m.upsertFn != nil {
+		return m.upsertFn(ctx, p)
+	}
+	return fmt.Errorf("not implemented")
+}
+
+// --- Settings repo mock ---
+
+type mockSettingsRepo struct {
+	getSettingsFn    func(ctx context.Context, userID string) (json.RawMessage, error)
+	updateSettingsFn func(ctx context.Context, userID string, patch json.RawMessage) (json.RawMessage, error)
+}
+
+func (m *mockSettingsRepo) GetSettings(ctx context.Context, userID string) (json.RawMessage, error) {
+	if m.getSettingsFn != nil {
+		return m.getSettingsFn(ctx, userID)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockSettingsRepo) UpdateSettings(ctx context.Context, userID string, patch json.RawMessage) (json.RawMessage, error) {
+	if m.updateSettingsFn != nil {
+		return m.updateSettingsFn(ctx, userID, patch)
+	}
+	return nil, fmt.Errorf("not implemented")
 }
 
 // --- Helper: nopCloser wraps an io.Reader to satisfy io.ReadCloser ---
