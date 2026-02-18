@@ -76,7 +76,7 @@ func Load(path string) (*Config, error) {
 			SSLMode: "disable",
 		},
 		Auth: AuthConfig{
-			AccessTokenTTL:      2 * time.Hour,
+			AccessTokenTTL:      15 * time.Minute,
 			RefreshTokenTTL:     30 * 24 * time.Hour,
 			RegistrationEnabled: true,
 		},

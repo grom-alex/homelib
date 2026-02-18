@@ -1,26 +1,49 @@
+# HomeLib — пример конфигурации
+# Скопируйте в config/config.dev.yaml (или stage/prod) и настройте под окружение.
+# Секреты (пароли, JWT) можно переопределить через переменные окружения.
+
 server:
-  port: 8080
-  host: "0.0.0.0"
+  port: 8080              # Порт HTTP-сервера
+  host: "0.0.0.0"         # Адрес для прослушивания (0.0.0.0 = все интерфейсы)
 
 database:
-  host: "postgres"
-  port: 5432
-  user: "homelib"
-  password: "homelib"
-  dbname: "homelib"
-  sslmode: "disable"
+  host: "postgres"         # Хост PostgreSQL (имя сервиса в Docker Compose)
+  port: 5432               # Порт PostgreSQL
+  user: "homelib"          # Пользователь БД. Переопределение: DB_USER
+  password: "homelib"      # Пароль БД. Переопределение: DB_PASSWORD
+  dbname: "homelib"        # Имя базы данных. Переопределение: DB_NAME
+  sslmode: "disable"       # Режим SSL: disable | require | verify-full
 
 auth:
   jwt_secret: "change-me-in-production-must-be-at-least-32-characters"
-  access_token_ttl: "15m"
-  refresh_token_ttl: "720h"  # 30 days
+                           # Секрет для подписи JWT-токенов (минимум 32 символа).
+                           # Переопределение: JWT_SECRET
+  access_token_ttl: "15m"  # Время жизни access token (JWT в памяти браузера).
+                           # Формат: Go duration (15m, 1h, 2h30m).
+                           # После истечения — автоматический refresh через cookie.
+  refresh_token_ttl: "720h"
+                           # Время жизни refresh token (httpOnly cookie, 720h = 30 дней).
+                           # Определяет, как долго пользователь остаётся залогиненным
+                           # без повторного ввода пароля.
   registration_enabled: true
-  cookie_secure: false  # set to true behind HTTPS
+                           # Разрешена ли регистрация новых пользователей.
+                           # false — только существующие пользователи могут входить.
+                           # Первый пользователь всегда может зарегистрироваться.
+  cookie_secure: false     # Флаг Secure для cookie refresh_token.
+                           # true — cookie передаётся только по HTTPS.
+                           # false — работает и по HTTP (для dev/staging без TLS).
+                           # ВАЖНО: на HTTP-окружениях ДОЛЖЕН быть false,
+                           # иначе браузер отклонит cookie и refresh не будет работать.
 
 library:
   inpx_path: "/library/INPX/librusec_all_local-2022-09-04.inpx"
+                           # Путь к INPX-файлу библиотеки (внутри контейнера).
+                           # Переопределение: INPX_PATH
   archives_path: "/library"
+                           # Путь к каталогу с ZIP-архивами книг.
+                           # Переопределение: LIBRARY_PATH
 
 import:
-  batch_size: 3000
-  log_every: 10000
+  batch_size: 3000         # Размер пакета при импорте книг из INPX (INSERT batch).
+                           # Больше = быстрее, но больше памяти.
+  log_every: 10000         # Логировать прогресс каждые N записей при импорте.

@@ -13,7 +13,7 @@ database:
 
 auth:
   jwt_secret: "dev-jwt-secret-for-local-dev-must-be-32-chars-long"
-  access_token_ttl: "2h"
+  access_token_ttl: "15m"
   refresh_token_ttl: "720h"  # 30 дней
   registration_enabled: true
   cookie_secure: false

@@ -76,7 +76,7 @@ auth:
 	assert.Equal(t, "0.0.0.0", cfg.Server.Host)
 	assert.Equal(t, 5432, cfg.Database.Port)
 	assert.Equal(t, "disable", cfg.Database.SSLMode)
-	assert.Equal(t, 2*time.Hour, cfg.Auth.AccessTokenTTL)
+	assert.Equal(t, 15*time.Minute, cfg.Auth.AccessTokenTTL)
 	assert.Equal(t, 30*24*time.Hour, cfg.Auth.RefreshTokenTTL)
 	assert.True(t, cfg.Auth.RegistrationEnabled)
 	assert.Equal(t, 3000, cfg.Import.BatchSize)

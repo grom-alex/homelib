@@ -60,18 +60,12 @@
 
 ---
 
-## Phase 3: User Story 3 — Увеличение TTL до 2 часов (Priority: P3)
+## Phase 3: User Story 3 — Увеличение TTL до 2 часов (Priority: P3) — ОТМЕНЕНА
 
-**Goal**: Время жизни access token увеличено до 2 часов. Пользователь может работать без refresh в течение 2 часов.
+**Решение**: Пользователь решил оставить TTL 15 минут. Auto-refresh через cookie работает прозрачно, поэтому увеличение TTL не требуется.
 
-**Independent Test**: `grep access_token_ttl config/*.yaml` — все файлы показывают `2h`.
-
-### Implementation for User Story 3
-
-- [X] T010 [P] [US3] Изменить `access_token_ttl` с `"15m"` на `"2h"` в `config/config.dev.yaml`, `config/config.stage.yaml`, `config/config.prod.yaml`
-- [X] T011 [US3] Изменить дефолт `AccessTokenTTL` с `15 * time.Minute` на `2 * time.Hour` в `backend/internal/config/config.go:79`
-
-**Checkpoint**: Все конфиги содержат TTL 2h. Проверить по quickstart.md (шаг 6).
+- [~] T010 [P] [US3] ОТМЕНЕНА — access_token_ttl остаётся `"15m"`
+- [~] T011 [US3] ОТМЕНЕНА — дефолт AccessTokenTTL остаётся `15 * time.Minute`
 
 ---
 
