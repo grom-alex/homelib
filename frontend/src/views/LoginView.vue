@@ -115,7 +115,8 @@ async function handleLogin() {
   error.value = ''
   try {
     await auth.login(loginForm)
-    router.push((route.query.redirect as string) || '/books')
+    const redirect = route.query.redirect as string
+    router.push(redirect?.startsWith('/') ? redirect : '/books')
   } catch (e: unknown) {
     if (e && typeof e === 'object' && 'response' in e) {
       const axiosError = e as { response?: { data?: { error?: string } } }
@@ -135,7 +136,8 @@ async function handleRegister() {
   error.value = ''
   try {
     await auth.register(registerForm)
-    router.push((route.query.redirect as string) || '/books')
+    const redirect = route.query.redirect as string
+    router.push(redirect?.startsWith('/') ? redirect : '/books')
   } catch (e: unknown) {
     if (e && typeof e === 'object' && 'response' in e) {
       const axiosError = e as { response?: { data?: { error?: string } } }

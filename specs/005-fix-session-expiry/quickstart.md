@@ -57,12 +57,15 @@ cd frontend && npx vitest run src/api/__tests__/client.test.ts src/stores/__test
 4. Должен произойти корректный logout: очистка данных, переход на страницу входа
 5. Меню НЕ должно "ломаться" — страница входа должна отображаться корректно
 
-## Шаг 6: Проверка TTL 2 часа (FR-005)
+## Шаг 6: Проверка TTL (FR-005 — ОТМЕНЕНА)
+
+> **Примечание**: Увеличение TTL до 2 часов было отменено. Access token TTL остаётся 15 минут.
+> Auto-refresh через httpOnly cookie работает прозрачно, поэтому увеличение не требуется.
 
 ```bash
 # Проверить конфигурацию
 grep access_token_ttl config/config.dev.yaml config/config.stage.yaml config/config.prod.yaml
-# Ожидаемый вывод: access_token_ttl: "2h" во всех файлах
+# Ожидаемый вывод: access_token_ttl: "15m" во всех файлах
 ```
 
 ## Шаг 7: Проверка что 5xx НЕ вызывает redirect (FR-007)
@@ -78,7 +81,7 @@ grep access_token_ttl config/config.dev.yaml config/config.stage.yaml config/con
 1. Убедиться что `config/config.stage.yaml` содержит `cookie_secure: false`
 2. Задеплоить: `./scripts/deploy-stage.sh --tag <TAG>`
 3. Открыть `http://10.0.100.21:8081/`
-4. Войти, подождать 2+ часов (или временно уменьшить TTL для тестирования)
+4. Войти, подождать 15+ минут (или временно уменьшить TTL для тестирования)
 5. Нажать на элемент → должен произойти прозрачный refresh
 
 ## Контрольный список
@@ -88,6 +91,6 @@ grep access_token_ttl config/config.dev.yaml config/config.stage.yaml config/con
 - [ ] Redirect на `/login?redirect=<path>` при истечении refresh token
 - [ ] Redirect-back на исходную страницу после повторного входа
 - [ ] Кнопка "Выход" работает в любом состоянии
-- [ ] TTL access token = 2 часа
+- [ ] TTL access token = 15 минут (увеличение отменено)
 - [ ] 5xx ошибки не вызывают redirect на login
 - [ ] Все unit-тесты проходят

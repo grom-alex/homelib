@@ -5,7 +5,7 @@
 
 ## Summary
 
-Исправление ошибки 401 при истечении access token: корневая причина — `cookie_secure: true` в stage-конфиге при HTTP-соединении (refresh_token cookie отклоняется браузером). Дополнительно: синхронизация interceptor с Pinia store при неудачном refresh, redirect-back после повторного входа, увеличение TTL access token до 2 часов, исправление кнопки "Выход".
+Исправление ошибки 401 при истечении access token: корневая причина — `cookie_secure: true` в stage-конфиге при HTTP-соединении (refresh_token cookie отклоняется браузером). Дополнительно: синхронизация interceptor с Pinia store при неудачном refresh, redirect-back после повторного входа, исправление кнопки "Выход". Увеличение TTL до 2 часов было отменено — auto-refresh работает прозрачно при 15-минутном TTL.
 
 ## Technical Context
 
@@ -55,11 +55,11 @@ specs/005-fix-session-expiry/
 ```text
 # Backend — конфигурация
 config/
-├── config.dev.yaml          # access_token_ttl: 15m → 2h
-├── config.stage.yaml        # access_token_ttl: 15m → 2h, cookie_secure: true → false
-└── config.prod.yaml         # access_token_ttl: 15m → 2h
+├── config.dev.yaml          # access_token_ttl: "15m" (без изменений)
+├── config.stage.yaml        # cookie_secure: true → false (корневая причина)
+└── config.prod.yaml         # access_token_ttl: "15m" (без изменений)
 backend/internal/config/
-└── config.go                # Дефолт AccessTokenTTL: 15min → 2h
+└── config.go                # Дефолт AccessTokenTTL: 15min (без изменений)
 
 # Frontend — auth flow
 frontend/src/
