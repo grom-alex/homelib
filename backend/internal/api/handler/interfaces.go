@@ -2,7 +2,9 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 
+	"github.com/grom-alex/homelib/backend/internal/bookfile"
 	"github.com/grom-alex/homelib/backend/internal/models"
 	"github.com/grom-alex/homelib/backend/internal/service"
 )
@@ -36,4 +38,23 @@ type ImportServicer interface {
 	StartImport(parentCtx ...context.Context) error
 	GetStatus() models.ImportStatus
 	CancelImport()
+}
+
+// ReaderServicer is the interface that reader handlers need from the reader service.
+type ReaderServicer interface {
+	GetBookContent(ctx context.Context, bookID int64) (*bookfile.BookContent, error)
+	GetChapter(ctx context.Context, bookID int64, chapterID string) (*bookfile.ChapterContent, error)
+	GetBookImage(ctx context.Context, bookID int64, imageID string) (*bookfile.ImageData, error)
+}
+
+// ProgressRepoer is the interface that progress handlers need from the reading progress repo.
+type ProgressRepoer interface {
+	Get(ctx context.Context, userID string, bookID int64) (*models.ReadingProgress, error)
+	Upsert(ctx context.Context, p *models.ReadingProgress) error
+}
+
+// SettingsRepoer is the interface that settings handlers need from the user repo.
+type SettingsRepoer interface {
+	GetSettings(ctx context.Context, userID string) (json.RawMessage, error)
+	UpdateSettings(ctx context.Context, userID string, patch json.RawMessage) (json.RawMessage, error)
 }

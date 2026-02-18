@@ -29,13 +29,50 @@
         </v-chip>
       </div>
     </v-card-text>
+    <v-card-actions v-if="book.format === 'fb2'">
+      <v-btn
+        size="small"
+        color="primary"
+        variant="text"
+        :to="`/books/${book.id}/read`"
+        @click.stop
+      >
+        Читать
+      </v-btn>
+      <v-progress-linear
+        v-if="progress > 0"
+        :model-value="progress"
+        color="primary"
+        height="4"
+        class="ml-2 flex-grow-1"
+        rounded
+      />
+      <span v-if="progress > 0" class="text-caption text-medium-emphasis ml-1">{{ progress }}%</span>
+    </v-card-actions>
   </v-card>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import type { BookListItem } from '@/api/books'
+import { getReadingProgress } from '@/api/reader'
 
-defineProps<{ book: BookListItem }>()
+const props = defineProps<{ book: BookListItem }>()
+
+const progress = ref(0)
+
+onMounted(async () => {
+  if (props.book.format === 'fb2') {
+    try {
+      const saved = await getReadingProgress(props.book.id)
+      if (saved) {
+        progress.value = saved.totalProgress
+      }
+    } catch {
+      // Ignore — progress is optional
+    }
+  }
+})
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return bytes + ' B'

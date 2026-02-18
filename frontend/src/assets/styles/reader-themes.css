@@ -1,0 +1,372 @@
+/* Reader themes and typography per §8.6 */
+
+/* === Theme Variables === */
+
+.reader.theme-light {
+  --reader-bg: #ffffff;
+  --reader-text: #1a1a1a;
+  --reader-link: #2563eb;
+  --reader-selection: #bfdbfe;
+  --reader-header-bg: #f8fafc;
+  --reader-border: #e2e8f0;
+}
+
+.reader.theme-sepia {
+  --reader-bg: #f5e6d3;
+  --reader-text: #5c4b37;
+  --reader-link: #8b5a2b;
+  --reader-selection: #d4c4b0;
+  --reader-header-bg: #ede0cf;
+  --reader-border: #d4c4b0;
+}
+
+.reader.theme-dark {
+  --reader-bg: #1e1e1e;
+  --reader-text: #d4d4d4;
+  --reader-link: #60a5fa;
+  --reader-selection: #374151;
+  --reader-header-bg: #2d2d2d;
+  --reader-border: #404040;
+}
+
+.reader.theme-night {
+  --reader-bg: #000000;
+  --reader-text: #666666;
+  --reader-link: #4a90d9;
+  --reader-selection: #1a1a1a;
+  --reader-header-bg: #0a0a0a;
+  --reader-border: #1a1a1a;
+}
+
+.reader.theme-custom {
+  --reader-bg: var(--custom-bg, #ffffff);
+  --reader-text: var(--custom-text, #1a1a1a);
+  --reader-link: var(--custom-link, #2563eb);
+  --reader-selection: var(--custom-selection, #bfdbfe);
+  --reader-header-bg: var(--custom-bg, #ffffff);
+  --reader-border: var(--custom-selection, #e2e8f0);
+}
+
+/* === Reader Layout === */
+
+.reader {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: var(--reader-bg);
+  color: var(--reader-text);
+}
+
+/* === Content Typography === */
+
+.reader-content {
+  background: var(--reader-bg);
+  color: var(--reader-text);
+  font-size: var(--font-size, 18px);
+  font-family: var(--font-family, Georgia, serif);
+  font-weight: var(--font-weight, 400);
+  line-height: var(--line-height, 1.6);
+  text-align: var(--text-align, justify);
+  letter-spacing: var(--letter-spacing, 0em);
+}
+
+.reader-content p {
+  text-indent: var(--first-line-indent, 1.5em);
+  margin: 0 0 var(--paragraph-spacing, 0.5em);
+  hyphens: var(--hyphenation, auto);
+  -webkit-hyphens: var(--hyphenation, auto);
+}
+
+/* First paragraph after headings — no indent */
+.reader-content p:first-child,
+.reader-content h1 + p,
+.reader-content h2 + p,
+.reader-content h3 + p {
+  text-indent: 0;
+}
+
+/* Headings */
+.reader-content h1,
+.reader-content h2,
+.reader-content h3 {
+  text-indent: 0;
+  margin: 1.5em 0 0.5em;
+  line-height: 1.3;
+}
+
+.reader-content h2.chapter-title {
+  text-align: center;
+  margin-bottom: 1em;
+}
+
+/* Links */
+.reader-content a {
+  color: var(--reader-link);
+  text-decoration: none;
+}
+
+/* Selection */
+.reader-content ::selection {
+  background: var(--reader-selection);
+}
+
+/* === Images === */
+
+.reader-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em auto;
+  break-inside: avoid;
+}
+
+.reader-content .book-cover {
+  text-align: center;
+  break-after: column;
+  margin: 0;
+  padding: 0;
+}
+
+.reader-content .book-cover img {
+  max-height: 90vh;
+  width: auto;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+/* === FB2-specific Elements === */
+
+/* Epigraph */
+.reader-content .epigraph {
+  font-style: italic;
+  margin: 1.5em 10%;
+  text-indent: 0;
+  border: none;
+  padding: 0;
+}
+
+.reader-content .epigraph p {
+  text-indent: 0;
+}
+
+.reader-content .epigraph-author {
+  display: block;
+  text-align: right;
+  margin-top: 0.5em;
+  font-style: normal;
+}
+
+/* Poem */
+.reader-content .poem {
+  margin: 1.5em 5%;
+}
+
+.reader-content .stanza {
+  margin-bottom: 1em;
+}
+
+.reader-content .verse {
+  text-indent: 0;
+  margin: 0;
+}
+
+.reader-content .poem-author {
+  text-align: right;
+  font-style: italic;
+  margin-top: 1em;
+}
+
+/* Subtitle */
+.reader-content .subtitle {
+  text-align: center;
+  font-style: italic;
+  margin: 1em 0;
+  text-indent: 0;
+}
+
+/* Cite */
+.reader-content .cite {
+  margin: 1em 5%;
+  padding-left: 1em;
+  border-left: 3px solid var(--reader-border);
+}
+
+.reader-content .cite p {
+  text-indent: 0;
+}
+
+/* === Footnotes === */
+
+.reader-content .footnote-ref {
+  color: var(--reader-link);
+  cursor: pointer;
+  vertical-align: super;
+  font-size: 0.8em;
+  text-decoration: none;
+}
+
+.reader-content .footnote-body {
+  display: none;
+}
+
+.footnote-popup {
+  position: absolute;
+  background: var(--reader-bg);
+  border: 1px solid var(--reader-border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  max-width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  font-size: 0.9em;
+  line-height: 1.5;
+  color: var(--reader-text);
+}
+
+/* === Pagination Container === */
+
+.reader-page-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  padding: var(--margin-vertical, 3vh) var(--margin-horizontal, 5vw);
+}
+
+.reader-columns-viewport {
+  overflow: hidden;
+  height: 100%;
+  position: relative;
+}
+
+.reader-columns {
+  /* column-width is set dynamically via JS (usePagination) */
+  column-gap: 0;
+  column-fill: auto;
+  height: 100%;
+  transition: transform 0.3s ease;
+}
+
+.reader-columns.animation-none {
+  transition: none;
+}
+
+.reader-columns.animation-fade {
+  transition: opacity 0.3s ease;
+}
+
+/* === Header and Footer === */
+
+.reader-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--reader-header-bg);
+  border-bottom: 1px solid var(--reader-border);
+  min-height: 48px;
+  z-index: 10;
+}
+
+.reader-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 16px;
+  background: var(--reader-header-bg);
+  border-top: 1px solid var(--reader-border);
+  min-height: 32px;
+  font-size: 0.85em;
+  z-index: 10;
+}
+
+.reader-footer .progress-bar {
+  flex: 1;
+  height: 3px;
+  background: var(--reader-border);
+  border-radius: 2px;
+  margin: 0 12px;
+  overflow: hidden;
+}
+
+.reader-footer .progress-bar-fill {
+  height: 100%;
+  background: var(--reader-link);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* === TOC Sidebar === */
+
+.reader-toc-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 50;
+}
+
+.reader-toc {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 320px;
+  max-width: 85vw;
+  background: var(--reader-bg);
+  border-right: 1px solid var(--reader-border);
+  z-index: 51;
+  overflow-y: auto;
+  padding: 16px 0;
+}
+
+.reader-toc-title {
+  padding: 0 16px 12px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--reader-border);
+  margin-bottom: 8px;
+}
+
+.reader-toc-item {
+  display: block;
+  padding: 8px 16px;
+  cursor: pointer;
+  color: var(--reader-text);
+  text-decoration: none;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: 0.95em;
+}
+
+.reader-toc-item:hover {
+  background: var(--reader-selection);
+}
+
+.reader-toc-item.active {
+  color: var(--reader-link);
+  font-weight: 600;
+}
+
+.reader-toc-item.level-1 {
+  padding-left: 32px;
+}
+
+.reader-toc-item.level-2 {
+  padding-left: 48px;
+}
+
+/* === UI visibility === */
+
+.reader-header.hidden,
+.reader-footer.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.reader-header,
+.reader-footer {
+  transition: opacity 0.2s ease;
+}

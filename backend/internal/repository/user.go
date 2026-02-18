@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/grom-alex/homelib/backend/internal/models"
@@ -113,4 +114,31 @@ func (r *UserRepo) UpdateLastLogin(ctx context.Context, id string) error {
 		return fmt.Errorf("update last login: %w", err)
 	}
 	return nil
+}
+
+// GetSettings returns user settings as raw JSON.
+func (r *UserRepo) GetSettings(ctx context.Context, userID string) (json.RawMessage, error) {
+	var settings json.RawMessage
+	err := r.pool.QueryRow(ctx,
+		"SELECT settings FROM users WHERE id = $1", userID,
+	).Scan(&settings)
+	if err != nil {
+		return nil, fmt.Errorf("get user settings: %w", err)
+	}
+	return settings, nil
+}
+
+// UpdateSettings merges the provided JSON into existing user settings using JSONB || operator.
+func (r *UserRepo) UpdateSettings(ctx context.Context, userID string, patch json.RawMessage) (json.RawMessage, error) {
+	var result json.RawMessage
+	err := r.pool.QueryRow(ctx,
+		`UPDATE users SET settings = settings || $2, updated_at = NOW()
+		 WHERE id = $1
+		 RETURNING settings`,
+		userID, patch,
+	).Scan(&result)
+	if err != nil {
+		return nil, fmt.Errorf("update user settings: %w", err)
+	}
+	return result, nil
 }

@@ -20,6 +20,7 @@ type Server struct {
 	httpServer *http.Server
 	pool       *pgxpool.Pool
 	importSvc  *service.ImportService
+	readerSvc  *service.ReaderService
 }
 
 func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
@@ -37,6 +38,10 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 	importSvc := service.NewImportService(pool, cfg.Import, cfg.Library, bookRepo, authorRepo, genreRepo, seriesRepo, collectionRepo)
 	authSvc := service.NewAuthService(cfg.Auth, userRepo, refreshRepo)
 	downloadSvc := service.NewDownloadService(bookRepo, cfg.Library)
+	readerSvc := service.NewReaderService(bookRepo, cfg.Library, cfg.Reader)
+
+	// Reading progress repository
+	progressRepo := repository.NewReadingProgressRepo(pool)
 
 	// Auth middleware using AuthService as validator
 	authValidator := &authServiceValidator{authSvc: authSvc}
@@ -51,6 +56,9 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 		Admin:    handler.NewAdminHandler(importSvc),
 		Auth:     handler.NewAuthHandler(authSvc, cfg.Auth.RefreshTokenTTL, cfg.Auth.CookieSecure),
 		Download: handler.NewDownloadHandler(downloadSvc),
+		Reader:   handler.NewReaderHandler(readerSvc),
+		Progress: handler.NewProgressHandler(progressRepo),
+		Settings: handler.NewSettingsHandler(userRepo),
 	}
 
 	router := SetupRouter(h, authMw)
@@ -66,6 +74,7 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 		},
 		pool:      pool,
 		importSvc: importSvc,
+		readerSvc: readerSvc,
 	}
 }
 
@@ -89,6 +98,9 @@ func (v *authServiceValidator) ValidateToken(tokenString string) (*middleware.Cl
 func (s *Server) Start(ctx context.Context) error {
 	// Set app context so imports started via API are cancelled on shutdown
 	s.importSvc.SetAppContext(ctx)
+
+	// Start periodic cache cleanup (stops on ctx cancellation)
+	s.readerSvc.StartCacheCleanup(ctx)
 
 	errCh := make(chan error, 1)
 

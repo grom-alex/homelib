@@ -25,3 +25,6 @@ library:
 import:
   batch_size: 3000
   log_every: 10000
+
+reader:
+  cache_path: "/cache/books"

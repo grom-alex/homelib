@@ -34,6 +34,7 @@ services:
     volumes:
       - ${LIBRARY_PATH}:/library:ro
       - ./config.yaml:/etc/homelib/config.yaml:ro
+      - reader_cache:/cache/books
     expose:
       - "8080"
     healthcheck:
@@ -79,3 +80,4 @@ services:
 
 volumes:
   postgres_data:
+  reader_cache:
