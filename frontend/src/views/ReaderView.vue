@@ -11,7 +11,7 @@
     <v-btn color="primary" @click="$router.back()">Назад в каталог</v-btn>
   </div>
 
-  <BookReader v-else-if="store.bookContent" :book-id="bookId" />
+  <BookReader v-else-if="store.bookContent" :book-id="bookId" :key="bookId" />
 </template>
 
 <script setup lang="ts">

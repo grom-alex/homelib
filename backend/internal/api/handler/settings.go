@@ -46,6 +46,9 @@ func (h *SettingsHandler) UpdateUserSettings(c *gin.Context) {
 		return
 	}
 
+	// Limit request body to 64 KB to prevent abuse
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64*1024)
+
 	var patch json.RawMessage
 	if err := c.ShouldBindJSON(&patch); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_json", "message": "Невалидный JSON"})

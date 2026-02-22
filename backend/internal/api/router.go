@@ -65,6 +65,7 @@ func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware) *gin.Engine {
 			if h.Progress != nil {
 				authorized.GET("/me/books/:bookId/progress", h.Progress.GetReadingProgress)
 				authorized.PUT("/me/books/:bookId/progress", h.Progress.SaveReadingProgress)
+				authorized.POST("/me/books/:bookId/progress", h.Progress.SaveReadingProgress)
 			}
 			if h.Settings != nil {
 				authorized.GET("/me/settings", h.Settings.GetUserSettings)

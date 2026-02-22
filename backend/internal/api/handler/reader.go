@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/grom-alex/homelib/backend/internal/service"
 )
 
 type ReaderHandler struct {
@@ -42,8 +45,8 @@ func (h *ReaderHandler) GetChapter(c *gin.Context) {
 	}
 
 	chapterID := c.Param("chapterId")
-	if chapterID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_chapter", "message": "ID главы не указан"})
+	if err := service.ValidateResourceID(chapterID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_chapter", "message": "Некорректный ID главы"})
 		return
 	}
 
@@ -65,8 +68,8 @@ func (h *ReaderHandler) GetBookImage(c *gin.Context) {
 	}
 
 	imageID := c.Param("imageId")
-	if imageID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_image", "message": "ID изображения не указан"})
+	if err := service.ValidateResourceID(imageID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_image", "message": "Некорректный ID изображения"})
 		return
 	}
 
@@ -76,26 +79,35 @@ func (h *ReaderHandler) GetBookImage(c *gin.Context) {
 		return
 	}
 
+	// Only serve image/* content types to prevent Content-Type spoofing
+	contentType := img.ContentType
+	if !strings.HasPrefix(contentType, "image/") {
+		contentType = "application/octet-stream"
+	}
+
 	c.Header("Cache-Control", "public, max-age=86400")
-	c.Data(http.StatusOK, img.ContentType, img.Data)
+	c.Data(http.StatusOK, contentType, img.Data)
 }
 
 // handleReaderError maps service errors to HTTP responses per contract.
 func (h *ReaderHandler) handleReaderError(c *gin.Context, err error) {
-	msg := err.Error()
-
 	switch {
-	case strings.Contains(msg, "unsupported format"):
+	case errors.Is(err, service.ErrUnsupportedFormat):
 		c.JSON(http.StatusUnsupportedMediaType, gin.H{
 			"error":   "unsupported_format",
 			"message": "Формат книги не поддерживается для чтения в браузере",
 		})
-	case strings.Contains(msg, "not found"):
+	case errors.Is(err, service.ErrBookNotFound):
 		c.JSON(http.StatusNotFound, gin.H{
 			"error":   "not_found",
 			"message": "Книга или запрашиваемый ресурс не найдены",
 		})
-	case strings.Contains(msg, "parse book"):
+	case errors.Is(err, service.ErrInvalidResourceID):
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "invalid_id",
+			"message": "Некорректный идентификатор ресурса",
+		})
+	case errors.Is(err, service.ErrMalformedFile):
 		c.JSON(http.StatusUnprocessableEntity, gin.H{
 			"error":   "malformed_file",
 			"message": "Файл книги повреждён или имеет некорректный формат",

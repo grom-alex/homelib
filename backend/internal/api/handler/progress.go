@@ -62,7 +62,7 @@ func (h *ProgressHandler) SaveReadingProgress(c *gin.Context) {
 
 	var input models.SaveProgressInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "validation_error", "message": "Невалидные данные: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "validation_error", "message": "Невалидные данные прогресса чтения"})
 		return
 	}
 

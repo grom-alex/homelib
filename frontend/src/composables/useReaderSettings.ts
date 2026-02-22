@@ -3,11 +3,11 @@ import { useReaderStore } from '@/stores/reader'
 import { getUserSettings, updateUserSettings } from '@/api/reader'
 import { defaultSettings, type ReaderSettings } from '@/types/reader'
 
-let saveTimer: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_MS = 1000
 
 export function useReaderSettings() {
   const store = useReaderStore()
+  let saveTimer: ReturnType<typeof setTimeout> | null = null
 
   async function loadSettings() {
     try {

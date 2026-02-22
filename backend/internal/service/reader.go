@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,6 +17,21 @@ import (
 	"github.com/grom-alex/homelib/backend/internal/config"
 	"github.com/grom-alex/homelib/backend/internal/repository"
 )
+
+// maxBookFileSize limits how much data we read from a book archive (100 MB).
+const maxBookFileSize = 100 * 1024 * 1024
+
+// safeResourceID matches only safe characters for cache file names.
+var safeResourceID = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+
+// ValidateResourceID checks that a user-provided chapter/image ID is safe
+// for use in file system paths (no path traversal).
+func ValidateResourceID(id string) error {
+	if id == "" || !safeResourceID.MatchString(id) {
+		return fmt.Errorf("%w: %q", ErrInvalidResourceID, id)
+	}
+	return nil
+}
 
 // bookDownloadInfoProvider abstracts the book repo dependency for testing.
 type bookDownloadInfoProvider interface {
@@ -78,7 +94,7 @@ func (s *ReaderService) GetChapter(ctx context.Context, bookID int64, chapterID 
 
 	ch, err := conv.Chapter(chapterID)
 	if err != nil {
-		return nil, fmt.Errorf("chapter %q: %w", chapterID, err)
+		return nil, fmt.Errorf("%w: chapter %q: %w", ErrBookNotFound, chapterID, err)
 	}
 
 	// Cache chapter
@@ -104,7 +120,7 @@ func (s *ReaderService) GetBookImage(ctx context.Context, bookID int64, imageID 
 
 	img, err := conv.Image(imageID)
 	if err != nil {
-		return nil, fmt.Errorf("image %q: %w", imageID, err)
+		return nil, fmt.Errorf("%w: image %q: %w", ErrBookNotFound, imageID, err)
 	}
 
 	// Cache image
@@ -117,12 +133,12 @@ func (s *ReaderService) GetBookImage(ctx context.Context, bookID int64, imageID 
 func (s *ReaderService) parseBook(ctx context.Context, bookID int64) (bookfile.BookConverter, error) {
 	archiveName, fileInArchive, format, err := s.bookRepo.GetBookForDownload(ctx, bookID)
 	if err != nil {
-		return nil, fmt.Errorf("book not found: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrBookNotFound, err)
 	}
 
 	conv, err := bookfile.GetConverter(format)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedFormat, format)
 	}
 
 	archivePath := filepath.Join(s.libCfg.ArchivesPath, archiveName)
@@ -146,13 +162,13 @@ func (s *ReaderService) parseBook(ctx context.Context, bookID int64) (bookfile.B
 	}
 	defer func() { _ = rc.Close() }()
 
-	data, err := io.ReadAll(rc)
+	data, err := io.ReadAll(io.LimitReader(rc, maxBookFileSize))
 	if err != nil {
 		return nil, fmt.Errorf("read file: %w", err)
 	}
 
 	if err := conv.Parse(data, bookID); err != nil {
-		return nil, fmt.Errorf("parse book: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrMalformedFile, err)
 	}
 
 	return conv, nil

@@ -1,8 +1,8 @@
 import { onMounted, onUnmounted } from 'vue'
 import { useReaderStore } from '@/stores/reader'
 import { getReadingProgress, saveReadingProgress } from '@/api/reader'
+import { getAccessToken } from '@/api/client'
 
-let saveTimer: ReturnType<typeof setTimeout> | null = null
 const DEBOUNCE_MS = 2000
 
 function getDeviceType(): string {
@@ -15,6 +15,7 @@ function getDeviceType(): string {
 export function useReadingProgress(bookId: number) {
   const store = useReaderStore()
   let pendingSave = false
+  let saveTimer: ReturnType<typeof setTimeout> | null = null
 
   async function loadProgress(): Promise<{ chapterId: string; chapterProgress: number } | null> {
     try {
@@ -68,17 +69,28 @@ export function useReadingProgress(bookId: number) {
       clearTimeout(saveTimer)
       saveTimer = null
     }
-    if (pendingSave || store.currentChapterId) {
-      // Используем sendBeacon для надёжной отправки при закрытии
-      const totalProgress = calculateTotalProgress()
-      const body = JSON.stringify({
-        chapterId: store.currentChapterId,
-        chapterProgress: store.chapterProgress,
-        totalProgress,
-        device: getDeviceType(),
-      })
-      navigator.sendBeacon(`/api/me/books/${bookId}/progress`, new Blob([body], { type: 'application/json' }))
-    }
+    if (!pendingSave) return
+
+    // Use fetch with keepalive for reliable delivery on page unload.
+    // Unlike sendBeacon, fetch supports custom headers (Authorization) and PUT method.
+    const totalProgress = calculateTotalProgress()
+    const body = JSON.stringify({
+      chapterId: store.currentChapterId,
+      chapterProgress: store.chapterProgress,
+      totalProgress,
+      device: getDeviceType(),
+    })
+    const token = getAccessToken()
+    fetch(`/api/me/books/${bookId}/progress`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body,
+      keepalive: true,
+    }).catch(() => {})
+    pendingSave = false
   }
 
   function handleBeforeUnload() {

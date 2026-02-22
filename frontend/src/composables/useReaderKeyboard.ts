@@ -20,6 +20,9 @@ export function useReaderKeyboard(actions: KeyboardActions) {
     const tag = (e.target as HTMLElement)?.tagName
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
 
+    // Don't intercept browser shortcuts (Ctrl+T, Ctrl+F, Ctrl+N, etc.)
+    if (e.ctrlKey || e.altKey || e.metaKey) return
+
     switch (e.key) {
       case 'ArrowRight':
       case ' ':

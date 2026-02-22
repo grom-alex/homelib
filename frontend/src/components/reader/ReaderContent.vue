@@ -11,7 +11,7 @@
         class="reader-columns reader-content"
         :class="animationClass"
         :style="contentStyles"
-        v-html="store.currentChapterContent?.html ?? ''"
+        v-html="sanitizedChapterHtml"
       />
     </div>
 
@@ -20,16 +20,24 @@
       v-if="footnotePopup.visible"
       class="footnote-popup"
       :style="{ top: footnotePopup.top + 'px', left: footnotePopup.left + 'px' }"
-      v-html="footnotePopup.html"
+      v-html="sanitizeHtml(footnotePopup.html)"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import DOMPurify from 'dompurify'
 import { useReaderStore } from '@/stores/reader'
 import { usePagination } from '@/composables/usePagination'
 import { useReaderGestures } from '@/composables/useReaderGestures'
+
+// Sanitize HTML to prevent XSS (defense in depth — backend also sanitizes)
+function sanitizeHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ADD_ATTR: ['data-note-id', 'loading'],
+  })
+}
 
 const emit = defineEmits<{
   nextPage: []
@@ -38,6 +46,10 @@ const emit = defineEmits<{
 }>()
 
 const store = useReaderStore()
+
+const sanitizedChapterHtml = computed(() =>
+  sanitizeHtml(store.currentChapterContent?.html ?? ''),
+)
 const pageContainerRef = ref<HTMLElement | null>(null)
 const columnsRef = ref<HTMLElement | null>(null)
 

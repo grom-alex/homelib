@@ -6,7 +6,25 @@ import (
 	"fmt"
 	"html"
 	"strings"
+
+	"github.com/microcosm-cc/bluemonday"
 )
+
+// htmlPolicy is a strict whitelist sanitizer for FB2-generated HTML.
+// It allows only the tags and attributes we produce, stripping everything else
+// (script, iframe, event handlers, etc.) to prevent stored XSS from malicious FB2 files.
+var htmlPolicy = func() *bluemonday.Policy {
+	p := bluemonday.NewPolicy()
+	p.AllowElements("p", "br", "div", "blockquote", "h2", "h3",
+		"em", "strong", "del", "code", "sup", "sub", "a", "img")
+	p.AllowAttrs("class", "id").Globally()
+	p.AllowAttrs("href", "data-note-id").OnElements("a")
+	p.AllowAttrs("src", "alt", "loading").OnElements("img")
+	p.RequireParseableURLs(true)
+	p.AllowRelativeURLs(true)
+	p.AllowURLSchemes("http", "https")
+	return p
+}()
 
 // FB2 XML structures
 
@@ -280,9 +298,12 @@ func (c *FB2Converter) Chapter(chapterID string) (*ChapterContent, error) {
 	if c.content != nil && len(c.content.ChapterIDs) > 0 &&
 		chapterID == c.content.ChapterIDs[0] && c.content.Metadata.Cover != "" {
 		cover := fmt.Sprintf("<div class=\"book-cover\"><img src=\"%s\" alt=\"%s\" /></div>\n",
-			c.content.Metadata.Cover, c.content.Metadata.Title)
+			c.content.Metadata.Cover, html.EscapeString(c.content.Metadata.Title))
 		htmlContent = cover + htmlContent
 	}
+
+	// Sanitize HTML to prevent XSS from malicious FB2 content
+	htmlContent = htmlPolicy.Sanitize(htmlContent)
 
 	return &ChapterContent{
 		ID:    chapterID,
@@ -437,7 +458,7 @@ func (c *FB2Converter) convertImageElem(elem *fb2Element) string {
 	for _, attr := range elem.Attrs {
 		if attr.Name.Local == "href" {
 			href := strings.TrimPrefix(attr.Value, "#")
-			return fmt.Sprintf(`<img src="/api/books/%d/image/%s" alt="" loading="lazy"/>`, c.bookID, href) + "\n"
+			return fmt.Sprintf(`<img src="/api/books/%d/image/%s" alt="" loading="lazy"/>`, c.bookID, html.EscapeString(href)) + "\n"
 		}
 	}
 	return ""
@@ -538,7 +559,7 @@ func (c *FB2Converter) convertInlineImages(content string) string {
 		}
 
 		tagContent := remaining[:endTag]
-		if strings.Contains(remaining[endTag:endTag+2], "/>") {
+		if endTag+2 <= len(remaining) && remaining[endTag:endTag+2] == "/>" {
 			remaining = remaining[endTag+2:]
 		} else {
 			remaining = remaining[endTag+1:]
@@ -547,7 +568,7 @@ func (c *FB2Converter) convertInlineImages(content string) string {
 		href := extractAttrValue(tagContent, "href")
 		imgID := strings.TrimPrefix(href, "#")
 		if imgID != "" {
-			fmt.Fprintf(&result, `<img src="/api/books/%d/image/%s" alt="" loading="lazy"/>`, c.bookID, imgID)
+			fmt.Fprintf(&result, `<img src="/api/books/%d/image/%s" alt="" loading="lazy"/>`, c.bookID, html.EscapeString(imgID))
 		}
 	}
 

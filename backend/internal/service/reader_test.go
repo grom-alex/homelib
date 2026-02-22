@@ -3,6 +3,7 @@ package service
 import (
 	"archive/zip"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -137,7 +138,7 @@ func TestReaderService_GetBookContent_BookNotFound(t *testing.T) {
 
 	_, err := svc.GetBookContent(context.Background(), 999)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "book not found")
+	assert.True(t, errors.Is(err, ErrBookNotFound))
 }
 
 func TestReaderService_GetBookContent_UnsupportedFormat(t *testing.T) {
@@ -150,7 +151,7 @@ func TestReaderService_GetBookContent_UnsupportedFormat(t *testing.T) {
 
 	_, err := svc.GetBookContent(context.Background(), 1)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unsupported format")
+	assert.True(t, errors.Is(err, ErrUnsupportedFormat))
 }
 
 func TestReaderService_GetChapter_Success(t *testing.T) {
@@ -309,7 +310,7 @@ func TestReaderService_MalformedFB2(t *testing.T) {
 
 	_, err := svc.GetBookContent(context.Background(), 1)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "parse book")
+	assert.True(t, errors.Is(err, ErrMalformedFile))
 }
 
 func TestReaderService_CacheDir_Structure(t *testing.T) {

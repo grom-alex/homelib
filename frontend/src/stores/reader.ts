@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, triggerRef } from 'vue'
 import type { BookContent, ChapterContent, ReaderSettings } from '@/types/reader'
 import { defaultSettings } from '@/types/reader'
 
@@ -109,6 +109,9 @@ export const useReaderStore = defineStore('reader', () => {
     }
     // Re-estimate page counts for unvisited chapters using weighted average
     estimateChapterPages()
+    // Trigger reactivity for Map/Set mutations
+    triggerRef(chapterPageCounts)
+    triggerRef(measuredChapters)
   }
 
   function estimateChapterPages() {

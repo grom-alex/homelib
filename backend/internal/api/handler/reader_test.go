@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grom-alex/homelib/backend/internal/bookfile"
+	"github.com/grom-alex/homelib/backend/internal/service"
 )
 
 func init() {
@@ -75,7 +76,7 @@ func TestReaderHandler_GetBookContent_InvalidID(t *testing.T) {
 func TestReaderHandler_GetBookContent_NotFound(t *testing.T) {
 	svc := &mockReaderService{
 		getBookContentFn: func(_ context.Context, _ int64) (*bookfile.BookContent, error) {
-			return nil, fmt.Errorf("book not found: no rows")
+			return nil, fmt.Errorf("%w: no rows", service.ErrBookNotFound)
 		},
 	}
 	h := NewReaderHandler(svc)
@@ -94,7 +95,7 @@ func TestReaderHandler_GetBookContent_NotFound(t *testing.T) {
 func TestReaderHandler_GetBookContent_UnsupportedFormat(t *testing.T) {
 	svc := &mockReaderService{
 		getBookContentFn: func(_ context.Context, _ int64) (*bookfile.BookContent, error) {
-			return nil, fmt.Errorf("unsupported format: epub")
+			return nil, fmt.Errorf("%w: epub", service.ErrUnsupportedFormat)
 		},
 	}
 	h := NewReaderHandler(svc)
@@ -113,7 +114,7 @@ func TestReaderHandler_GetBookContent_UnsupportedFormat(t *testing.T) {
 func TestReaderHandler_GetBookContent_MalformedFB2(t *testing.T) {
 	svc := &mockReaderService{
 		getBookContentFn: func(_ context.Context, _ int64) (*bookfile.BookContent, error) {
-			return nil, fmt.Errorf("parse book: XML syntax error")
+			return nil, fmt.Errorf("%w: XML syntax error", service.ErrMalformedFile)
 		},
 	}
 	h := NewReaderHandler(svc)
@@ -177,7 +178,7 @@ func TestReaderHandler_GetChapter_InvalidBookID(t *testing.T) {
 func TestReaderHandler_GetChapter_ChapterNotFound(t *testing.T) {
 	svc := &mockReaderService{
 		getChapterFn: func(_ context.Context, _ int64, _ string) (*bookfile.ChapterContent, error) {
-			return nil, fmt.Errorf("chapter \"nonexistent\": chapter \"nonexistent\" not found")
+			return nil, fmt.Errorf("%w: chapter \"nonexistent\"", service.ErrBookNotFound)
 		},
 	}
 	h := NewReaderHandler(svc)
@@ -261,7 +262,7 @@ func TestReaderHandler_GetBookImage_InvalidID(t *testing.T) {
 func TestReaderHandler_GetBookImage_NotFound(t *testing.T) {
 	svc := &mockReaderService{
 		getBookImageFn: func(_ context.Context, _ int64, _ string) (*bookfile.ImageData, error) {
-			return nil, fmt.Errorf("image \"nonexistent\": image \"nonexistent\" not found")
+			return nil, fmt.Errorf("%w: image \"nonexistent\"", service.ErrBookNotFound)
 		},
 	}
 	h := NewReaderHandler(svc)
