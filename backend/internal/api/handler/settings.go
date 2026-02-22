@@ -7,11 +7,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type SettingsHandler struct {
-	settingsRepo SettingsRepoer
+// maxSettingsSize is the upper bound (bytes) for the accumulated user settings JSON.
+const maxSettingsSize = 64 * 1024
+
+// UserSettingsPatch whitelists the top-level keys a client may store.
+// Unknown keys are silently dropped during JSON unmarshalling.
+type UserSettingsPatch struct {
+	Reader json.RawMessage `json:"reader,omitempty"`
+	UI     json.RawMessage `json:"ui,omitempty"`
 }
 
-func NewSettingsHandler(repo SettingsRepoer) *SettingsHandler {
+type SettingsHandler struct {
+	settingsRepo SettingsRepository
+}
+
+func NewSettingsHandler(repo SettingsRepository) *SettingsHandler {
 	return &SettingsHandler{settingsRepo: repo}
 }
 
@@ -46,18 +56,30 @@ func (h *SettingsHandler) UpdateUserSettings(c *gin.Context) {
 		return
 	}
 
-	// Limit request body to 64 KB to prevent abuse
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64*1024)
+	// Limit request body to prevent abuse
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxSettingsSize)
 
-	var patch json.RawMessage
-	if err := c.ShouldBindJSON(&patch); err != nil {
+	// Unmarshal into a whitelist struct so unknown top-level keys are dropped.
+	var input UserSettingsPatch
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_json", "message": "Невалидный JSON"})
+		return
+	}
+
+	patch, err := json.Marshal(input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error", "message": "Внутренняя ошибка сервера"})
 		return
 	}
 
 	result, err := h.settingsRepo.UpdateSettings(c.Request.Context(), userID, patch)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error", "message": "Внутренняя ошибка сервера"})
+		return
+	}
+
+	if len(result) > maxSettingsSize {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "settings_too_large", "message": "Настройки превышают допустимый размер"})
 		return
 	}
 

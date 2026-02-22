@@ -61,12 +61,6 @@ export function useReaderKeyboard(actions: KeyboardActions) {
         store.toggleTOC()
         break
 
-      case 'f':
-      case 'F':
-        e.preventDefault()
-        toggleFullscreen()
-        break
-
       case '+':
       case '=':
         e.preventDefault()
@@ -102,14 +96,6 @@ export function useReaderKeyboard(actions: KeyboardActions) {
     const idx = themes.indexOf(store.settings.theme as typeof themes[number])
     const next = themes[(idx + 1) % themes.length]
     store.updateSettings({ theme: next })
-  }
-
-  function toggleFullscreen() {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {})
-    } else {
-      document.documentElement.requestFullscreen().catch(() => {})
-    }
   }
 
   onMounted(() => {

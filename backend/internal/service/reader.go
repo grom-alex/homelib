@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/singleflight"
 
 	"github.com/grom-alex/homelib/backend/internal/archive"
 	"github.com/grom-alex/homelib/backend/internal/bookfile"
@@ -39,10 +41,12 @@ type bookDownloadInfoProvider interface {
 }
 
 type ReaderService struct {
-	bookRepo  bookDownloadInfoProvider
-	libCfg    config.LibraryConfig
-	cachePath string
-	cacheTTL  time.Duration
+	bookRepo   bookDownloadInfoProvider
+	libCfg     config.LibraryConfig
+	cachePath  string
+	cacheTTL   time.Duration
+	parseGroup singleflight.Group
+	logger     *slog.Logger
 }
 
 func NewReaderService(bookRepo *repository.BookRepo, libCfg config.LibraryConfig, readerCfg config.ReaderConfig) *ReaderService {
@@ -51,6 +55,7 @@ func NewReaderService(bookRepo *repository.BookRepo, libCfg config.LibraryConfig
 		libCfg:    libCfg,
 		cachePath: readerCfg.CachePath,
 		cacheTTL:  readerCfg.CacheTTL,
+		logger:    slog.Default(),
 	}
 }
 
@@ -63,8 +68,8 @@ func (s *ReaderService) GetBookContent(ctx context.Context, bookID int64) (*book
 		return cached, nil
 	}
 
-	// Parse book
-	conv, err := s.parseBook(ctx, bookID)
+	// Parse book (deduplicated via singleflight)
+	conv, err := s.parseBookOnce(ctx, bookID)
 	if err != nil {
 		return nil, err
 	}
@@ -86,8 +91,8 @@ func (s *ReaderService) GetChapter(ctx context.Context, bookID int64, chapterID 
 		return cached, nil
 	}
 
-	// Parse book
-	conv, err := s.parseBook(ctx, bookID)
+	// Parse book (deduplicated via singleflight)
+	conv, err := s.parseBookOnce(ctx, bookID)
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +117,8 @@ func (s *ReaderService) GetBookImage(ctx context.Context, bookID int64, imageID 
 		return cached, nil
 	}
 
-	// Parse book
-	conv, err := s.parseBook(ctx, bookID)
+	// Parse book (deduplicated via singleflight)
+	conv, err := s.parseBookOnce(ctx, bookID)
 	if err != nil {
 		return nil, err
 	}
@@ -127,6 +132,19 @@ func (s *ReaderService) GetBookImage(ctx context.Context, bookID int64, imageID 
 	_ = s.cacheImage(bookID, img)
 
 	return img, nil
+}
+
+// parseBookOnce deduplicates concurrent parseBook calls for the same bookID
+// via singleflight, so multiple readers of the same book share one parse.
+func (s *ReaderService) parseBookOnce(ctx context.Context, bookID int64) (bookfile.BookConverter, error) {
+	key := fmt.Sprintf("%d", bookID)
+	v, err, _ := s.parseGroup.Do(key, func() (interface{}, error) {
+		return s.parseBook(ctx, bookID)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.(bookfile.BookConverter), nil
 }
 
 // parseBook extracts the book from archive and parses it.
@@ -176,6 +194,16 @@ func (s *ReaderService) parseBook(ctx context.Context, bookID int64) (bookfile.B
 
 // --- File cache ---
 
+// atomicWriteFile writes data to a temporary file and renames it into place,
+// preventing partial reads on concurrent access.
+func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, perm); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
 func (s *ReaderService) bookCacheDir(bookID int64) string {
 	return filepath.Join(s.cachePath, fmt.Sprintf("%d", bookID))
 }
@@ -207,7 +235,7 @@ func (s *ReaderService) cacheContent(bookID int64, content *bookfile.BookContent
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(s.bookCacheDir(bookID), "content.json"), data, 0o644)
+	return atomicWriteFile(filepath.Join(s.bookCacheDir(bookID), "content.json"), data, 0o644)
 }
 
 // Chapter cache
@@ -233,7 +261,7 @@ func (s *ReaderService) cacheChapter(bookID int64, ch *bookfile.ChapterContent) 
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(s.bookCacheDir(bookID), fmt.Sprintf("ch_%s.html", ch.ID)), data, 0o644)
+	return atomicWriteFile(filepath.Join(s.bookCacheDir(bookID), fmt.Sprintf("ch_%s.html", ch.ID)), data, 0o644)
 }
 
 // Image cache
@@ -270,13 +298,13 @@ func (s *ReaderService) cacheImage(bookID int64, img *bookfile.ImageData) error 
 
 	// Write metadata
 	metaPath := filepath.Join(dir, fmt.Sprintf("img_%s.meta", img.ID))
-	if err := os.WriteFile(metaPath, []byte(img.ContentType), 0o644); err != nil {
+	if err := atomicWriteFile(metaPath, []byte(img.ContentType), 0o644); err != nil {
 		return err
 	}
 
 	// Write binary
 	dataPath := filepath.Join(dir, fmt.Sprintf("img_%s.bin", img.ID))
-	return os.WriteFile(dataPath, img.Data, 0o644)
+	return atomicWriteFile(dataPath, img.Data, 0o644)
 }
 
 // touchCache updates the modification time of the book cache directory on access.
@@ -314,7 +342,7 @@ func (s *ReaderService) CleanupExpiredCache() (int, error) {
 		if info.ModTime().Before(cutoff) {
 			dirPath := filepath.Join(s.cachePath, entry.Name())
 			if err := os.RemoveAll(dirPath); err != nil {
-				log.Printf("cache cleanup: failed to remove %s: %v", dirPath, err)
+				s.logger.Error("cache cleanup: failed to remove dir", "path", dirPath, "err", err)
 				continue
 			}
 			removed++
@@ -333,9 +361,9 @@ func (s *ReaderService) StartCacheCleanup(ctx context.Context) {
 
 	// Run cleanup once on startup
 	if removed, err := s.CleanupExpiredCache(); err != nil {
-		log.Printf("cache cleanup error: %v", err)
+		s.logger.Error("cache cleanup error", "err", err)
 	} else if removed > 0 {
-		log.Printf("cache cleanup: removed %d expired entries", removed)
+		s.logger.Info("cache cleanup: removed expired entries", "count", removed)
 	}
 
 	ticker := time.NewTicker(1 * time.Hour)
@@ -347,9 +375,9 @@ func (s *ReaderService) StartCacheCleanup(ctx context.Context) {
 				return
 			case <-ticker.C:
 				if removed, err := s.CleanupExpiredCache(); err != nil {
-					log.Printf("cache cleanup error: %v", err)
+					s.logger.Error("cache cleanup error", "err", err)
 				} else if removed > 0 {
-					log.Printf("cache cleanup: removed %d expired entries", removed)
+					s.logger.Info("cache cleanup: removed expired entries", "count", removed)
 				}
 			}
 		}

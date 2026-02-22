@@ -256,6 +256,54 @@ func TestProgressHandler_SaveReadingProgress_NoUserID(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
+func TestProgressHandler_SaveReadingProgress_PathTraversalChapterID(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	body := `{"chapterId":"../../../etc/passwd","chapterProgress":50,"totalProgress":25}`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/books/42/progress", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+	c.Set("user_id", "user-123")
+
+	h.SaveReadingProgress(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid_chapter")
+}
+
+func TestProgressHandler_SaveReadingProgress_SpecialCharsChapterID(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	tests := []struct {
+		name      string
+		chapterID string
+	}{
+		{"spaces", "ch 1"},
+		{"slashes", "ch/1"},
+		{"backslash", "ch\\1"},
+		{"colon", "ch:1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body := fmt.Sprintf(`{"chapterId":%q,"chapterProgress":50,"totalProgress":25}`, tt.chapterID)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPut, "/api/me/books/42/progress", strings.NewReader(body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+			c.Set("user_id", "user-123")
+
+			h.SaveReadingProgress(c)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.Contains(t, w.Body.String(), "invalid_chapter")
+		})
+	}
+}
+
 func TestProgressHandler_SaveReadingProgress_DBError(t *testing.T) {
 	repo := &mockProgressRepo{
 		upsertFn: func(_ context.Context, _ *models.ReadingProgress) error {

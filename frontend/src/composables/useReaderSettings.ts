@@ -8,6 +8,7 @@ const DEBOUNCE_MS = 1000
 export function useReaderSettings() {
   const store = useReaderStore()
   let saveTimer: ReturnType<typeof setTimeout> | null = null
+  let stopWatch: (() => void) | null = null
 
   async function loadSettings() {
     try {
@@ -37,7 +38,9 @@ export function useReaderSettings() {
   }
 
   function watchSettings(el: HTMLElement) {
-    watch(
+    // Stop previous watcher to prevent leaks on repeated calls
+    if (stopWatch) stopWatch()
+    stopWatch = watch(
       () => store.settings,
       () => {
         applySettings(el)

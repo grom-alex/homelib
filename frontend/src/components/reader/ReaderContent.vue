@@ -80,21 +80,11 @@ const containerStyles = computed(() => {
   }
 })
 
-const contentStyles = computed(() => {
-  const s = store.settings
-  return {
-    transform: `translateX(${translateX.value}px)`,
-    '--font-size': s.fontSize + 'px',
-    '--font-family': s.fontFamily === 'System' ? 'system-ui, sans-serif' : `"${s.fontFamily}", serif`,
-    '--font-weight': String(s.fontWeight),
-    '--line-height': String(s.lineHeight),
-    '--paragraph-spacing': s.paragraphSpacing + 'em',
-    '--letter-spacing': s.letterSpacing + 'em',
-    '--first-line-indent': s.firstLineIndent + 'em',
-    '--text-align': s.textAlign,
-    '--hyphenation': s.hyphenation ? 'auto' : 'manual',
-  }
-})
+// CSS variables are inherited from .reader via useReaderSettings.applySettings().
+// Only the page-turning transform needs to be set here.
+const contentStyles = computed(() => ({
+  transform: `translateX(${translateX.value}px)`,
+}))
 
 function handleContentClick(e: MouseEvent) {
   const target = e.target as HTMLElement

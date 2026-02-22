@@ -123,6 +123,8 @@ export function useReaderGestures(
     el.addEventListener('mouseup', handleMouseUp)
   })
 
+  // passive option is not needed for removeEventListener;
+  // only the capture flag affects listener identity.
   onUnmounted(() => {
     const el = containerRef.value
     if (!el) return

@@ -48,7 +48,7 @@ export function useReadingProgress(bookId: number) {
     try {
       await saveReadingProgress(bookId, {
         chapterId: store.currentChapterId,
-        chapterProgress: store.chapterProgress,
+        chapterProgress: store.chapterProgressInt,
         totalProgress,
         device: getDeviceType(),
       })
@@ -76,7 +76,7 @@ export function useReadingProgress(bookId: number) {
     const totalProgress = calculateTotalProgress()
     const body = JSON.stringify({
       chapterId: store.currentChapterId,
-      chapterProgress: store.chapterProgress,
+      chapterProgress: store.chapterProgressInt,
       totalProgress,
       device: getDeviceType(),
     })
@@ -102,10 +102,7 @@ export function useReadingProgress(bookId: number) {
   })
 
   onUnmounted(() => {
-    if (saveTimer) {
-      clearTimeout(saveTimer)
-      saveTimer = null
-    }
+    saveNow()
     window.removeEventListener('beforeunload', handleBeforeUnload)
   })
 

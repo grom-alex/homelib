@@ -506,6 +506,47 @@ func TestFB2Title_Text_Nil(t *testing.T) {
 	assert.Equal(t, "", title.Text())
 }
 
+func TestFB2Paragraph_Text_QuotedAngleBracket(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+	}{
+		{
+			name:     "attribute with > in double quotes",
+			content:  `<a href="x>y">hello</a>`,
+			expected: "hello",
+		},
+		{
+			name:     "attribute with > in single quotes",
+			content:  `<a href='x>y'>hello</a>`,
+			expected: "hello",
+		},
+		{
+			name:     "simple tag",
+			content:  `<em>text</em>`,
+			expected: "text",
+		},
+		{
+			name:     "plain text only",
+			content:  "no tags here",
+			expected: "no tags here",
+		},
+		{
+			name:     "entity decoding",
+			content:  `A &amp; B`,
+			expected: "A & B",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := fb2Paragraph{Content: tt.content}
+			assert.Equal(t, tt.expected, p.Text())
+		})
+	}
+}
+
 // --- extractAttrValue ---
 
 func TestExtractAttrValue(t *testing.T) {

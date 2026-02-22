@@ -156,6 +156,56 @@ func TestSettingsHandler_UpdateUserSettings_NoUserID(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
+func TestSettingsHandler_UpdateUserSettings_RejectsUnknownKeys(t *testing.T) {
+	repo := &mockSettingsRepo{
+		updateSettingsFn: func(_ context.Context, _ string, patch json.RawMessage) (json.RawMessage, error) {
+			var p map[string]interface{}
+			require.NoError(t, json.Unmarshal(patch, &p))
+			// Only "reader" should be present; "admin" must be dropped
+			_, hasReader := p["reader"]
+			_, hasAdmin := p["admin"]
+			assert.True(t, hasReader, "reader key should be present")
+			assert.False(t, hasAdmin, "admin key should be dropped by whitelist")
+			return patch, nil
+		},
+	}
+	h := NewSettingsHandler(repo)
+
+	body := `{"reader":{"fontSize":20},"admin":true}`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/settings", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("user_id", "user-123")
+
+	h.UpdateUserSettings(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestSettingsHandler_UpdateUserSettings_TooLargeResult(t *testing.T) {
+	// Simulate repo returning a result exceeding maxSettingsSize
+	bigResult := json.RawMessage(`{"reader":` + strings.Repeat(`"x"`, maxSettingsSize) + `}`)
+	repo := &mockSettingsRepo{
+		updateSettingsFn: func(_ context.Context, _ string, _ json.RawMessage) (json.RawMessage, error) {
+			return bigResult, nil
+		},
+	}
+	h := NewSettingsHandler(repo)
+
+	body := `{"reader":{"fontSize":20}}`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/settings", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("user_id", "user-123")
+
+	h.UpdateUserSettings(c)
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	assert.Contains(t, w.Body.String(), "settings_too_large")
+}
+
 func TestSettingsHandler_UpdateUserSettings_DBError(t *testing.T) {
 	repo := &mockSettingsRepo{
 		updateSettingsFn: func(_ context.Context, _ string, _ json.RawMessage) (json.RawMessage, error) {

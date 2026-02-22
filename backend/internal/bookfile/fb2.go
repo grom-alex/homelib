@@ -5,10 +5,15 @@ import (
 	"encoding/xml"
 	"fmt"
 	"html"
+	"net/url"
 	"strings"
 
 	"github.com/microcosm-cc/bluemonday"
 )
+
+// estimatedCoverImageSize is the approximate rendered size (bytes) of the cover
+// <img> tag, used to adjust page estimation for the first chapter.
+const estimatedCoverImageSize = 2000
 
 // htmlPolicy is a strict whitelist sanitizer for FB2-generated HTML.
 // It allows only the tags and attributes we produce, stripping everything else
@@ -111,20 +116,33 @@ type fb2Paragraph struct {
 }
 
 func (p fb2Paragraph) Text() string {
-	// Strip XML tags for plain text
+	// Strip XML tags for plain text, respecting quotes inside attributes
+	// so that '>' inside attribute values (e.g. <a href="x>y">) is not
+	// mistaken for a tag close.
 	s := p.Content
-	for {
-		start := strings.Index(s, "<")
-		if start == -1 {
-			break
+	var b strings.Builder
+	b.Grow(len(s))
+	inTag := false
+	var inQuote byte // 0, '"', or '\''
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if inTag {
+			if inQuote != 0 {
+				if ch == inQuote {
+					inQuote = 0
+				}
+			} else if ch == '"' || ch == '\'' {
+				inQuote = ch
+			} else if ch == '>' {
+				inTag = false
+			}
+		} else if ch == '<' {
+			inTag = true
+		} else {
+			b.WriteByte(ch)
 		}
-		end := strings.Index(s[start:], ">")
-		if end == -1 {
-			break
-		}
-		s = s[:start] + s[start+end+1:]
 	}
-	return strings.TrimSpace(html.UnescapeString(s))
+	return strings.TrimSpace(html.UnescapeString(b.String()))
 }
 
 type fb2Element struct {
@@ -214,7 +232,7 @@ func (c *FB2Converter) Parse(data []byte, bookID int64) error {
 	if ti.Coverpage != nil && len(ti.Coverpage.Images) > 0 {
 		href := strings.TrimPrefix(ti.Coverpage.Images[0].Href, "#")
 		if href != "" {
-			coverURL = fmt.Sprintf("/api/books/%d/image/%s", bookID, href)
+			coverURL = fmt.Sprintf("/api/books/%d/image/%s", bookID, url.PathEscape(href))
 		}
 	}
 
@@ -240,7 +258,7 @@ func (c *FB2Converter) Parse(data []byte, bookID int64) error {
 	}
 	// Add cover image size to first chapter estimate
 	if coverURL != "" && len(chapterIDs) > 0 {
-		sizes[chapterIDs[0]] += 2000 // approximate cover <img> rendered size
+		sizes[chapterIDs[0]] += estimatedCoverImageSize
 	}
 	c.content.ChapterSizes = sizes
 

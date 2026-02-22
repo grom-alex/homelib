@@ -33,6 +33,8 @@ func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware) *gin.Engine {
 		// Public endpoints
 		api.GET("/stats", h.Books.GetStats)
 		if h.Reader != nil {
+			// Public: <img src> tags do not send Authorization headers.
+			// Images are embedded binaries from book archives, not user data.
 			api.GET("/books/:id/image/:imageId", h.Reader.GetBookImage)
 		}
 
@@ -65,6 +67,8 @@ func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware) *gin.Engine {
 			if h.Progress != nil {
 				authorized.GET("/me/books/:bookId/progress", h.Progress.GetReadingProgress)
 				authorized.PUT("/me/books/:bookId/progress", h.Progress.SaveReadingProgress)
+				// POST duplicates PUT as a fallback for navigator.sendBeacon(),
+				// which only supports POST requests.
 				authorized.POST("/me/books/:bookId/progress", h.Progress.SaveReadingProgress)
 			}
 			if h.Settings != nil {

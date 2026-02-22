@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useReaderStore } from '@/stores/reader'
 import { useBookContent } from '@/composables/useBookContent'
@@ -97,7 +97,8 @@ async function handleNavigateToProgress(percent: number) {
     if (accumulated + chPages >= targetPage) {
       const pageInChapter = targetPage - accumulated
       await navigateToChapter(props.bookId, chId)
-      // After chapter loaded, go to the specific page
+      // Wait for DOM update before navigating to a specific page
+      await nextTick()
       if (contentRef.value) {
         contentRef.value.goToPage(pageInChapter)
       }
@@ -147,22 +148,19 @@ useReaderKeyboard({
   },
 })
 
-// Load settings and apply CSS variables
-onMounted(() => {
-  loadSettings()
+// Load settings, apply CSS variables, and restore reading progress
+onMounted(async () => {
+  await loadSettings()
   if (readerRef.value) {
     watchSettings(readerRef.value)
   }
-})
 
-// Restore saved reading progress
-async function restoreProgress() {
+  // Restore saved reading progress after settings are loaded
   const saved = await loadProgress()
   if (saved && saved.chapterId) {
     await navigateToChapter(props.bookId, saved.chapterId)
   }
-}
-restoreProgress()
+})
 
 // Prefetch adjacent chapters when current chapter changes
 watch(

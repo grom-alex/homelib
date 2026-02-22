@@ -47,14 +47,14 @@ type ReaderServicer interface {
 	GetBookImage(ctx context.Context, bookID int64, imageID string) (*bookfile.ImageData, error)
 }
 
-// ProgressRepoer is the interface that progress handlers need from the reading progress repo.
-type ProgressRepoer interface {
+// ProgressRepository is the interface that progress handlers need from the reading progress repo.
+type ProgressRepository interface {
 	Get(ctx context.Context, userID string, bookID int64) (*models.ReadingProgress, error)
 	Upsert(ctx context.Context, p *models.ReadingProgress) error
 }
 
-// SettingsRepoer is the interface that settings handlers need from the user repo.
-type SettingsRepoer interface {
+// SettingsRepository is the interface that settings handlers need from the user repo.
+type SettingsRepository interface {
 	GetSettings(ctx context.Context, userID string) (json.RawMessage, error)
 	UpdateSettings(ctx context.Context, userID string, patch json.RawMessage) (json.RawMessage, error)
 }

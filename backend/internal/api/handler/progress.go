@@ -7,13 +7,14 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/grom-alex/homelib/backend/internal/models"
+	"github.com/grom-alex/homelib/backend/internal/service"
 )
 
 type ProgressHandler struct {
-	progressRepo ProgressRepoer
+	progressRepo ProgressRepository
 }
 
-func NewProgressHandler(repo ProgressRepoer) *ProgressHandler {
+func NewProgressHandler(repo ProgressRepository) *ProgressHandler {
 	return &ProgressHandler{progressRepo: repo}
 }
 
@@ -63,6 +64,12 @@ func (h *ProgressHandler) SaveReadingProgress(c *gin.Context) {
 	var input models.SaveProgressInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "validation_error", "message": "Невалидные данные прогресса чтения"})
+		return
+	}
+
+	// Validate chapter ID format (safe for filesystem use in caching)
+	if err := service.ValidateResourceID(input.ChapterID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_chapter", "message": "Некорректный ID главы"})
 		return
 	}
 

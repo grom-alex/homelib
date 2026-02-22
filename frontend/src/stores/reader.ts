@@ -51,6 +51,9 @@ export const useReaderStore = defineStore('reader', () => {
     return Math.round(((currentPage.value - 1) / (totalPages.value - 1)) * 1000) / 10
   })
 
+  // Integer variant for the backend API (ChapterProgress is int in the DB)
+  const chapterProgressInt = computed(() => Math.round(chapterProgress.value))
+
   // Book-level page tracking
   const bookTotalPages = computed(() => {
     if (!bookContent.value) return 1
@@ -202,6 +205,7 @@ export const useReaderStore = defineStore('reader', () => {
     hasNextChapter,
     hasPrevChapter,
     chapterProgress,
+    chapterProgressInt,
     bookTotalPages,
     bookCurrentPage,
     totalProgress,
