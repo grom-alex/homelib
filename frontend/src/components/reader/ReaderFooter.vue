@@ -52,12 +52,15 @@ const chapterMarks = computed(() => {
   const total = store.bookTotalPages
   if (total <= 1) return []
 
+  // Use (total - 1) denominator to match progress formula:
+  // totalProgress = (bookCurrentPage - 1) / (bookTotalPages - 1)
+  const scale = total - 1
   const marks: number[] = []
   let accumulated = 0
   // Skip last chapter — no mark at 100%
   for (let i = 0; i < bc.chapters.length - 1; i++) {
     accumulated += store.chapterPageCounts.get(bc.chapters[i]) ?? 1
-    marks.push((accumulated / total) * 100)
+    marks.push((accumulated / scale) * 100)
   }
   return marks
 })
