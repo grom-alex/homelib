@@ -51,7 +51,7 @@ func TestFB2Converter_Parse_ComplexMetadata(t *testing.T) {
 	assert.Equal(t, "Сборник с элементами", content.Metadata.Title)
 	assert.Equal(t, "Анна Поэтова", content.Metadata.Author)
 	assert.Equal(t, "ru", content.Metadata.Language)
-	assert.Equal(t, "/api/books/42/image/cover.jpg", content.Metadata.Cover)
+	assert.Equal(t, "/api/books/42/image/cover.jpg?v="+imageURLVersion, content.Metadata.Cover)
 }
 
 func TestFB2Converter_Parse_MalformedXML(t *testing.T) {
@@ -343,7 +343,7 @@ func TestFB2Converter_InlineImage(t *testing.T) {
 	ch, err := conv.Chapter(content.ChapterIDs[2])
 	require.NoError(t, err)
 
-	assert.Contains(t, ch.HTML, `<img src="/api/books/42/image/img1.png"`)
+	assert.Contains(t, ch.HTML, `<img src="/api/books/42/image/img1.png?v=`+imageURLVersion+`"`)
 	assert.Contains(t, ch.HTML, `loading="lazy"`)
 }
 

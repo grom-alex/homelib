@@ -15,6 +15,12 @@ import (
 // <img> tag, used to adjust page estimation for the first chapter.
 const estimatedCoverImageSize = 2000
 
+// imageURLVersion is appended as a query parameter to book image URLs.
+// Increment this value to bust browser caches when URL routing changes
+// (e.g., after fixing nginx static asset rules that incorrectly cached
+// API image responses as HTML with immutable/1y headers).
+const imageURLVersion = "2"
+
 // htmlPolicy is a strict whitelist sanitizer for FB2-generated HTML.
 // It allows only the tags and attributes we produce, stripping everything else
 // (script, iframe, event handlers, etc.) to prevent stored XSS from malicious FB2 files.
@@ -232,7 +238,7 @@ func (c *FB2Converter) Parse(data []byte, bookID int64) error {
 	if ti.Coverpage != nil && len(ti.Coverpage.Images) > 0 {
 		href := strings.TrimPrefix(ti.Coverpage.Images[0].Href, "#")
 		if href != "" {
-			coverURL = fmt.Sprintf("/api/books/%d/image/%s", bookID, url.PathEscape(href))
+			coverURL = fmt.Sprintf("/api/books/%d/image/%s?v=%s", bookID, url.PathEscape(href), imageURLVersion)
 		}
 	}
 
@@ -476,7 +482,7 @@ func (c *FB2Converter) convertImageElem(elem *fb2Element) string {
 	for _, attr := range elem.Attrs {
 		if attr.Name.Local == "href" {
 			href := strings.TrimPrefix(attr.Value, "#")
-			return fmt.Sprintf(`<img src="/api/books/%d/image/%s" alt="" loading="lazy"/>`, c.bookID, html.EscapeString(href)) + "\n"
+			return fmt.Sprintf(`<img src="/api/books/%d/image/%s?v=%s" alt="" loading="lazy"/>`, c.bookID, html.EscapeString(href), imageURLVersion) + "\n"
 		}
 	}
 	return ""
@@ -586,7 +592,7 @@ func (c *FB2Converter) convertInlineImages(content string) string {
 		href := extractAttrValue(tagContent, "href")
 		imgID := strings.TrimPrefix(href, "#")
 		if imgID != "" {
-			fmt.Fprintf(&result, `<img src="/api/books/%d/image/%s" alt="" loading="lazy"/>`, c.bookID, html.EscapeString(imgID))
+			fmt.Fprintf(&result, `<img src="/api/books/%d/image/%s?v=%s" alt="" loading="lazy"/>`, c.bookID, html.EscapeString(imgID), imageURLVersion)
 		}
 	}
 
