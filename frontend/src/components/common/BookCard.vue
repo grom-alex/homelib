@@ -55,10 +55,12 @@
 <script setup lang="ts">
 import type { BookListItem } from '@/api/books'
 
-defineProps<{
+withDefaults(defineProps<{
   book: BookListItem
   progress?: number
-}>()
+}>(), {
+  progress: 0,
+})
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return bytes + ' B'
