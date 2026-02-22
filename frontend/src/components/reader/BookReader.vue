@@ -120,8 +120,11 @@ useReaderKeyboard({
   prevChapter: () => {
     if (store.currentPage > 1 && contentRef.value) {
       contentRef.value.goToPage(1)
-    } else {
-      prevChapter(props.bookId)
+    } else if (store.bookContent && store.hasPrevChapter) {
+      // Navigate to START of previous chapter (not end)
+      store.navigationDirection = 'forward'
+      const prevId = store.bookContent.chapters[store.currentChapterIndex - 1]
+      navigateToChapter(props.bookId, prevId)
     }
   },
   goToStart: () => {
