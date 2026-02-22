@@ -1,6 +1,5 @@
 <template>
-  <Teleport to="body">
-    <div v-if="store.settingsVisible" class="settings-overlay" @click.self="store.toggleSettings()">
+  <div v-if="store.settingsVisible" class="settings-overlay" @click.self="store.toggleSettings()">
       <div class="settings-panel">
         <div class="settings-header">
           <h3>Настройки</h3>
@@ -225,7 +224,6 @@
         </div>
       </div>
     </div>
-  </Teleport>
 </template>
 
 <script setup lang="ts">

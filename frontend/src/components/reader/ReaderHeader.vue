@@ -1,6 +1,6 @@
 <template>
   <header class="reader-header" :class="{ hidden: !store.uiVisible }">
-    <button class="reader-header-btn" title="Назад в каталог" @click="$router.back()">
+    <button class="reader-header-btn" title="Назад в каталог" @click="goToCatalog">
       ← Каталог
     </button>
 
@@ -21,9 +21,15 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import { useReaderStore } from '@/stores/reader'
 
 const store = useReaderStore()
+const router = useRouter()
+
+function goToCatalog() {
+  router.push('/books')
+}
 </script>
 
 <style scoped>

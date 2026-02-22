@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <AppHeader />
+    <AppHeader v-if="!isReaderRoute" />
     <v-main>
       <router-view />
     </v-main>
@@ -8,5 +8,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import AppHeader from '@/components/AppHeader.vue'
+
+const route = useRoute()
+const isReaderRoute = computed(() => route.name === 'reader')
 </script>
