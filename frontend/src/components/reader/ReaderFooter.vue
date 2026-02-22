@@ -2,7 +2,6 @@
   <footer
     v-if="store.settings.showProgress"
     class="reader-footer"
-    :class="{ hidden: !store.uiVisible }"
   >
     <span class="reader-footer-page">
       {{ store.bookCurrentPage }} / {{ store.bookTotalPages }}
