@@ -577,8 +577,8 @@ describe('reader store', () => {
       // Go to ch2, page 1 -> bookCurrentPage = 10 + 1 = 11
       store.setChapter(makeChapter('ch2'))
       store.setPage(1)
-      // (11-1)/(30-1) = 10/29 ~ 34.48 -> 34
-      expect(store.totalProgress).toBe(34)
+      // (11-1)/(30-1) = 10/29 ~ 34.48 -> 34.5
+      expect(store.totalProgress).toBe(34.5)
     })
   })
 

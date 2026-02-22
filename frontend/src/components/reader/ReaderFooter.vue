@@ -23,7 +23,7 @@
     </div>
 
     <span class="reader-footer-info">
-      <span>{{ store.totalProgress }}%</span>
+      <span>{{ store.totalProgress.toFixed(1) }}%</span>
       <span v-if="store.settings.showClock" class="reader-footer-clock">
         {{ currentTime }}
       </span>

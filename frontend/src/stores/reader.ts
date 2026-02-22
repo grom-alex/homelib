@@ -48,7 +48,7 @@ export const useReaderStore = defineStore('reader', () => {
 
   const chapterProgress = computed(() => {
     if (totalPages.value <= 1) return 100
-    return Math.round(((currentPage.value - 1) / (totalPages.value - 1)) * 100)
+    return Math.round(((currentPage.value - 1) / (totalPages.value - 1)) * 1000) / 10
   })
 
   // Book-level page tracking
@@ -73,7 +73,7 @@ export const useReaderStore = defineStore('reader', () => {
 
   const totalProgress = computed(() => {
     if (bookTotalPages.value <= 1) return 100
-    return Math.round(((bookCurrentPage.value - 1) / (bookTotalPages.value - 1)) * 100)
+    return Math.round(((bookCurrentPage.value - 1) / (bookTotalPages.value - 1)) * 1000) / 10
   })
 
   // Actions
