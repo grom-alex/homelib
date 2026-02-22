@@ -14,7 +14,7 @@
       @toggle-u-i="store.toggleUI()"
     />
 
-    <ReaderFooter />
+    <ReaderFooter @navigate-to-progress="handleNavigateToProgress" />
     <ReaderTOC @navigate="handleNavigate" />
     <ReaderSettings />
   </div>
@@ -82,9 +82,42 @@ function handleNavigate(chapterId: string) {
   scheduleSave()
 }
 
+async function handleNavigateToProgress(percent: number) {
+  if (!store.bookContent) return
+  const chapters = store.bookContent.chapters
+  const totalPages = store.bookTotalPages
+
+  // Convert percent to target book page
+  const targetPage = Math.max(1, Math.round((percent / 100) * (totalPages - 1)) + 1)
+
+  // Find which chapter contains this page
+  let accumulated = 0
+  for (const chId of chapters) {
+    const chPages = store.chapterPageCounts.get(chId) ?? 1
+    if (accumulated + chPages >= targetPage) {
+      const pageInChapter = targetPage - accumulated
+      await navigateToChapter(props.bookId, chId)
+      // After chapter loaded, go to the specific page
+      if (contentRef.value) {
+        contentRef.value.goToPage(pageInChapter)
+      }
+      scheduleSave()
+      return
+    }
+    accumulated += chPages
+  }
+
+  // Fallback: navigate to last chapter
+  const lastChapter = chapters[chapters.length - 1]
+  await navigateToChapter(props.bookId, lastChapter)
+  scheduleSave()
+}
+
 useReaderKeyboard({
   nextPage: handleNextPage,
   prevPage: handlePrevPage,
+  nextChapter: () => nextChapter(props.bookId),
+  prevChapter: () => prevChapter(props.bookId),
   goToStart: () => {
     if (store.bookContent?.chapters.length) {
       navigateToChapter(props.bookId, store.bookContent.chapters[0])

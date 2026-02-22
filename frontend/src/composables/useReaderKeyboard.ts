@@ -4,6 +4,8 @@ import { useReaderStore } from '@/stores/reader'
 interface KeyboardActions {
   nextPage: () => void
   prevPage: () => void
+  nextChapter: () => void
+  prevChapter: () => void
   goToStart: () => void
   goToEnd: () => void
   changeFontSize: (delta: number) => void
@@ -21,15 +23,23 @@ export function useReaderKeyboard(actions: KeyboardActions) {
     switch (e.key) {
       case 'ArrowRight':
       case ' ':
-      case 'PageDown':
         e.preventDefault()
         actions.nextPage()
         break
 
       case 'ArrowLeft':
-      case 'PageUp':
         e.preventDefault()
         actions.prevPage()
+        break
+
+      case 'PageDown':
+        e.preventDefault()
+        actions.nextChapter()
+        break
+
+      case 'PageUp':
+        e.preventDefault()
+        actions.prevChapter()
         break
 
       case 'Home':
