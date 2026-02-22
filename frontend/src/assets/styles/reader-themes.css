@@ -287,7 +287,7 @@
   background: var(--reader-border);
   border-radius: 2px;
   margin: 0 12px;
-  overflow: hidden;
+  position: relative;
 }
 
 .reader-footer .progress-bar-fill {
@@ -295,6 +295,16 @@
   background: var(--reader-link);
   border-radius: 2px;
   transition: width 0.3s ease;
+}
+
+.reader-footer .progress-bar-chapter-mark {
+  position: absolute;
+  top: -2px;
+  width: 1px;
+  height: 7px;
+  background: var(--reader-text);
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 /* === TOC Sidebar === */

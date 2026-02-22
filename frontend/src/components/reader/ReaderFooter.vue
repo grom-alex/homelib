@@ -14,6 +14,12 @@
       @touchend="handleProgressTouchEnd"
     >
       <div class="progress-bar-fill" :style="{ width: store.totalProgress + '%' }" />
+      <div
+        v-for="(pos, i) in chapterMarks"
+        :key="i"
+        class="progress-bar-chapter-mark"
+        :style="{ left: pos + '%' }"
+      />
     </div>
 
     <span class="reader-footer-info">
@@ -26,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useReaderStore } from '@/stores/reader'
 
 const emit = defineEmits<{
@@ -39,6 +45,22 @@ const currentTime = ref('')
 let clockInterval: ReturnType<typeof setInterval> | null = null
 
 let lastTapTime = 0
+
+const chapterMarks = computed(() => {
+  const bc = store.bookContent
+  if (!bc || bc.chapters.length <= 1) return []
+  const total = store.bookTotalPages
+  if (total <= 1) return []
+
+  const marks: number[] = []
+  let accumulated = 0
+  // Skip last chapter — no mark at 100%
+  for (let i = 0; i < bc.chapters.length - 1; i++) {
+    accumulated += store.chapterPageCounts.get(bc.chapters[i]) ?? 1
+    marks.push((accumulated / total) * 100)
+  }
+  return marks
+})
 
 function getProgressPercent(clientX: number): number {
   const el = progressBarRef.value
