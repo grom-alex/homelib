@@ -482,7 +482,7 @@ func (c *FB2Converter) convertImageElem(elem *fb2Element) string {
 	for _, attr := range elem.Attrs {
 		if attr.Name.Local == "href" {
 			href := strings.TrimPrefix(attr.Value, "#")
-			return fmt.Sprintf(`<img src="/api/books/%d/image/%s?v=%s" alt="" loading="lazy"/>`, c.bookID, html.EscapeString(href), imageURLVersion) + "\n"
+			return fmt.Sprintf(`<img src="/api/books/%d/image/%s?v=%s" alt=""/>`, c.bookID, html.EscapeString(href), imageURLVersion) + "\n"
 		}
 	}
 	return ""
@@ -592,7 +592,7 @@ func (c *FB2Converter) convertInlineImages(content string) string {
 		href := extractAttrValue(tagContent, "href")
 		imgID := strings.TrimPrefix(href, "#")
 		if imgID != "" {
-			fmt.Fprintf(&result, `<img src="/api/books/%d/image/%s?v=%s" alt="" loading="lazy"/>`, c.bookID, html.EscapeString(imgID), imageURLVersion)
+			fmt.Fprintf(&result, `<img src="/api/books/%d/image/%s?v=%s" alt=""/>`, c.bookID, html.EscapeString(imgID), imageURLVersion)
 		}
 	}
 

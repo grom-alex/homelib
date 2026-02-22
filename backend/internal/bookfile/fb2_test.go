@@ -344,7 +344,7 @@ func TestFB2Converter_InlineImage(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, ch.HTML, `<img src="/api/books/42/image/img1.png?v=`+imageURLVersion+`"`)
-	assert.Contains(t, ch.HTML, `loading="lazy"`)
+	assert.NotContains(t, ch.HTML, `loading="lazy"`)
 }
 
 func TestFB2Converter_Image_ExtractBinary(t *testing.T) {

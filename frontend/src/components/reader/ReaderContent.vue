@@ -187,20 +187,20 @@ function watchImageLoads() {
   const imgs = el.querySelectorAll('img')
   if (imgs.length === 0) return
 
-  let pending = 0
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
   for (const img of imgs) {
     if (!img.complete) {
-      pending++
       img.addEventListener('load', onImageLoad, { once: true })
       img.addEventListener('error', onImageLoad, { once: true })
     }
   }
 
+  // Debounce: images loading in a batch trigger a single recalculation.
+  // If a late image loads separately, it triggers another recalculation.
   function onImageLoad() {
-    pending--
-    if (pending <= 0) {
-      recalculate()
-    }
+    if (debounceTimer) clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(() => recalculate(), 100)
   }
 }
 

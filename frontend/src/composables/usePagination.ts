@@ -61,16 +61,48 @@ export function usePagination(containerRef: Ref<HTMLElement | null>) {
     }
   }
 
+  // Find the first block-level element visible on the given page.
+  // Used as an anchor to preserve reading position across layout changes.
+  function findAnchorElement(
+    container: HTMLElement,
+    pageStart: number,
+    pageWidth: number,
+  ): HTMLElement | null {
+    const elements = container.querySelectorAll(
+      'p, h1, h2, h3, h4, h5, h6, img, blockquote, hr',
+    )
+    for (const el of elements) {
+      const htmlEl = el as HTMLElement
+      if (htmlEl.offsetLeft >= pageStart && htmlEl.offsetLeft < pageStart + pageWidth) {
+        return htmlEl
+      }
+    }
+    return null
+  }
+
   function recalculate() {
+    const el = containerRef.value
+    if (!el) return
+
+    // Anchor-based page preservation: find the element the user is reading
+    const width = getWidth()
+    const pageStart = (store.currentPage - 1) * width
+    const anchor = width > 0 ? findAnchorElement(el, pageStart, width) : null
+
     nextTick(() => {
-      // Proportional page preservation
-      const prevTotal = store.totalPages
-      const ratio = prevTotal > 1
-        ? (store.currentPage - 1) / (prevTotal - 1)
-        : 0
       calculateTotalPages()
-      const newPage = Math.max(1, Math.round(ratio * (store.totalPages - 1)) + 1)
-      goToPage(newPage)
+
+      if (anchor) {
+        const newWidth = getWidth()
+        if (newWidth > 0) {
+          const newPage = Math.floor(anchor.offsetLeft / newWidth) + 1
+          goToPage(Math.max(1, Math.min(newPage, store.totalPages)))
+          return
+        }
+      }
+
+      // Fallback: stay on current page (clamped to new total)
+      goToPage(Math.max(1, Math.min(store.currentPage, store.totalPages)))
     })
   }
 
