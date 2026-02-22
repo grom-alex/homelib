@@ -8,6 +8,7 @@ interface GestureActions {
 }
 
 const SWIPE_THRESHOLD = 50
+const WHEEL_COOLDOWN_MS = 300
 
 export function useReaderGestures(
   containerRef: Ref<HTMLElement | null>,
@@ -17,6 +18,14 @@ export function useReaderGestures(
 
   let touchStartX = 0
   let touchStartY = 0
+  let lastWheelTime = 0
+
+  function getRelativeX(clientX: number): number {
+    const el = containerRef.value
+    if (!el) return 0.5
+    const rect = el.getBoundingClientRect()
+    return (clientX - rect.left) / rect.width
+  }
 
   function handleTouchStart(e: TouchEvent) {
     const touch = e.touches[0]
@@ -43,17 +52,19 @@ export function useReaderGestures(
 
     // Tap zone detection (only for taps, not swipes)
     if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
-      handleTap(touch.clientX)
+      navigateByTapZone(getRelativeX(touch.clientX))
     }
   }
 
-  function handleTap(x: number) {
-    const el = containerRef.value
-    if (!el) return
+  function handleClick(e: MouseEvent) {
+    // Skip if it was a footnote or interactive element click
+    const target = e.target as HTMLElement
+    if (target.closest('a, button, .footnote-ref, .footnote-popup')) return
 
-    const width = el.clientWidth
-    const relativeX = x / width
+    navigateByTapZone(getRelativeX(e.clientX))
+  }
 
+  function navigateByTapZone(relativeX: number) {
     const tapZones = store.settings.tapZones
 
     if (tapZones === 'lrc') {
@@ -75,11 +86,41 @@ export function useReaderGestures(
     }
   }
 
+  function handleWheel(e: WheelEvent) {
+    e.preventDefault()
+
+    const now = Date.now()
+    if (now - lastWheelTime < WHEEL_COOLDOWN_MS) return
+    lastWheelTime = now
+
+    if (e.deltaY > 0 || e.deltaX > 0) {
+      actions.nextPage()
+    } else if (e.deltaY < 0 || e.deltaX < 0) {
+      actions.prevPage()
+    }
+  }
+
+  function handleMouseUp(e: MouseEvent) {
+    // Mouse back button (button 3) → prev page
+    if (e.button === 3) {
+      e.preventDefault()
+      actions.prevPage()
+    }
+    // Mouse forward button (button 4) → next page
+    if (e.button === 4) {
+      e.preventDefault()
+      actions.nextPage()
+    }
+  }
+
   onMounted(() => {
     const el = containerRef.value
     if (!el) return
     el.addEventListener('touchstart', handleTouchStart, { passive: true })
     el.addEventListener('touchend', handleTouchEnd, { passive: true })
+    el.addEventListener('click', handleClick)
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    el.addEventListener('mouseup', handleMouseUp)
   })
 
   onUnmounted(() => {
@@ -87,5 +128,8 @@ export function useReaderGestures(
     if (!el) return
     el.removeEventListener('touchstart', handleTouchStart)
     el.removeEventListener('touchend', handleTouchEnd)
+    el.removeEventListener('click', handleClick)
+    el.removeEventListener('wheel', handleWheel)
+    el.removeEventListener('mouseup', handleMouseUp)
   })
 }

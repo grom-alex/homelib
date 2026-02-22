@@ -90,13 +90,14 @@ function handleContentClick(e: MouseEvent) {
   // Footnote ref click
   if (target.classList.contains('footnote-ref')) {
     e.preventDefault()
-    e.stopPropagation()
+    e.stopImmediatePropagation()
     showFootnote(target)
     return
   }
 
-  // Close popup on outside click
+  // Close popup on outside click (consume event to prevent page turn)
   if (footnotePopup.visible) {
+    e.stopImmediatePropagation()
     footnotePopup.visible = false
     return
   }
