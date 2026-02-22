@@ -38,7 +38,7 @@ export function useReadingProgress(bookId: number) {
     const completedChapters = chapterIndex * chapterWeight
     const currentChapterProgress = store.chapterProgress * chapterWeight / 100
 
-    return Math.round(completedChapters + currentChapterProgress)
+    return Math.min(100, Math.max(0, Math.round(completedChapters + currentChapterProgress)))
   }
 
   async function doSave() {

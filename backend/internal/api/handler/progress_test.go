@@ -304,6 +304,91 @@ func TestProgressHandler_SaveReadingProgress_SpecialCharsChapterID(t *testing.T)
 	}
 }
 
+// --- GetAllProgress ---
+
+func TestProgressHandler_GetAllProgress_Success(t *testing.T) {
+	repo := &mockProgressRepo{
+		getByUserFn: func(_ context.Context, userID string) ([]models.ReadingProgress, error) {
+			assert.Equal(t, "user-123", userID)
+			return []models.ReadingProgress{
+				{BookID: 1, TotalProgress: 50},
+				{BookID: 42, TotalProgress: 100},
+				{BookID: 99, TotalProgress: 10},
+			}, nil
+		},
+	}
+	h := NewProgressHandler(repo)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/progress", nil)
+	c.Set("user_id", "user-123")
+
+	h.GetAllProgress(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]int
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, 50, resp["1"])
+	assert.Equal(t, 100, resp["42"])
+	assert.Equal(t, 10, resp["99"])
+	assert.Len(t, resp, 3)
+}
+
+func TestProgressHandler_GetAllProgress_Empty(t *testing.T) {
+	repo := &mockProgressRepo{
+		getByUserFn: func(_ context.Context, _ string) ([]models.ReadingProgress, error) {
+			return nil, nil
+		},
+	}
+	h := NewProgressHandler(repo)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/progress", nil)
+	c.Set("user_id", "user-123")
+
+	h.GetAllProgress(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]int
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Empty(t, resp)
+}
+
+func TestProgressHandler_GetAllProgress_NoUserID(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/progress", nil)
+
+	h.GetAllProgress(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestProgressHandler_GetAllProgress_DBError(t *testing.T) {
+	repo := &mockProgressRepo{
+		getByUserFn: func(_ context.Context, _ string) ([]models.ReadingProgress, error) {
+			return nil, fmt.Errorf("connection lost")
+		},
+	}
+	h := NewProgressHandler(repo)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/progress", nil)
+	c.Set("user_id", "user-123")
+
+	h.GetAllProgress(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "internal_error")
+}
+
 func TestProgressHandler_SaveReadingProgress_DBError(t *testing.T) {
 	repo := &mockProgressRepo{
 		upsertFn: func(_ context.Context, _ *models.ReadingProgress) error {

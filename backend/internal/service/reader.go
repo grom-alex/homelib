@@ -84,6 +84,10 @@ func (s *ReaderService) GetBookContent(ctx context.Context, bookID int64) (*book
 
 // GetChapter returns the HTML content of a specific chapter. Uses file cache.
 func (s *ReaderService) GetChapter(ctx context.Context, bookID int64, chapterID string) (*bookfile.ChapterContent, error) {
+	if err := ValidateResourceID(chapterID); err != nil {
+		return nil, err
+	}
+
 	// Try cache
 	cached, err := s.getCachedChapter(bookID, chapterID)
 	if err == nil {
@@ -110,6 +114,10 @@ func (s *ReaderService) GetChapter(ctx context.Context, bookID int64, chapterID 
 
 // GetBookImage returns an embedded image from the book. Uses file cache.
 func (s *ReaderService) GetBookImage(ctx context.Context, bookID int64, imageID string) (*bookfile.ImageData, error) {
+	if err := ValidateResourceID(imageID); err != nil {
+		return nil, err
+	}
+
 	// Try cache
 	cached, err := s.getCachedImage(bookID, imageID)
 	if err == nil {

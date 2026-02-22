@@ -53,26 +53,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
 import type { BookListItem } from '@/api/books'
-import { getReadingProgress } from '@/api/reader'
 
-const props = defineProps<{ book: BookListItem }>()
-
-const progress = ref(0)
-
-onMounted(async () => {
-  if (props.book.format === 'fb2') {
-    try {
-      const saved = await getReadingProgress(props.book.id)
-      if (saved) {
-        progress.value = saved.totalProgress
-      }
-    } catch {
-      // Ignore — progress is optional
-    }
-  }
-})
+defineProps<{
+  book: BookListItem
+  progress?: number
+}>()
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return bytes + ' B'

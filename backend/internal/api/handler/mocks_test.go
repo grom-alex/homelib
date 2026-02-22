@@ -182,8 +182,9 @@ func (m *mockReaderService) GetBookImage(ctx context.Context, bookID int64, imag
 // --- Progress repo mock ---
 
 type mockProgressRepo struct {
-	getFn    func(ctx context.Context, userID string, bookID int64) (*models.ReadingProgress, error)
-	upsertFn func(ctx context.Context, p *models.ReadingProgress) error
+	getFn       func(ctx context.Context, userID string, bookID int64) (*models.ReadingProgress, error)
+	upsertFn    func(ctx context.Context, p *models.ReadingProgress) error
+	getByUserFn func(ctx context.Context, userID string) ([]models.ReadingProgress, error)
 }
 
 func (m *mockProgressRepo) Get(ctx context.Context, userID string, bookID int64) (*models.ReadingProgress, error) {
@@ -198,6 +199,13 @@ func (m *mockProgressRepo) Upsert(ctx context.Context, p *models.ReadingProgress
 		return m.upsertFn(ctx, p)
 	}
 	return fmt.Errorf("not implemented")
+}
+
+func (m *mockProgressRepo) GetByUser(ctx context.Context, userID string) ([]models.ReadingProgress, error) {
+	if m.getByUserFn != nil {
+		return m.getByUserFn(ctx, userID)
+	}
+	return nil, fmt.Errorf("not implemented")
 }
 
 // --- Settings repo mock ---

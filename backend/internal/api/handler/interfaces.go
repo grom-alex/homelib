@@ -51,6 +51,7 @@ type ReaderServicer interface {
 type ProgressRepository interface {
 	Get(ctx context.Context, userID string, bookID int64) (*models.ReadingProgress, error)
 	Upsert(ctx context.Context, p *models.ReadingProgress) error
+	GetByUser(ctx context.Context, userID string) ([]models.ReadingProgress, error)
 }
 
 // SettingsRepository is the interface that settings handlers need from the user repo.

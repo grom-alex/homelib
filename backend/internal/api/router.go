@@ -65,6 +65,7 @@ func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware) *gin.Engine {
 				authorized.GET("/books/:id/chapter/:chapterId", h.Reader.GetChapter)
 			}
 			if h.Progress != nil {
+				authorized.GET("/me/progress", h.Progress.GetAllProgress)
 				authorized.GET("/me/books/:bookId/progress", h.Progress.GetReadingProgress)
 				authorized.PUT("/me/books/:bookId/progress", h.Progress.SaveReadingProgress)
 				// POST duplicates PUT as a fallback for navigator.sendBeacon(),

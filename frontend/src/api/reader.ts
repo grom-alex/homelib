@@ -15,6 +15,11 @@ export function getBookImageUrl(bookId: number, imageId: string): string {
   return `/api/books/${bookId}/image/${imageId}`
 }
 
+export async function getAllReadingProgress(): Promise<Record<number, number>> {
+  const { data } = await api.get<Record<number, number>>('/me/progress')
+  return data
+}
+
 export async function getReadingProgress(bookId: number): Promise<ReadingPosition | null> {
   const response = await api.get(`/me/books/${bookId}/progress`)
   if (response.status === 204) return null

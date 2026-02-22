@@ -89,3 +89,26 @@ func (h *ProgressHandler) SaveReadingProgress(c *gin.Context) {
 
 	c.JSON(http.StatusOK, progress)
 }
+
+// GetAllProgress handles GET /api/me/progress.
+// Returns a compact map of bookID → totalProgress for the authenticated user.
+func (h *ProgressHandler) GetAllProgress(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "message": "Пользователь не авторизован"})
+		return
+	}
+
+	items, err := h.progressRepo.GetByUser(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error", "message": "Внутренняя ошибка сервера"})
+		return
+	}
+
+	result := make(map[int64]int, len(items))
+	for _, p := range items {
+		result[p.BookID] = p.TotalProgress
+	}
+
+	c.JSON(http.StatusOK, result)
+}
