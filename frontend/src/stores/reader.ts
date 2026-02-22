@@ -15,6 +15,8 @@ export const useReaderStore = defineStore('reader', () => {
 
   // Per-chapter page counts for book-level progress
   const chapterPageCounts = ref<Map<string, number>>(new Map())
+  // Chapters that have been actually rendered and measured (vs estimated)
+  const measuredChapters = ref<Set<string>>(new Set())
 
   // UI state
   const loading = ref(false)
@@ -78,6 +80,7 @@ export const useReaderStore = defineStore('reader', () => {
   function setBookContent(content: BookContent) {
     bookContent.value = content
     chapterPageCounts.value = new Map()
+    measuredChapters.value = new Set()
     error.value = null
   }
 
@@ -99,25 +102,37 @@ export const useReaderStore = defineStore('reader', () => {
     if (currentPage.value > clamped) {
       currentPage.value = clamped
     }
-    // Track page count for current chapter
+    // Track page count for current chapter (actual measurement)
     if (currentChapterId.value) {
       chapterPageCounts.value.set(currentChapterId.value, clamped)
+      measuredChapters.value.add(currentChapterId.value)
     }
-    // Estimate page counts for unvisited chapters proportionally
+    // Re-estimate page counts for unvisited chapters using weighted average
     estimateChapterPages()
   }
 
   function estimateChapterPages() {
     const bc = bookContent.value
-    if (!bc?.chapterSizes || !currentChapterId.value) return
+    if (!bc?.chapterSizes) return
 
-    const currentSize = bc.chapterSizes[currentChapterId.value]
-    const currentPages = totalPages.value
-    if (!currentSize || currentSize <= 0 || currentPages <= 0) return
+    // Weighted average ratio from all actually measured chapters
+    let totalMeasuredPages = 0
+    let totalMeasuredSize = 0
+    for (const chId of measuredChapters.value) {
+      const pages = chapterPageCounts.value.get(chId)
+      const size = bc.chapterSizes[chId]
+      if (pages && pages > 0 && size && size > 0) {
+        totalMeasuredPages += pages
+        totalMeasuredSize += size
+      }
+    }
+    if (totalMeasuredSize <= 0 || totalMeasuredPages <= 0) return
 
-    const ratio = currentPages / currentSize
+    const ratio = totalMeasuredPages / totalMeasuredSize
+
+    // Re-estimate ALL non-measured chapters (overwrite old estimates)
     for (const chId of bc.chapters) {
-      if (chapterPageCounts.value.has(chId)) continue // already measured
+      if (measuredChapters.value.has(chId)) continue
       const size = bc.chapterSizes[chId]
       if (size && size > 0) {
         chapterPageCounts.value.set(chId, Math.max(1, Math.round(size * ratio)))
@@ -153,6 +168,7 @@ export const useReaderStore = defineStore('reader', () => {
     currentPage.value = 1
     totalPages.value = 1
     chapterPageCounts.value = new Map()
+    measuredChapters.value = new Set()
     loading.value = false
     error.value = null
     tocVisible.value = false
@@ -169,6 +185,7 @@ export const useReaderStore = defineStore('reader', () => {
     currentPage,
     totalPages,
     chapterPageCounts,
+    measuredChapters,
     loading,
     error,
     tocVisible,

@@ -54,6 +54,7 @@ describe('reader store', () => {
       expect(store.currentPage).toBe(1)
       expect(store.totalPages).toBe(1)
       expect(store.chapterPageCounts).toEqual(new Map())
+      expect(store.measuredChapters).toEqual(new Set())
       expect(store.loading).toBe(false)
       expect(store.error).toBeNull()
       expect(store.tocVisible).toBe(false)
@@ -95,17 +96,19 @@ describe('reader store', () => {
       expect(store.bookContent).toEqual(bc)
     })
 
-    it('clears chapterPageCounts', () => {
+    it('clears chapterPageCounts and measuredChapters', () => {
       const store = useReaderStore()
       // Pre-populate some counts
       store.setBookContent(makeBookContent(['ch1']))
       store.setChapter(makeChapter('ch1'))
       store.setTotalPages(5)
       expect(store.chapterPageCounts.size).toBeGreaterThan(0)
+      expect(store.measuredChapters.size).toBeGreaterThan(0)
 
-      // Setting new book content should clear counts
+      // Setting new book content should clear counts and measured set
       store.setBookContent(makeBookContent(['ch2', 'ch3']))
       expect(store.chapterPageCounts).toEqual(new Map())
+      expect(store.measuredChapters).toEqual(new Set())
     })
 
     it('clears error', () => {
@@ -224,13 +227,15 @@ describe('reader store', () => {
       expect(store.currentPage).toBe(5)
     })
 
-    it('tracks page count in chapterPageCounts for current chapter', () => {
+    it('tracks page count in chapterPageCounts and measuredChapters', () => {
       const store = useReaderStore()
       store.setBookContent(makeBookContent(['ch1', 'ch2']))
       store.setChapter(makeChapter('ch1'))
       store.setTotalPages(7)
 
       expect(store.chapterPageCounts.get('ch1')).toBe(7)
+      expect(store.measuredChapters.has('ch1')).toBe(true)
+      expect(store.measuredChapters.has('ch2')).toBe(false)
     })
 
     it('calls estimateChapterPages when chapterSizes are available', () => {
@@ -259,9 +264,9 @@ describe('reader store', () => {
       store.setChapter(makeChapter('ch1'))
       store.setTotalPages(10)
 
-      // ch2 should still be 5 (measured), not re-estimated
+      // ch2 should still be 5 (actually measured), not re-estimated
       expect(store.chapterPageCounts.get('ch2')).toBe(5)
-      // ch3 should be estimated from ch1: ratio = 10/1000 = 0.01, ch3 = 2000*0.01 = 20
+      // ch3 estimated via weighted avg: (10+5)/(1000+500)=0.01, ch3=2000*0.01=20
       expect(store.chapterPageCounts.get('ch3')).toBe(20)
     })
 
@@ -274,6 +279,32 @@ describe('reader store', () => {
       // ch2/ch3 have invalid sizes, should not be estimated
       expect(store.chapterPageCounts.has('ch2')).toBe(false)
       expect(store.chapterPageCounts.has('ch3')).toBe(false)
+    })
+
+    it('re-estimates unvisited chapters using weighted average as more chapters are measured', () => {
+      const store = useReaderStore()
+      // ch1: size 1000, ch2: size 500, ch3: size 2000 (unmeasured)
+      store.setBookContent(makeBookContent(['ch1', 'ch2', 'ch3'], { ch1: 1000, ch2: 500, ch3: 2000 }))
+
+      // Visit ch1: 10 pages for 1000 chars -> ratio = 10/1000 = 0.01
+      store.setChapter(makeChapter('ch1'))
+      store.setTotalPages(10)
+      // ch2 estimated: 500 * 0.01 = 5, ch3 estimated: 2000 * 0.01 = 20
+      expect(store.chapterPageCounts.get('ch2')).toBe(5)
+      expect(store.chapterPageCounts.get('ch3')).toBe(20)
+      const totalAfterCh1 = store.bookTotalPages // 10 + 5 + 20 = 35
+
+      // Visit ch2: actual = 8 pages (not 5 as estimated)
+      // Weighted avg: (10 + 8) / (1000 + 500) = 18/1500 = 0.012
+      store.setChapter(makeChapter('ch2'))
+      store.setTotalPages(8)
+      // ch3 re-estimated: 2000 * 0.012 = 24
+      expect(store.chapterPageCounts.get('ch3')).toBe(24)
+      const totalAfterCh2 = store.bookTotalPages // 10 + 8 + 24 = 42
+
+      // The total INCREASED because ch2 was underestimated
+      // Key behavior: estimates converge to reality instead of monotonically decreasing
+      expect(totalAfterCh2).toBeGreaterThan(totalAfterCh1)
     })
 
     it('estimation clamps to minimum of 1 page per chapter', () => {
@@ -664,6 +695,7 @@ describe('reader store', () => {
       expect(store.currentPage).toBe(1)
       expect(store.totalPages).toBe(1)
       expect(store.chapterPageCounts).toEqual(new Map())
+      expect(store.measuredChapters).toEqual(new Set())
       expect(store.loading).toBe(false)
       expect(store.error).toBeNull()
       expect(store.tocVisible).toBe(false)
