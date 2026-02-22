@@ -117,7 +117,13 @@ useReaderKeyboard({
   nextPage: handleNextPage,
   prevPage: handlePrevPage,
   nextChapter: () => nextChapter(props.bookId),
-  prevChapter: () => prevChapter(props.bookId),
+  prevChapter: () => {
+    if (store.currentPage > 1 && contentRef.value) {
+      contentRef.value.goToPage(1)
+    } else {
+      prevChapter(props.bookId)
+    }
+  },
   goToStart: () => {
     if (store.bookContent?.chapters.length) {
       navigateToChapter(props.bookId, store.bookContent.chapters[0])
