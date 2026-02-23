@@ -71,7 +71,15 @@ export const useCatalogStore = defineStore('catalog', () => {
     selectedBookId.value = null
     currentBook.value = null
 
-    const apiFilters: Partial<BookFilters> = {}
+    // Clear all navigation-specific filters before applying new ones
+    const apiFilters: Partial<BookFilters> = {
+      author_id: undefined,
+      series_id: undefined,
+      genre_id: undefined,
+      q: undefined,
+      format: undefined,
+      lang: undefined,
+    }
     if (type === 'author' && id) apiFilters.author_id = id
     else if (type === 'series' && id) apiFilters.series_id = id
     else if (type === 'genre' && id) apiFilters.genre_id = id
