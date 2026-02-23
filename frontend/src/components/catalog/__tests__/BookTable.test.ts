@@ -126,10 +126,12 @@ describe('BookTable', () => {
 
     const wrapper = mountBookTable()
     const headers = wrapper.findAll('.book-table__header-cell')
-    expect(headers).toHaveLength(5)
+    expect(headers).toHaveLength(7)
     expect(headers[0].text()).toContain('Название')
     expect(headers[1].text()).toContain('Автор')
-    expect(headers[4].text()).toContain('Размер')
+    expect(headers[4].text()).toContain('Язык')
+    expect(headers[5].text()).toContain('Формат')
+    expect(headers[6].text()).toContain('Размер')
   })
 
   it('shows pagination when multiple pages', () => {

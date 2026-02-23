@@ -72,6 +72,12 @@
               {{ formatGenres(book.genres) }}
             </div>
             <div class="book-table__cell book-table__cell--mono" :style="{ width: columns[4].width }">
+              {{ book.lang || '—' }}
+            </div>
+            <div class="book-table__cell book-table__cell--mono" :style="{ width: columns[5].width }">
+              {{ book.format || '—' }}
+            </div>
+            <div class="book-table__cell book-table__cell--mono" :style="{ width: columns[6].width }">
               {{ formatFileSize(book.file_size) }}
             </div>
           </div>
@@ -208,11 +214,13 @@ interface Column {
 }
 
 const columns: Column[] = [
-  { field: 'title', label: 'Название', width: '35%', sortable: true },
-  { field: 'author', label: 'Автор', width: '22%', sortable: false },
-  { field: 'series', label: 'Серия', width: '18%', sortable: false },
-  { field: 'genre', label: 'Жанр', width: '15%', sortable: false },
-  { field: 'file_size', label: 'Размер', width: '10%', sortable: true },
+  { field: 'title', label: 'Название', width: '32%', sortable: true },
+  { field: 'author', label: 'Автор', width: '20%', sortable: false },
+  { field: 'series', label: 'Серия', width: '16%', sortable: false },
+  { field: 'genre', label: 'Жанр', width: '13%', sortable: false },
+  { field: 'lang', label: 'Язык', width: '5%', sortable: false },
+  { field: 'format', label: 'Формат', width: '6%', sortable: false },
+  { field: 'file_size', label: 'Размер', width: '8%', sortable: true },
 ]
 
 function onSortClick(field: string) {
