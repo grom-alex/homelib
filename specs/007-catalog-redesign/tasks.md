@@ -201,7 +201,7 @@
 - [x] T050 [P] Verify existing functionality preserved (SC-005) — проверить что /books/:id (BookView), /books/:id/read (ReaderView), /login (LoginView), /admin/import (AdminImportView) работают корректно после редизайна; убедиться что reading progress по-прежнему загружается
 - [x] T051 Update `docs/homelib-architecture-v8.md` section 7 — добавить `components/catalog/` (12 компонентов), `stores/theme.ts`, `composables/usePanelResize.ts`, `types/catalog.ts`; отметить удалённые файлы (BookCard, BookFilters, SearchBar, PaginationBar, AuthorsView, GenresView, SeriesView)
 - [x] T052 Run backend tests `cd backend && go test -race ./...` and frontend tests `cd frontend && npx vitest run` and build `cd frontend && npm run build` to verify no regressions
-- [ ] T053 Build and deploy to staging: `./scripts/build-and-push.sh --bump minor && ./scripts/deploy-stage.sh --tag <TAG>`
+- [x] T053 Build and deploy to staging: `./scripts/build-and-push.sh --bump minor && ./scripts/deploy-stage.sh --tag <TAG>`
 
 ---
 

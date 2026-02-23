@@ -219,6 +219,8 @@ Architecture documentation is in Russian in [docs/](docs/). The most current ver
 - PostgreSQL 17 (refresh_tokens table) (005-fix-session-expiry)
 - Go 1.25 (backend), TypeScript + Vue 3 (frontend) + Gin (HTTP), pgx/v5 (DB), encoding/xml (FB2 parsing), axios (HTTP client), Pinia (state), Vue Router, Vuetify 3 (006-fb2-reader)
 - PostgreSQL 17 (reading_progress, user settings), файловый кеш (конвертированный HTML) (006-fb2-reader)
+- Go 1.25 (backend), TypeScript + Vue 3 (frontend) + Gin (HTTP), pgx/v5 (DB), Vuetify 3 (UI), Pinia (state), Vue Router, axios (007-catalog-redesign)
+- PostgreSQL 17 (JSONB `users.settings` для тем) (007-catalog-redesign)
 
 ## Recent Changes
 - 001-github-ci-setup: Added Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`)
