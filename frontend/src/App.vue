@@ -16,3 +16,9 @@ const route = useRoute()
 const isReaderRoute = computed(() => route.name === 'reader')
 const isCatalogRoute = computed(() => route.name === 'catalog')
 </script>
+
+<style>
+.v-application {
+  font-family: 'Source Sans 3', sans-serif !important;
+}
+</style>
