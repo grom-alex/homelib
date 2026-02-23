@@ -93,13 +93,13 @@ function flattenGenres(genres: GenreTreeItem[]): Array<{ id: number; name: strin
 }
 
 async function loadOptions() {
-  try {
-    const [genres, stats] = await Promise.all([getGenres(), getStats()])
-    genreOptions.value = flattenGenres(genres)
-    formatOptions.value = stats.formats
-    langOptions.value = stats.languages
-  } catch {
-    // Ошибка загрузки опций
+  const [genresResult, statsResult] = await Promise.allSettled([getGenres(), getStats()])
+  if (genresResult.status === 'fulfilled') {
+    genreOptions.value = flattenGenres(genresResult.value)
+  }
+  if (statsResult.status === 'fulfilled') {
+    formatOptions.value = statsResult.value.formats
+    langOptions.value = statsResult.value.languages
   }
 }
 
