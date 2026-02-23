@@ -78,7 +78,7 @@
         </div>
       </div>
 
-      <div v-if="catalog.totalPages > 1" class="book-table__pagination">
+      <div v-if="catalog.books?.length" class="book-table__pagination">
         <div class="pagination__size">
           <select
             :value="catalog.filters.limit"
@@ -91,7 +91,7 @@
           </select>
         </div>
 
-        <div class="pagination__nav">
+        <div v-if="catalog.totalPages > 1" class="pagination__nav">
           <button
             class="pagination__btn"
             :disabled="currentPage <= 1"

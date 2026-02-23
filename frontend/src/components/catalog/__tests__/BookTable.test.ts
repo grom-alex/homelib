@@ -142,14 +142,16 @@ describe('BookTable', () => {
     expect(wrapper.find('.book-table__pagination').exists()).toBe(true)
   })
 
-  it('does not show pagination for single page', () => {
+  it('shows pagination bar but hides nav for single page', () => {
     const store = useCatalogStore()
     store.navigationFilter = { type: 'author', id: 1 }
     store.books = mockBooks as never[]
     store.total = 2
 
     const wrapper = mountBookTable()
-    expect(wrapper.find('.book-table__pagination').exists()).toBe(false)
+    expect(wrapper.find('.book-table__pagination').exists()).toBe(true)
+    expect(wrapper.find('.pagination__size-select').exists()).toBe(true)
+    expect(wrapper.find('.pagination__nav').exists()).toBe(false)
   })
 
   it('renders page size selector with options', () => {
