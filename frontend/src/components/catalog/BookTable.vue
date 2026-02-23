@@ -492,6 +492,7 @@ function formatFileSize(bytes?: number): string {
 
 .pagination__info {
   flex-shrink: 0;
+  margin-left: auto;
   font-size: 11px;
   color: rgb(var(--v-theme-on-surface));
   opacity: 0.45;
