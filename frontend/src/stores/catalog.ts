@@ -40,7 +40,7 @@ export const useCatalogStore = defineStore('catalog', () => {
     try {
       const result = await booksApi.getBooks(filters.value, controller.signal)
       if (!controller.signal.aborted) {
-        books.value = result.items
+        books.value = result.items ?? []
         total.value = result.total
       }
     } catch (e: unknown) {

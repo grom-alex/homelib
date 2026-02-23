@@ -13,7 +13,7 @@
       <p class="book-table__empty-text">Выберите элемент навигации</p>
     </div>
 
-    <div v-else-if="!catalog.loading && catalog.books.length === 0 && catalog.navigationFilter" class="book-table__empty">
+    <div v-else-if="!catalog.loading && catalog.books?.length === 0 && catalog.navigationFilter" class="book-table__empty">
       <v-icon size="48" color="grey">mdi-book-off-outline</v-icon>
       <p class="book-table__empty-text">Книги не найдены</p>
     </div>
