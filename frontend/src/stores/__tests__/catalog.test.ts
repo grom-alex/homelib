@@ -142,4 +142,121 @@ describe('catalog store', () => {
     expect(store.currentBook).toBeNull()
     expect(store.bookLoading).toBe(false)
   })
+
+  it('starts with default activeTab and no selection', () => {
+    const store = useCatalogStore()
+    expect(store.activeTab).toBe('authors')
+    expect(store.selectedBookId).toBeNull()
+    expect(store.navigationFilter).toBeNull()
+  })
+
+  it('selectNavItem sets filter and fetches books', async () => {
+    vi.mocked(booksApi.getBooks).mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 })
+    const store = useCatalogStore()
+    await store.selectNavItem('author', 42)
+
+    expect(store.navigationFilter).toEqual({ type: 'author', id: 42, params: undefined })
+    expect(store.selectedBookId).toBeNull()
+    expect(booksApi.getBooks).toHaveBeenCalledWith(
+      expect.objectContaining({ author_id: 42, page: 1 }),
+      expect.any(AbortSignal),
+    )
+  })
+
+  it('selectNavItem with series sets series_id filter', async () => {
+    vi.mocked(booksApi.getBooks).mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 })
+    const store = useCatalogStore()
+    await store.selectNavItem('series', 7)
+
+    expect(booksApi.getBooks).toHaveBeenCalledWith(
+      expect.objectContaining({ series_id: 7 }),
+      expect.any(AbortSignal),
+    )
+  })
+
+  it('selectNavItem with genre sets genre_id filter', async () => {
+    vi.mocked(booksApi.getBooks).mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 })
+    const store = useCatalogStore()
+    await store.selectNavItem('genre', 3)
+
+    expect(booksApi.getBooks).toHaveBeenCalledWith(
+      expect.objectContaining({ genre_id: 3 }),
+      expect.any(AbortSignal),
+    )
+  })
+
+  it('selectNavItem with search passes params', async () => {
+    vi.mocked(booksApi.getBooks).mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 })
+    const store = useCatalogStore()
+    await store.selectNavItem('search', undefined, { q: 'Dune', format: 'fb2' })
+
+    expect(booksApi.getBooks).toHaveBeenCalledWith(
+      expect.objectContaining({ q: 'Dune', format: 'fb2' }),
+      expect.any(AbortSignal),
+    )
+  })
+
+  it('setActiveTab resets state', () => {
+    const store = useCatalogStore()
+    store.selectedBookId = 5
+    store.books = mockBooks as never[]
+    store.total = 2
+
+    store.setActiveTab('series')
+    expect(store.activeTab).toBe('series')
+    expect(store.selectedBookId).toBeNull()
+    expect(store.books).toEqual([])
+    expect(store.total).toBe(0)
+    expect(store.navigationFilter).toBeNull()
+  })
+
+  it('setActiveTab does nothing if same tab', () => {
+    const store = useCatalogStore()
+    store.books = mockBooks as never[]
+    store.setActiveTab('authors')
+    expect(store.books).toEqual(mockBooks)
+  })
+
+  it('setSelectedBook updates id and fetches book', async () => {
+    const detail = { id: 1, title: 'Book 1', lang: 'ru', format: 'fb2', is_deleted: false, authors: [], genres: [] }
+    vi.mocked(booksApi.getBook).mockResolvedValue(detail as never)
+    const store = useCatalogStore()
+    await store.setSelectedBook(1)
+
+    expect(store.selectedBookId).toBe(1)
+    expect(store.currentBook).toEqual(detail)
+  })
+
+  it('setSort updates sort and fetches', async () => {
+    vi.mocked(booksApi.getBooks).mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 })
+    const store = useCatalogStore()
+    await store.setSort('year', 'desc')
+
+    expect(store.filters.sort).toBe('year')
+    expect(store.filters.order).toBe('desc')
+    expect(store.filters.page).toBe(1)
+  })
+
+  it('selectNavItem resets selectedBook and currentBook', async () => {
+    vi.mocked(booksApi.getBooks).mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 })
+    const store = useCatalogStore()
+    store.selectedBookId = 5
+    store.currentBook = { id: 5, title: 'Test' } as never
+
+    await store.selectNavItem('author', 1)
+    expect(store.selectedBookId).toBeNull()
+    expect(store.currentBook).toBeNull()
+  })
+
+  it('resetFilters clears navigation state', async () => {
+    vi.mocked(booksApi.getBooks).mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 })
+    const store = useCatalogStore()
+    store.navigationFilter = { type: 'author', id: 1 }
+    store.selectedBookId = 3
+
+    await store.resetFilters()
+    expect(store.navigationFilter).toBeNull()
+    expect(store.selectedBookId).toBeNull()
+    expect(store.currentBook).toBeNull()
+  })
 })

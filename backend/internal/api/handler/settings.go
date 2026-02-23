@@ -13,8 +13,9 @@ const maxSettingsSize = 64 * 1024
 // UserSettingsPatch whitelists the top-level keys a client may store.
 // Unknown keys are silently dropped during JSON unmarshalling.
 type UserSettingsPatch struct {
-	Reader json.RawMessage `json:"reader,omitempty"`
-	UI     json.RawMessage `json:"ui,omitempty"`
+	Reader  json.RawMessage `json:"reader,omitempty"`
+	UI      json.RawMessage `json:"ui,omitempty"`
+	Catalog json.RawMessage `json:"catalog,omitempty"`
 }
 
 type SettingsHandler struct {

@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <AppHeader v-if="!isReaderRoute" />
+    <AppHeader v-if="!isReaderRoute && !isCatalogRoute" />
     <v-main>
       <router-view />
     </v-main>
@@ -14,4 +14,5 @@ import AppHeader from '@/components/AppHeader.vue'
 
 const route = useRoute()
 const isReaderRoute = computed(() => route.name === 'reader')
+const isCatalogRoute = computed(() => route.name === 'catalog')
 </script>

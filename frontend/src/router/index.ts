@@ -30,26 +30,6 @@ const router = createRouter({
       component: () => import('@/views/ReaderView.vue'),
     },
     {
-      path: '/authors',
-      name: 'authors',
-      component: () => import('@/views/AuthorsView.vue'),
-    },
-    {
-      path: '/authors/:id',
-      name: 'author',
-      component: () => import('@/views/AuthorView.vue'),
-    },
-    {
-      path: '/genres',
-      name: 'genres',
-      component: () => import('@/views/GenresView.vue'),
-    },
-    {
-      path: '/series',
-      name: 'series',
-      component: () => import('@/views/SeriesView.vue'),
-    },
-    {
       path: '/admin/import',
       name: 'admin-import',
       component: () => import('@/views/AdminImportView.vue'),

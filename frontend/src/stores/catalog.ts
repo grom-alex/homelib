@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { BookListItem, BookDetail, BookFilters } from '@/api/books'
 import * as booksApi from '@/api/books'
+import type { TabType, NavigationFilter, SortField, SortOrder } from '@/types/catalog'
+import { defaultCatalogSettings } from '@/types/catalog'
 
 export const useCatalogStore = defineStore('catalog', () => {
   const books = ref<BookListItem[]>([])
@@ -11,11 +13,15 @@ export const useCatalogStore = defineStore('catalog', () => {
   const bookLoading = ref(false)
   const error = ref<string | null>(null)
 
+  const activeTab = ref<TabType>(defaultCatalogSettings.activeTab)
+  const selectedBookId = ref<number | null>(null)
+  const navigationFilter = ref<NavigationFilter | null>(null)
+
   const filters = ref<BookFilters>({
     page: 1,
     limit: 20,
-    sort: 'title',
-    order: 'asc',
+    sort: defaultCatalogSettings.tableSort.field,
+    order: defaultCatalogSettings.tableSort.order,
   })
 
   const totalPages = computed(() => Math.ceil(total.value / (filters.value.limit || 20)))
@@ -60,6 +66,45 @@ export const useCatalogStore = defineStore('catalog', () => {
     }
   }
 
+  function selectNavItem(type: NavigationFilter['type'], id?: number, params?: Record<string, string>, label?: string) {
+    navigationFilter.value = { type, id, label, params }
+    selectedBookId.value = null
+    currentBook.value = null
+
+    const apiFilters: Partial<BookFilters> = {}
+    if (type === 'author' && id) apiFilters.author_id = id
+    else if (type === 'series' && id) apiFilters.series_id = id
+    else if (type === 'genre' && id) apiFilters.genre_id = id
+    else if (type === 'search' && params) {
+      if (params.q) apiFilters.q = params.q
+      if (params.genre_id) apiFilters.genre_id = Number(params.genre_id)
+      if (params.format) apiFilters.format = params.format
+      if (params.lang) apiFilters.lang = params.lang
+    }
+
+    updateFilters(apiFilters)
+  }
+
+  function setActiveTab(tab: TabType) {
+    if (activeTab.value === tab) return
+    activeTab.value = tab
+    selectedBookId.value = null
+    currentBook.value = null
+    navigationFilter.value = null
+    books.value = []
+    total.value = 0
+  }
+
+  function setSelectedBook(id: number) {
+    selectedBookId.value = id
+    return fetchBook(id)
+  }
+
+  function setSort(field: SortField, order: SortOrder) {
+    filters.value = { ...filters.value, sort: field, order, page: 1 }
+    return fetchBooks()
+  }
+
   function updateFilters(newFilters: Partial<BookFilters>) {
     filters.value = { ...filters.value, ...newFilters, page: 1 }
     return fetchBooks()
@@ -72,6 +117,9 @@ export const useCatalogStore = defineStore('catalog', () => {
 
   function resetFilters() {
     filters.value = { page: 1, limit: 20, sort: 'title', order: 'asc' }
+    navigationFilter.value = null
+    selectedBookId.value = null
+    currentBook.value = null
     return fetchBooks()
   }
 
@@ -84,8 +132,15 @@ export const useCatalogStore = defineStore('catalog', () => {
     error,
     filters,
     totalPages,
+    activeTab,
+    selectedBookId,
+    navigationFilter,
     fetchBooks,
     fetchBook,
+    selectNavItem,
+    setActiveTab,
+    setSelectedBook,
+    setSort,
     updateFilters,
     setPage,
     resetFilters,
