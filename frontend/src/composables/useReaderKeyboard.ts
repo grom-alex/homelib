@@ -35,12 +35,12 @@ export function useReaderKeyboard(actions: KeyboardActions) {
         actions.prevPage()
         break
 
-      case 'PageDown':
+      case 'PageUp':
         e.preventDefault()
         actions.nextChapter()
         break
 
-      case 'PageUp':
+      case 'PageDown':
         e.preventDefault()
         actions.prevChapter()
         break
