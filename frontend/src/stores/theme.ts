@@ -10,6 +10,15 @@ export const useThemeStore = defineStore('theme', () => {
   const readerThemeOverride = ref<CatalogThemeName | null>(null)
   const loaded = ref(false)
 
+  // Захватываем ссылку на Vuetify theme в setup-контексте стора,
+  // где inject() ещё доступен (стор создаётся внутри компонента).
+  let vuetifyTheme: ReturnType<typeof useTheme> | null = null
+  try {
+    vuetifyTheme = useTheme()
+  } catch {
+    // useTheme() не доступен вне setup-контекста (тесты)
+  }
+
   const effectiveReaderTheme = computed<CatalogThemeName>(
     () => readerThemeOverride.value ?? catalogTheme.value,
   )
@@ -31,11 +40,8 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function applyVuetifyTheme(theme: CatalogThemeName) {
-    try {
-      const vuetifyTheme = useTheme()
+    if (vuetifyTheme) {
       vuetifyTheme.global.name.value = theme
-    } catch {
-      // useTheme() не доступен вне setup-контекста (тесты)
     }
   }
 
