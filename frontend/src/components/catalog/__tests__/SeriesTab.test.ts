@@ -99,7 +99,7 @@ describe('SeriesTab', () => {
     await flushPromises()
 
     const store = useCatalogStore()
-    const listItems = wrapper.findAll('.v-list-item')
+    const listItems = wrapper.findAll('.series-tab__item')
     await listItems[0].trigger('click')
 
     expect(store.navigationFilter?.type).toBe('series')

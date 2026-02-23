@@ -102,4 +102,9 @@ export default createVuetify({
     defaultTheme: 'light',
     themes: { light, dark, sepia, night },
   },
+  defaults: {
+    global: {
+      style: "font-family: 'Source Sans 3', sans-serif",
+    },
+  },
 })

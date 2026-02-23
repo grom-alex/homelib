@@ -10,12 +10,12 @@
 
     <div v-if="!catalog.loading && !catalog.navigationFilter" class="book-table__empty">
       <v-icon size="48" color="grey">mdi-book-open-blank-variant</v-icon>
-      <p class="text-body-1 mt-2 text-medium-emphasis">Выберите элемент навигации</p>
+      <p class="book-table__empty-text">Выберите элемент навигации</p>
     </div>
 
     <div v-else-if="!catalog.loading && catalog.books.length === 0 && catalog.navigationFilter" class="book-table__empty">
       <v-icon size="48" color="grey">mdi-book-off-outline</v-icon>
-      <p class="text-body-1 mt-2 text-medium-emphasis">Книги не найдены</p>
+      <p class="book-table__empty-text">Книги не найдены</p>
     </div>
 
     <template v-else>
@@ -25,19 +25,19 @@
             v-for="col in columns"
             :key="col.field"
             class="book-table__header-cell"
-            :class="{ 'book-table__header-cell--sortable': col.sortable }"
+            :class="{
+              'book-table__header-cell--sortable': col.sortable,
+              'book-table__header-cell--active': col.sortable && catalog.filters.sort === col.field,
+            }"
             :style="{ width: col.width }"
             role="columnheader"
             @click="col.sortable && onSortClick(col.field)"
           >
             {{ col.label }}
-            <v-icon
+            <span
               v-if="col.sortable && catalog.filters.sort === col.field"
-              size="14"
-              class="ml-1"
-            >
-              {{ catalog.filters.order === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down' }}
-            </v-icon>
+              class="book-table__sort-arrow"
+            >{{ catalog.filters.order === 'asc' ? '▲' : '▼' }}</span>
           </div>
         </div>
 
@@ -61,7 +61,11 @@
             <div class="book-table__cell" :style="{ width: columns[1].width }">
               {{ formatAuthors(book.authors) }}
             </div>
-            <div class="book-table__cell" :style="{ width: columns[2].width }">
+            <div
+              class="book-table__cell"
+              :class="{ 'book-table__cell--muted': !book.series }"
+              :style="{ width: columns[2].width }"
+            >
               {{ formatSeries(book) }}
             </div>
             <div class="book-table__cell" :style="{ width: columns[3].width }">
@@ -104,8 +108,8 @@ interface Column {
 
 const columns: Column[] = [
   { field: 'title', label: 'Название', width: '35%', sortable: true },
-  { field: 'author', label: 'Автор', width: '25%', sortable: false },
-  { field: 'series', label: 'Серия', width: '15%', sortable: false },
+  { field: 'author', label: 'Автор', width: '22%', sortable: false },
+  { field: 'series', label: 'Серия', width: '18%', sortable: false },
   { field: 'genre', label: 'Жанр', width: '15%', sortable: false },
   { field: 'file_size', label: 'Размер', width: '10%', sortable: true },
 ]
@@ -146,7 +150,7 @@ function formatAuthors(authors: Array<{ id: number; name: string }>): string {
 }
 
 function formatSeries(book: { series?: { name: string; num?: number } }): string {
-  if (!book.series) return ''
+  if (!book.series) return '—'
   return book.series.num
     ? `${book.series.name} #${book.series.num}`
     : book.series.name
@@ -190,6 +194,13 @@ function formatFileSize(bytes?: number): string {
   height: 100%;
 }
 
+.book-table__empty-text {
+  font-size: 13px;
+  margin-top: 8px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.4;
+}
+
 .book-table__grid {
   flex: 1;
   display: flex;
@@ -199,30 +210,44 @@ function formatFileSize(bytes?: number): string {
 
 .book-table__header {
   display: flex;
-  border-bottom: 2px solid rgb(var(--v-theme-surface-variant));
-  flex-shrink: 0;
   background: rgb(var(--v-theme-surface));
+  border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
+  flex-shrink: 0;
 }
 
 .book-table__header-cell {
-  padding: 6px 8px;
-  font-size: 0.75rem;
+  padding: 7px 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
   color: rgb(var(--v-theme-on-surface));
-  opacity: 0.7;
+  opacity: 0.35;
   user-select: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border-right: 1px solid rgb(var(--v-theme-surface-variant));
 }
 
 .book-table__header-cell--sortable {
   cursor: pointer;
+  transition: color 0.15s;
 }
 
 .book-table__header-cell--sortable:hover {
+  opacity: 0.7;
+}
+
+.book-table__header-cell--active {
+  color: rgb(var(--v-theme-primary));
   opacity: 1;
+}
+
+.book-table__sort-arrow {
+  margin-left: 4px;
+  font-size: 10px;
+  opacity: 0.7;
 }
 
 .book-table__body {
@@ -232,10 +257,11 @@ function formatFileSize(bytes?: number): string {
 
 .book-table__row {
   display: flex;
-  border-bottom: 1px solid rgb(var(--v-theme-surface-variant), 0.5);
+  border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
   cursor: pointer;
   outline: none;
   transition: background-color 0.1s;
+  font-size: 13px;
 }
 
 .book-table__row:hover {
@@ -251,17 +277,25 @@ function formatFileSize(bytes?: number): string {
 }
 
 .book-table__cell {
-  padding: 4px 8px;
-  font-size: 0.8125rem;
+  padding: 6px 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.6;
+  border-right: 1px solid rgb(var(--v-theme-surface-variant));
+}
+
+.book-table__cell--muted {
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.35;
+  font-style: italic;
 }
 
 .book-table__cell--mono {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 0.75rem;
+  font-size: 12px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.6;
 }
 
 .book-table__pagination {

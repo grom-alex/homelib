@@ -30,9 +30,10 @@ describe('NavigationPanel', () => {
     vi.clearAllMocks()
   })
 
-  it('shows active tab label', () => {
+  it('shows AuthorsTab by default', async () => {
     const wrapper = mountNavigationPanel()
-    expect(wrapper.text()).toContain('Авторы')
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'AuthorsTab' }).exists()).toBe(true)
   })
 
   it('shows AuthorsTab when activeTab is authors', async () => {
@@ -47,17 +48,18 @@ describe('NavigationPanel', () => {
 
     const wrapper = mountNavigationPanel()
     await flushPromises()
-    expect(wrapper.text()).toContain('Серии')
     expect(wrapper.findComponent({ name: 'SeriesTab' }).exists()).toBe(true)
   })
 
-  it('updates when tab changes', async () => {
+  it('switches components when tab changes', async () => {
     const store = useCatalogStore()
     const wrapper = mountNavigationPanel()
-    expect(wrapper.text()).toContain('Авторы')
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'AuthorsTab' }).exists()).toBe(true)
 
     store.activeTab = 'genres'
     await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('Жанры')
+    expect(wrapper.findComponent({ name: 'GenresTab' }).exists()).toBe(true)
   })
 })

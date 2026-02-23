@@ -1,47 +1,58 @@
 <template>
   <div class="genres-tab">
-    <div v-if="loading" class="pa-4 text-center">
+    <div class="genres-tab__header">Дерево жанров</div>
+
+    <div v-if="loading" class="genres-tab__status">
       <v-progress-circular indeterminate size="24" />
     </div>
 
-    <div v-else-if="genres.length === 0" class="pa-4 text-center text-body-2 text-medium-emphasis">
+    <div v-else-if="genres.length === 0" class="genres-tab__status genres-tab__status--empty">
       Жанры не найдены
     </div>
 
-    <v-list v-else density="compact" class="genres-tab__list">
-      <template v-for="group in groupedGenres" :key="group.name">
-        <v-list-item
-          class="genres-tab__group-header"
+    <div v-else class="genres-tab__list">
+      <div v-for="group in groupedGenres" :key="group.name">
+        <div
+          class="genres-tab__group"
+          :class="{ 'genres-tab__group--selected': false }"
           @click="toggleGroup(group.name)"
         >
-          <template #prepend>
-            <v-icon size="16">
-              {{ expandedGroups.has(group.name) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}
-            </v-icon>
-          </template>
-          <v-list-item-title class="text-body-2 font-weight-medium">
-            {{ group.name }}
-          </v-list-item-title>
-        </v-list-item>
+          <svg
+            width="12" height="12" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+            class="genres-tab__chevron"
+            :class="{ 'genres-tab__chevron--open': expandedGroups.has(group.name) }"
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+          <svg
+            width="14" height="14" viewBox="0 0 24 24"
+            :fill="expandedGroups.has(group.name) ? 'rgb(var(--v-theme-primary))' : 'none'"
+            stroke="currentColor" stroke-width="2"
+          >
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+          <span class="genres-tab__group-name">{{ group.name }}</span>
+          <span class="genres-tab__group-count">{{ group.items.length }}</span>
+        </div>
 
-        <v-expand-transition>
-          <div v-show="expandedGroups.has(group.name)">
-            <v-list-item
-              v-for="genre in group.items"
-              :key="genre.id"
-              :active="catalog.navigationFilter?.type === 'genre' && catalog.navigationFilter?.id === genre.id"
-              class="pl-8"
-              @click="selectGenre(genre.id, genre.name)"
-            >
-              <v-list-item-title class="text-body-2">{{ genre.name }}</v-list-item-title>
-              <template #append>
-                <span class="text-caption text-medium-emphasis">{{ genre.books_count }}</span>
-              </template>
-            </v-list-item>
+        <template v-if="expandedGroups.has(group.name)">
+          <div
+            v-for="genre in group.items"
+            :key="genre.id"
+            class="genres-tab__child"
+            :class="{ 'genres-tab__child--selected': catalog.navigationFilter?.type === 'genre' && catalog.navigationFilter?.id === genre.id }"
+            @click="selectGenre(genre.id, genre.name)"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </svg>
+            <span>{{ genre.name }}</span>
           </div>
-        </v-expand-transition>
-      </template>
-    </v-list>
+        </template>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -121,18 +132,93 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
+}
+
+.genres-tab__header {
+  padding: 8px 6px;
+  font-size: 11px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.4;
+  border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.genres-tab__status {
+  padding: 20px;
+  text-align: center;
+}
+
+.genres-tab__status--empty {
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.4;
 }
 
 .genres-tab__list {
   flex: 1;
+  overflow-y: auto;
+  padding: 6px;
 }
 
-.genres-tab__group-header {
+.genres-tab__group {
   cursor: pointer;
+  padding: 3px 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+  color: rgb(var(--v-theme-on-surface));
 }
 
-.genres-tab__group-header:hover {
+.genres-tab__group:hover {
   background: rgb(var(--v-theme-table-row-hover));
+}
+
+.genres-tab__chevron {
+  transform: rotate(0deg);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.genres-tab__chevron--open {
+  transform: rotate(90deg);
+}
+
+.genres-tab__group-name {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.genres-tab__group-count {
+  font-size: 11px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.4;
+  margin-left: auto;
+}
+
+.genres-tab__child {
+  cursor: pointer;
+  padding: 3px 4px 3px 22px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  user-select: none;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.genres-tab__child:hover {
+  background: rgb(var(--v-theme-table-row-hover));
+}
+
+.genres-tab__child--selected {
+  background: rgba(var(--v-theme-primary), 0.12);
+  color: rgb(var(--v-theme-primary));
 }
 </style>

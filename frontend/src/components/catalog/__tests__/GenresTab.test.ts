@@ -69,14 +69,15 @@ describe('GenresTab', () => {
     const wrapper = mountGenresTab()
     await flushPromises()
 
-    // Click on group header to expand
-    const groupHeaders = wrapper.findAll('.genres-tab__group-header')
+    // Click on group header to expand (groups sorted alphabetically: Детективы, Фантастика)
+    const groupHeaders = wrapper.findAll('.genres-tab__group')
     expect(groupHeaders.length).toBeGreaterThan(0)
+    // Click on first group "Детективы"
     await groupHeaders[0].trigger('click')
     await wrapper.vm.$nextTick()
 
-    // Genres within the expanded group should be visible
-    expect(wrapper.text()).toContain('Научная фантастика')
+    // "Детектив" genre within the expanded group should be visible
+    expect(wrapper.text()).toContain('Детектив')
   })
 
   it('selects genre on click', async () => {
@@ -92,14 +93,14 @@ describe('GenresTab', () => {
     await flushPromises()
 
     // Expand first group
-    const groupHeaders = wrapper.findAll('.genres-tab__group-header')
+    const groupHeaders = wrapper.findAll('.genres-tab__group')
     await groupHeaders[0].trigger('click')
     await wrapper.vm.$nextTick()
 
-    // Click on genre item (skip group headers)
-    const allItems = wrapper.findAll('.v-list-item:not(.genres-tab__group-header)')
-    if (allItems.length > 0) {
-      await allItems[0].trigger('click')
+    // Click on genre child item
+    const childItems = wrapper.findAll('.genres-tab__child')
+    if (childItems.length > 0) {
+      await childItems[0].trigger('click')
       const store = useCatalogStore()
       expect(store.navigationFilter?.type).toBe('genre')
     }

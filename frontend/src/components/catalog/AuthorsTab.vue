@@ -13,38 +13,36 @@
       />
     </div>
 
-    <div v-if="loading && authors.length === 0" class="pa-4 text-center">
+    <div v-if="loading && authors.length === 0" class="authors-tab__status">
       <v-progress-circular indeterminate size="24" />
     </div>
 
-    <div v-else-if="!loading && authors.length === 0" class="pa-4 text-center text-body-2 text-medium-emphasis">
+    <div v-else-if="!loading && authors.length === 0" class="authors-tab__status authors-tab__status--empty">
       Ничего не найдено
     </div>
 
-    <v-list v-else density="compact" class="authors-tab__list">
-      <v-list-item
+    <div v-else class="authors-tab__list">
+      <div
         v-for="author in authors"
         :key="author.id"
-        :active="catalog.navigationFilter?.type === 'author' && catalog.navigationFilter?.id === author.id"
+        class="authors-tab__item"
+        :class="{ 'authors-tab__item--selected': catalog.navigationFilter?.type === 'author' && catalog.navigationFilter?.id === author.id }"
         @click="selectAuthor(author.id, author.name)"
       >
-        <v-list-item-title class="text-body-2">{{ author.name }}</v-list-item-title>
-        <template #append>
-          <v-badge :content="String(author.books_count)" color="primary" inline />
-        </template>
-      </v-list-item>
+        <span class="authors-tab__item-name">{{ author.name }}</span>
+        <span class="authors-tab__item-count">{{ author.books_count }}</span>
+      </div>
 
-      <div v-if="hasMore" class="text-center pa-2">
-        <v-btn
-          variant="text"
-          size="small"
-          :loading="loading"
+      <div v-if="hasMore" class="authors-tab__load-more">
+        <button
+          class="authors-tab__load-more-btn"
+          :disabled="loading"
           @click="loadMore"
         >
-          Загрузить ещё
-        </v-btn>
+          {{ loading ? 'Загрузка...' : 'Загрузить ещё' }}
+        </button>
       </div>
-    </v-list>
+    </div>
   </div>
 </template>
 
@@ -116,12 +114,87 @@ onMounted(() => {
 }
 
 .authors-tab__search {
-  padding: 8px;
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
   flex-shrink: 0;
+}
+
+.authors-tab__status {
+  padding: 20px;
+  text-align: center;
+}
+
+.authors-tab__status--empty {
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.4;
 }
 
 .authors-tab__list {
   flex: 1;
   overflow-y: auto;
+}
+
+.authors-tab__item {
+  cursor: pointer;
+  padding: 5px 10px;
+  border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.authors-tab__item:hover {
+  background: rgb(var(--v-theme-table-row-hover));
+}
+
+.authors-tab__item--selected {
+  background: rgba(var(--v-theme-primary), 0.12);
+  color: rgb(var(--v-theme-primary));
+}
+
+.authors-tab__item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.authors-tab__item-count {
+  font-size: 11px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.4;
+  background: rgb(var(--v-theme-surface-variant));
+  padding: 1px 7px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.authors-tab__load-more {
+  text-align: center;
+  padding: 8px;
+}
+
+.authors-tab__load-more-btn {
+  background: none;
+  border: none;
+  color: rgb(var(--v-theme-primary));
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 4px 12px;
+}
+
+.authors-tab__load-more-btn:hover {
+  text-decoration: underline;
+}
+
+.authors-tab__load-more-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  text-decoration: none;
 }
 </style>

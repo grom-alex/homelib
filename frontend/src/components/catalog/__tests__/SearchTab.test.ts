@@ -100,8 +100,8 @@ describe('SearchTab', () => {
     await input.setValue('Дюна')
 
     // Click clear button
-    const clearBtn = wrapper.findAll('.v-btn').find((b) => b.text().includes('Очистить'))
-    await clearBtn!.trigger('click')
+    const clearBtn = wrapper.find('.search-tab__btn-clear')
+    await clearBtn.trigger('click')
 
     expect(input.element.value).toBe('')
   })

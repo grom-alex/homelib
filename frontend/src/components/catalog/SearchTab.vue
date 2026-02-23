@@ -1,63 +1,67 @@
 <template>
   <div class="search-tab">
-    <v-form class="search-tab__form" @submit.prevent="onSubmit">
-      <v-text-field
-        v-model="form.q"
-        label="Название"
-        density="compact"
-        variant="outlined"
-        hide-details
-        clearable
-        class="mb-2"
-      />
+    <div class="search-tab__header">Критерии поиска</div>
+    <div class="search-tab__body">
+      <v-form class="search-tab__form" @submit.prevent="onSubmit">
+        <v-text-field
+          v-model="form.q"
+          label="Название"
+          density="compact"
+          variant="outlined"
+          hide-details
+          clearable
+          class="mb-2"
+        />
 
-      <v-select
-        v-if="genreOptions.length > 0"
-        v-model="form.genre_id"
-        :items="genreOptions"
-        item-title="name"
-        item-value="id"
-        label="Жанр"
-        density="compact"
-        variant="outlined"
-        hide-details
-        clearable
-        class="mb-2"
-      />
+        <v-select
+          v-if="genreOptions.length > 0"
+          v-model="form.genre_id"
+          :items="genreOptions"
+          item-title="name"
+          item-value="id"
+          label="Жанр"
+          density="compact"
+          variant="outlined"
+          hide-details
+          clearable
+          class="mb-2"
+        />
 
-      <v-select
-        v-if="formatOptions.length > 0"
-        v-model="form.format"
-        :items="formatOptions"
-        label="Формат"
-        density="compact"
-        variant="outlined"
-        hide-details
-        clearable
-        class="mb-2"
-      />
+        <v-select
+          v-if="formatOptions.length > 0"
+          v-model="form.format"
+          :items="formatOptions"
+          label="Формат"
+          density="compact"
+          variant="outlined"
+          hide-details
+          clearable
+          class="mb-2"
+        />
 
-      <v-select
-        v-if="langOptions.length > 0"
-        v-model="form.lang"
-        :items="langOptions"
-        label="Язык"
-        density="compact"
-        variant="outlined"
-        hide-details
-        clearable
-        class="mb-2"
-      />
+        <v-select
+          v-if="langOptions.length > 0"
+          v-model="form.lang"
+          :items="langOptions"
+          label="Язык"
+          density="compact"
+          variant="outlined"
+          hide-details
+          clearable
+          class="mb-2"
+        />
 
-      <div class="search-tab__actions">
-        <v-btn type="submit" color="primary" variant="flat" size="small" block>
-          Найти
-        </v-btn>
-        <v-btn variant="outlined" size="small" block class="mt-1" @click="onClear">
-          Очистить
-        </v-btn>
-      </div>
-    </v-form>
+        <div class="search-tab__actions">
+          <button type="submit" class="search-tab__btn-find">
+            <v-icon size="14" class="mr-1">mdi-magnify</v-icon>
+            Найти
+          </button>
+          <button type="button" class="search-tab__btn-clear" @click="onClear">
+            Очистить
+          </button>
+        </div>
+      </v-form>
+    </div>
   </div>
 </template>
 
@@ -129,9 +133,28 @@ onMounted(() => {
 
 <style scoped>
 .search-tab {
-  padding: 8px;
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  overflow: hidden;
+}
+
+.search-tab__header {
+  padding: 8px 6px;
+  font-size: 11px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.4;
+  border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.search-tab__body {
+  flex: 1;
   overflow-y: auto;
+  padding: 12px 10px;
 }
 
 .search-tab__form {
@@ -141,5 +164,49 @@ onMounted(() => {
 
 .search-tab__actions {
   margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.search-tab__btn-find {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 9px 0;
+  background: rgb(var(--v-theme-primary));
+  color: #1a1d23;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  font-family: inherit;
+  transition: filter 0.2s;
+  width: 100%;
+}
+
+.search-tab__btn-find:hover {
+  filter: brightness(1.1);
+}
+
+.search-tab__btn-clear {
+  padding: 7px 0;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.5;
+  border: 1px solid rgb(var(--v-theme-surface-variant));
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.search-tab__btn-clear:hover {
+  opacity: 0.8;
+  border-color: rgb(var(--v-theme-on-surface));
 }
 </style>

@@ -128,7 +128,7 @@ describe('AuthorsTab', () => {
     await flushPromises()
 
     const store = useCatalogStore()
-    const listItems = wrapper.findAll('.v-list-item')
+    const listItems = wrapper.findAll('.authors-tab__item')
     await listItems[0].trigger('click')
 
     expect(store.navigationFilter?.type).toBe('author')
