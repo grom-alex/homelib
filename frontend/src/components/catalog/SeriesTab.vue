@@ -29,7 +29,10 @@
         :class="{ 'series-tab__item--selected': catalog.navigationFilter?.type === 'series' && catalog.navigationFilter?.id === item.id }"
         @click="selectSeries(item.id, item.name)"
       >
-        <span class="series-tab__item-name">{{ item.name }}</span>
+        <div class="series-tab__item-info">
+          <span class="series-tab__item-name">{{ item.name }}</span>
+          <span v-if="item.authors" class="series-tab__item-authors">{{ item.authors }}</span>
+        </div>
         <span class="series-tab__item-count">{{ item.books_count }}</span>
       </div>
 
@@ -155,11 +158,27 @@ onMounted(() => {
   color: rgb(var(--v-theme-primary));
 }
 
+.series-tab__item-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .series-tab__item-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+
+.series-tab__item-authors {
+  font-size: 11px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.45;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .series-tab__item-count {

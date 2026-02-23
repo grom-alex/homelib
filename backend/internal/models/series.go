@@ -12,4 +12,5 @@ type SeriesListItem struct {
 	ID         int64  `json:"id"`
 	Name       string `json:"name"`
 	BooksCount int    `json:"books_count"`
+	Authors    string `json:"authors"`
 }

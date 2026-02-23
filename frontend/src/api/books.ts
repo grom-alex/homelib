@@ -94,6 +94,7 @@ export interface SeriesListItem {
   id: number
   name: string
   books_count: number
+  authors: string
 }
 
 export interface CatalogStats {
