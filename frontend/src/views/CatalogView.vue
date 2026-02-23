@@ -30,7 +30,6 @@
 import { onMounted } from 'vue'
 import { Splitpanes, Pane } from 'splitpanes'
 import 'splitpanes/dist/splitpanes.css'
-import { useCatalogStore } from '@/stores/catalog'
 import { useThemeStore } from '@/stores/theme'
 import { usePanelResize } from '@/composables/usePanelResize'
 import CatalogHeader from '@/components/catalog/CatalogHeader.vue'
@@ -39,7 +38,6 @@ import BookTable from '@/components/catalog/BookTable.vue'
 import BookDetailPanel from '@/components/catalog/BookDetailPanel.vue'
 import StatusBar from '@/components/catalog/StatusBar.vue'
 
-const catalog = useCatalogStore()
 const themeStore = useThemeStore()
 const { sizes: panelSizes, onVerticalResized, onHorizontalResized } = usePanelResize()
 
