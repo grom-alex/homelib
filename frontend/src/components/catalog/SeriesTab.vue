@@ -83,9 +83,9 @@ async function fetchSeries() {
       limit,
     })
     if (page.value === 1) {
-      series.value = result.items
+      series.value = result.items ?? []
     } else {
-      series.value = [...series.value, ...result.items]
+      series.value = [...series.value, ...(result.items ?? [])]
     }
     hasMore.value = series.value.length < result.total
   } catch {

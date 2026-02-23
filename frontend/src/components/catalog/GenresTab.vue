@@ -114,7 +114,7 @@ function selectGenre(genreId: number, name: string) {
 async function fetchGenres() {
   loading.value = true
   try {
-    genres.value = await getGenres()
+    genres.value = (await getGenres()) ?? []
   } catch {
     // Ошибка загрузки жанров
   } finally {

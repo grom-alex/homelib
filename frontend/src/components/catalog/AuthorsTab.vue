@@ -80,9 +80,9 @@ async function fetchAuthors() {
       limit,
     })
     if (page.value === 1) {
-      authors.value = result.items
+      authors.value = result.items ?? []
     } else {
-      authors.value = [...authors.value, ...result.items]
+      authors.value = [...authors.value, ...(result.items ?? [])]
     }
     hasMore.value = authors.value.length < result.total
   } catch {
