@@ -3,7 +3,7 @@
     <div class="genres-tab__header">Дерево жанров</div>
 
     <div v-if="loading" class="genres-tab__status">
-      <v-progress-circular indeterminate size="24" />
+      <span class="spinner" />
     </div>
 
     <div v-else-if="genres.length === 0" class="genres-tab__status genres-tab__status--empty">
@@ -150,6 +150,20 @@ onMounted(() => {
 .genres-tab__status {
   padding: 20px;
   text-align: center;
+}
+
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid rgb(var(--v-theme-surface-variant));
+  border-top-color: rgb(var(--v-theme-primary));
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .genres-tab__status--empty {

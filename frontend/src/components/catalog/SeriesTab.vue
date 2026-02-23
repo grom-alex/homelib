@@ -1,20 +1,22 @@
 <template>
   <div class="series-tab">
     <div class="series-tab__search">
-      <v-text-field
-        v-model="searchQuery"
-        placeholder="Поиск серии..."
-        density="compact"
-        variant="outlined"
-        hide-details
-        clearable
-        prepend-inner-icon="mdi-magnify"
-        @update:model-value="onSearchInput"
-      />
+      <div class="search-input-wrapper">
+        <svg class="search-input-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          v-model="searchQuery"
+          placeholder="Поиск серии..."
+          @input="onSearchInput"
+        />
+        <button v-if="searchQuery" class="search-input-clear" @click="clearSearch">&times;</button>
+      </div>
     </div>
 
     <div v-if="loading && series.length === 0" class="series-tab__status">
-      <v-progress-circular indeterminate size="24" />
+      <span class="spinner" />
     </div>
 
     <div v-else-if="!loading && series.length === 0" class="series-tab__status series-tab__status--empty">
@@ -64,6 +66,13 @@ const hasMore = ref(false)
 const limit = 50
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearSearch() {
+  searchQuery.value = ''
+  page.value = 1
+  series.value = []
+  fetchSeries()
+}
 
 function onSearchInput() {
   if (debounceTimer) clearTimeout(debounceTimer)
@@ -120,6 +129,77 @@ onMounted(() => {
   padding: 10px 10px 8px;
   border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
   flex-shrink: 0;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.search-input-wrapper input {
+  width: 100%;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgb(var(--v-theme-surface-variant));
+  color: rgb(var(--v-theme-on-surface));
+  padding: 6px 28px 6px 32px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-input-wrapper input:focus {
+  border-color: rgb(var(--v-theme-primary));
+}
+
+.search-input-wrapper input::placeholder {
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.3;
+}
+
+.search-input-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.4;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.search-input-clear:hover {
+  opacity: 0.7;
+}
+
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid rgb(var(--v-theme-surface-variant));
+  border-top-color: rgb(var(--v-theme-primary));
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .series-tab__status {
