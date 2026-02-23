@@ -19,7 +19,7 @@ export interface CustomCatalogColors {
 
 export type TabType = 'authors' | 'series' | 'genres' | 'search'
 
-export type SortField = 'title' | 'year' | 'file_size'
+export type SortField = 'title' | 'year' | 'file_size' | 'lang' | 'format'
 export type SortOrder = 'asc' | 'desc'
 export type PageSize = 25 | 50 | 75 | 100
 

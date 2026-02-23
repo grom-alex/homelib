@@ -327,6 +327,12 @@ func (r *BookRepo) List(ctx context.Context, f models.BookFilter) ([]models.Book
 		orderCol = "b.added_at"
 	case "lib_rate":
 		orderCol = "b.lib_rate"
+	case "lang":
+		orderCol = "b.lang"
+	case "format":
+		orderCol = "b.format"
+	case "file_size":
+		orderCol = "b.file_size"
 	}
 	orderDir := "ASC"
 	if strings.EqualFold(f.Order, "desc") {

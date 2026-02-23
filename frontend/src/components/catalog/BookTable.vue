@@ -171,7 +171,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCatalogStore } from '@/stores/catalog'
-import type { PageSize } from '@/types/catalog'
+import type { PageSize, SortField } from '@/types/catalog'
 
 const router = useRouter()
 
@@ -218,15 +218,14 @@ const columns: Column[] = [
   { field: 'author', label: 'Автор', width: '20%', sortable: false },
   { field: 'series', label: 'Серия', width: '16%', sortable: false },
   { field: 'genre', label: 'Жанр', width: '13%', sortable: false },
-  { field: 'lang', label: 'Язык', width: '5%', sortable: false },
-  { field: 'format', label: 'Формат', width: '6%', sortable: false },
+  { field: 'lang', label: 'Язык', width: '5%', sortable: true },
+  { field: 'format', label: 'Формат', width: '6%', sortable: true },
   { field: 'file_size', label: 'Размер', width: '8%', sortable: true },
 ]
 
 function onSortClick(field: string) {
-  if (field !== 'title' && field !== 'file_size' && field !== 'year') return
   const order = catalog.filters.sort === field && catalog.filters.order === 'asc' ? 'desc' : 'asc'
-  catalog.setSort(field as 'title' | 'year' | 'file_size', order)
+  catalog.setSort(field as SortField, order)
 }
 
 function selectBook(id: number) {
@@ -361,7 +360,11 @@ function formatFileSize(bytes?: number): string {
 
 .book-table__body {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll;
+}
+
+.book-table__header {
+  overflow-y: scroll;
 }
 
 .book-table__row {
