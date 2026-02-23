@@ -1,0 +1,412 @@
+package handler
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/grom-alex/homelib/backend/internal/models"
+)
+
+// --- GetReadingProgress ---
+
+func TestProgressHandler_GetReadingProgress_Found(t *testing.T) {
+	now := time.Date(2026, 2, 18, 14, 30, 0, 0, time.UTC)
+	repo := &mockProgressRepo{
+		getFn: func(_ context.Context, userID string, bookID int64) (*models.ReadingProgress, error) {
+			assert.Equal(t, "user-123", userID)
+			assert.Equal(t, int64(42), bookID)
+			return &models.ReadingProgress{
+				ChapterID:       "ch3",
+				ChapterProgress: 55,
+				TotalProgress:   30,
+				Device:          "desktop",
+				UpdatedAt:       now,
+			}, nil
+		},
+	}
+	h := NewProgressHandler(repo)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/books/42/progress", nil)
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+	c.Set("user_id", "user-123")
+
+	h.GetReadingProgress(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp models.ReadingProgress
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, "ch3", resp.ChapterID)
+	assert.Equal(t, 55, resp.ChapterProgress)
+	assert.Equal(t, 30, resp.TotalProgress)
+	assert.Equal(t, "desktop", resp.Device)
+}
+
+func TestProgressHandler_GetReadingProgress_NoContent(t *testing.T) {
+	repo := &mockProgressRepo{
+		getFn: func(_ context.Context, _ string, _ int64) (*models.ReadingProgress, error) {
+			return nil, nil
+		},
+	}
+	h := NewProgressHandler(repo)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/books/42/progress", nil)
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+	c.Set("user_id", "user-123")
+
+	h.GetReadingProgress(c)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Empty(t, w.Body.String())
+}
+
+func TestProgressHandler_GetReadingProgress_InvalidBookID(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/books/abc/progress", nil)
+	c.Params = gin.Params{{Key: "bookId", Value: "abc"}}
+	c.Set("user_id", "user-123")
+
+	h.GetReadingProgress(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid_id")
+}
+
+func TestProgressHandler_GetReadingProgress_NoUserID(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/books/42/progress", nil)
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+
+	h.GetReadingProgress(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestProgressHandler_GetReadingProgress_DBError(t *testing.T) {
+	repo := &mockProgressRepo{
+		getFn: func(_ context.Context, _ string, _ int64) (*models.ReadingProgress, error) {
+			return nil, fmt.Errorf("connection lost")
+		},
+	}
+	h := NewProgressHandler(repo)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/books/42/progress", nil)
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+	c.Set("user_id", "user-123")
+
+	h.GetReadingProgress(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "internal_error")
+}
+
+// --- SaveReadingProgress ---
+
+func TestProgressHandler_SaveReadingProgress_Success(t *testing.T) {
+	repo := &mockProgressRepo{
+		upsertFn: func(_ context.Context, p *models.ReadingProgress) error {
+			assert.Equal(t, "user-123", p.UserID)
+			assert.Equal(t, int64(42), p.BookID)
+			assert.Equal(t, "ch5", p.ChapterID)
+			assert.Equal(t, 75, p.ChapterProgress)
+			assert.Equal(t, 50, p.TotalProgress)
+			assert.Equal(t, "mobile", p.Device)
+			p.ID = 1
+			p.UpdatedAt = time.Date(2026, 2, 18, 15, 0, 0, 0, time.UTC)
+			return nil
+		},
+	}
+	h := NewProgressHandler(repo)
+
+	body := `{"chapterId":"ch5","chapterProgress":75,"totalProgress":50,"device":"mobile"}`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/books/42/progress", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+	c.Set("user_id", "user-123")
+
+	h.SaveReadingProgress(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp models.ReadingProgress
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, "ch5", resp.ChapterID)
+	assert.Equal(t, 75, resp.ChapterProgress)
+	assert.Equal(t, 50, resp.TotalProgress)
+}
+
+func TestProgressHandler_SaveReadingProgress_EmptyChapterID(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	body := `{"chapterId":"","chapterProgress":50,"totalProgress":25}`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/books/42/progress", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+	c.Set("user_id", "user-123")
+
+	h.SaveReadingProgress(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "validation_error")
+}
+
+func TestProgressHandler_SaveReadingProgress_ProgressOutOfRange(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	body := `{"chapterId":"ch1","chapterProgress":150,"totalProgress":50}`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/books/42/progress", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+	c.Set("user_id", "user-123")
+
+	h.SaveReadingProgress(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "validation_error")
+}
+
+func TestProgressHandler_SaveReadingProgress_NegativeProgress(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	body := `{"chapterId":"ch1","chapterProgress":-5,"totalProgress":50}`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/books/42/progress", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+	c.Set("user_id", "user-123")
+
+	h.SaveReadingProgress(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestProgressHandler_SaveReadingProgress_InvalidJSON(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	body := `not json`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/books/42/progress", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+	c.Set("user_id", "user-123")
+
+	h.SaveReadingProgress(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestProgressHandler_SaveReadingProgress_InvalidBookID(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	body := `{"chapterId":"ch1","chapterProgress":50,"totalProgress":25}`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/books/42/progress", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "bookId", Value: "abc"}}
+	c.Set("user_id", "user-123")
+
+	h.SaveReadingProgress(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestProgressHandler_SaveReadingProgress_NoUserID(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	body := `{"chapterId":"ch1","chapterProgress":50,"totalProgress":25}`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/books/42/progress", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+
+	h.SaveReadingProgress(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestProgressHandler_SaveReadingProgress_PathTraversalChapterID(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	body := `{"chapterId":"../../../etc/passwd","chapterProgress":50,"totalProgress":25}`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/books/42/progress", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+	c.Set("user_id", "user-123")
+
+	h.SaveReadingProgress(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid_chapter")
+}
+
+func TestProgressHandler_SaveReadingProgress_SpecialCharsChapterID(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	tests := []struct {
+		name      string
+		chapterID string
+	}{
+		{"spaces", "ch 1"},
+		{"slashes", "ch/1"},
+		{"backslash", "ch\\1"},
+		{"colon", "ch:1"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body := fmt.Sprintf(`{"chapterId":%q,"chapterProgress":50,"totalProgress":25}`, tt.chapterID)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPut, "/api/me/books/42/progress", strings.NewReader(body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+			c.Set("user_id", "user-123")
+
+			h.SaveReadingProgress(c)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.Contains(t, w.Body.String(), "invalid_chapter")
+		})
+	}
+}
+
+// --- GetAllProgress ---
+
+func TestProgressHandler_GetAllProgress_Success(t *testing.T) {
+	repo := &mockProgressRepo{
+		getByUserFn: func(_ context.Context, userID string) ([]models.ReadingProgress, error) {
+			assert.Equal(t, "user-123", userID)
+			return []models.ReadingProgress{
+				{BookID: 1, TotalProgress: 50},
+				{BookID: 42, TotalProgress: 100},
+				{BookID: 99, TotalProgress: 10},
+			}, nil
+		},
+	}
+	h := NewProgressHandler(repo)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/progress", nil)
+	c.Set("user_id", "user-123")
+
+	h.GetAllProgress(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]int
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, 50, resp["1"])
+	assert.Equal(t, 100, resp["42"])
+	assert.Equal(t, 10, resp["99"])
+	assert.Len(t, resp, 3)
+}
+
+func TestProgressHandler_GetAllProgress_Empty(t *testing.T) {
+	repo := &mockProgressRepo{
+		getByUserFn: func(_ context.Context, _ string) ([]models.ReadingProgress, error) {
+			return nil, nil
+		},
+	}
+	h := NewProgressHandler(repo)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/progress", nil)
+	c.Set("user_id", "user-123")
+
+	h.GetAllProgress(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]int
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Empty(t, resp)
+}
+
+func TestProgressHandler_GetAllProgress_NoUserID(t *testing.T) {
+	h := NewProgressHandler(&mockProgressRepo{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/progress", nil)
+
+	h.GetAllProgress(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestProgressHandler_GetAllProgress_DBError(t *testing.T) {
+	repo := &mockProgressRepo{
+		getByUserFn: func(_ context.Context, _ string) ([]models.ReadingProgress, error) {
+			return nil, fmt.Errorf("connection lost")
+		},
+	}
+	h := NewProgressHandler(repo)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/me/progress", nil)
+	c.Set("user_id", "user-123")
+
+	h.GetAllProgress(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "internal_error")
+}
+
+func TestProgressHandler_SaveReadingProgress_DBError(t *testing.T) {
+	repo := &mockProgressRepo{
+		upsertFn: func(_ context.Context, _ *models.ReadingProgress) error {
+			return fmt.Errorf("disk full")
+		},
+	}
+	h := NewProgressHandler(repo)
+
+	body := `{"chapterId":"ch1","chapterProgress":50,"totalProgress":25}`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/books/42/progress", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "bookId", Value: "42"}}
+	c.Set("user_id", "user-123")
+
+	h.SaveReadingProgress(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "internal_error")
+}

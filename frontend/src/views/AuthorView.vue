@@ -10,7 +10,7 @@
 
       <v-row>
         <v-col v-for="book in author.books" :key="book.id" cols="12" sm="6" lg="4">
-          <BookCard :book="book" />
+          <BookCard :book="book" :progress="progressMap[book.id] ?? 0" />
         </v-col>
       </v-row>
     </template>
@@ -21,11 +21,13 @@
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getAuthor, type AuthorDetail } from '@/api/books'
+import { getAllReadingProgress } from '@/api/reader'
 import BookCard from '@/components/common/BookCard.vue'
 
 const route = useRoute()
 const author = ref<AuthorDetail | null>(null)
 const loading = ref(false)
+const progressMap = ref<Record<number, number>>({})
 
 watch(
   () => route.params.id,
@@ -35,6 +37,9 @@ watch(
     loading.value = true
     try {
       author.value = await getAuthor(id)
+      progressMap.value = await getAllReadingProgress()
+    } catch {
+      // Author load may fail; progress is optional
     } finally {
       loading.value = false
     }

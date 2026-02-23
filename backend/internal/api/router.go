@@ -15,6 +15,9 @@ type Handlers struct {
 	Admin    *handler.AdminHandler
 	Auth     *handler.AuthHandler
 	Download *handler.DownloadHandler
+	Reader   *handler.ReaderHandler
+	Progress *handler.ProgressHandler
+	Settings *handler.SettingsHandler
 }
 
 func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware) *gin.Engine {
@@ -29,6 +32,11 @@ func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware) *gin.Engine {
 	{
 		// Public endpoints
 		api.GET("/stats", h.Books.GetStats)
+		if h.Reader != nil {
+			// Public: <img src> tags do not send Authorization headers.
+			// Images are embedded binaries from book archives, not user data.
+			api.GET("/books/:id/image/:imageId", h.Reader.GetBookImage)
+		}
 
 		// Auth endpoints
 		auth := api.Group("/auth")
@@ -51,6 +59,22 @@ func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware) *gin.Engine {
 			authorized.GET("/books/:id", h.Books.GetBook)
 			if h.Download != nil {
 				authorized.GET("/books/:id/download", h.Download.DownloadBook)
+			}
+			if h.Reader != nil {
+				authorized.GET("/books/:id/content", h.Reader.GetBookContent)
+				authorized.GET("/books/:id/chapter/:chapterId", h.Reader.GetChapter)
+			}
+			if h.Progress != nil {
+				authorized.GET("/me/progress", h.Progress.GetAllProgress)
+				authorized.GET("/me/books/:bookId/progress", h.Progress.GetReadingProgress)
+				authorized.PUT("/me/books/:bookId/progress", h.Progress.SaveReadingProgress)
+				// POST duplicates PUT as a fallback for navigator.sendBeacon(),
+				// which only supports POST requests.
+				authorized.POST("/me/books/:bookId/progress", h.Progress.SaveReadingProgress)
+			}
+			if h.Settings != nil {
+				authorized.GET("/me/settings", h.Settings.GetUserSettings)
+				authorized.PUT("/me/settings", h.Settings.UpdateUserSettings)
 			}
 			authorized.GET("/authors", h.Authors.ListAuthors)
 			authorized.GET("/authors/:id", h.Authors.GetAuthor)

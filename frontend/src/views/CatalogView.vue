@@ -15,7 +15,7 @@
 
         <v-row v-else>
           <v-col v-for="book in catalog.books" :key="book.id" cols="12" sm="6" lg="4">
-            <BookCard :book="book" />
+            <BookCard :book="book" :progress="progressMap[book.id] ?? 0" />
           </v-col>
         </v-row>
 
@@ -33,20 +33,36 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
+import { getAllReadingProgress } from '@/api/reader'
 import type { BookFilters as BookFiltersType } from '@/api/books'
 import BookCard from '@/components/common/BookCard.vue'
 import BookFilters from '@/components/common/BookFilters.vue'
 import PaginationBar from '@/components/common/PaginationBar.vue'
 
 const catalog = useCatalogStore()
+const progressMap = ref<Record<number, number>>({})
+
+async function loadProgress() {
+  try {
+    progressMap.value = await getAllReadingProgress()
+  } catch {
+    // Progress is optional — don't block the catalog
+  }
+}
 
 function onFiltersUpdate(filters: Partial<BookFiltersType>) {
   catalog.updateFilters(filters)
 }
 
-onMounted(() => {
-  catalog.fetchBooks()
+onMounted(async () => {
+  await catalog.fetchBooks()
+  loadProgress()
+})
+
+// Reload progress when books change (e.g. page navigation)
+watch(() => catalog.books, () => {
+  loadProgress()
 })
 </script>

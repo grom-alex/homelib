@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
+  <description>
+    <title-info>
+      <genre>prose_classic</genre>
+      <author>
+        <first-name>Иван</first-name>
+        <last-name>Тестов</last-name>
+      </author>
+      <book-title>Простая книга</book-title>
+      <lang>ru</lang>
+    </title-info>
+  </description>
+  <body>
+    <section>
+      <title><p>Глава первая</p></title>
+      <p>Первый параграф первой главы. Это простой текст для тестирования базового парсинга FB2-файлов.</p>
+      <p>Второй параграф с <emphasis>курсивом</emphasis> и <strong>жирным</strong> текстом.</p>
+      <p>Третий параграф со <strikethrough>зачёркнутым</strikethrough> и <code>моноширинным</code> текстом.</p>
+    </section>
+    <section>
+      <title><p>Глава вторая</p></title>
+      <p>Текст второй главы. Содержит формулу H<sub>2</sub>O и примечание<sup>1</sup>.</p>
+      <empty-line/>
+      <p>Параграф после пустой строки.</p>
+    </section>
+    <section>
+      <title><p>Глава третья</p></title>
+      <subtitle>Подзаголовок третьей главы</subtitle>
+      <p>Текст третьей главы с подзаголовком.</p>
+    </section>
+  </body>
+</FictionBook>

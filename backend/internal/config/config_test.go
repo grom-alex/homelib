@@ -81,6 +81,7 @@ auth:
 	assert.True(t, cfg.Auth.RegistrationEnabled)
 	assert.Equal(t, 3000, cfg.Import.BatchSize)
 	assert.Equal(t, 10000, cfg.Import.LogEvery)
+	assert.Equal(t, 30*24*time.Hour, cfg.Reader.CacheTTL)
 }
 
 func TestLoad_MissingJWTSecret(t *testing.T) {
@@ -176,6 +177,93 @@ func TestDatabaseConfig_DSN(t *testing.T) {
 
 	expected := "postgres://admin:secret@localhost:5432/homelib?sslmode=disable"
 	assert.Equal(t, expected, cfg.DSN())
+}
+
+func TestLoad_CacheTTL_Days(t *testing.T) {
+	content := `
+database:
+  host: "localhost"
+  user: "app"
+  password: "pw"
+  dbname: "homelib"
+auth:
+  jwt_secret: "default-test-secret-must-be-at-least-32-chars"
+reader:
+  cache_ttl: "30d"
+`
+	path := writeTemp(t, content)
+
+	cfg, err := Load(path)
+	require.NoError(t, err)
+	assert.Equal(t, 30*24*time.Hour, cfg.Reader.CacheTTL)
+}
+
+func TestLoad_CacheTTL_Hours(t *testing.T) {
+	content := `
+database:
+  host: "localhost"
+  user: "app"
+  password: "pw"
+  dbname: "homelib"
+auth:
+  jwt_secret: "default-test-secret-must-be-at-least-32-chars"
+reader:
+  cache_ttl: "48h"
+`
+	path := writeTemp(t, content)
+
+	cfg, err := Load(path)
+	require.NoError(t, err)
+	assert.Equal(t, 48*time.Hour, cfg.Reader.CacheTTL)
+}
+
+func TestLoad_CacheTTL_EnvOverride(t *testing.T) {
+	content := `
+database:
+  host: "localhost"
+  user: "app"
+  password: "pw"
+  dbname: "homelib"
+auth:
+  jwt_secret: "default-test-secret-must-be-at-least-32-chars"
+reader:
+  cache_ttl: "30d"
+`
+	path := writeTemp(t, content)
+	t.Setenv("READER_CACHE_TTL", "7d")
+
+	cfg, err := Load(path)
+	require.NoError(t, err)
+	assert.Equal(t, 7*24*time.Hour, cfg.Reader.CacheTTL)
+}
+
+func TestParseDuration(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected time.Duration
+		wantErr  bool
+	}{
+		{"30d", 30 * 24 * time.Hour, false},
+		{"7d", 7 * 24 * time.Hour, false},
+		{"1d", 24 * time.Hour, false},
+		{"0.5d", 12 * time.Hour, false},
+		{"720h", 720 * time.Hour, false},
+		{"30m", 30 * time.Minute, false},
+		{"0", 0, false},
+		{"invalid", 0, true},
+		{"xd", 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			d, err := parseDuration(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, d)
+			}
+		})
+	}
 }
 
 func writeTemp(t *testing.T, content string) string {

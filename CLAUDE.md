@@ -21,7 +21,7 @@ Always respond in Russian (русский язык).
 
 HomeLib is a personal/home library web application for managing, searching, and reading digital book collections. It features AI-powered semantic search and automated metadata enhancement through distributed GPU processing.
 
-**Current Status:** MVP implemented (backend API + worker + frontend SPA). Active development.
+**Current Status:** MVP завершён. Ведётся разработка production-функционала (читалка, поиск, AI-фичи).
 
 ## Development Workflow
 
@@ -217,6 +217,8 @@ Architecture documentation is in Russian in [docs/](docs/). The most current ver
 - Go 1.25 (latest patch 1.25.7) + Gin (HTTP framework), pgx/v5 (PostgreSQL driver), golang-jwt/jwt/v5, bcrypt (004-fix-registration)
 - Go 1.25 (backend), TypeScript + Vue 3 (frontend) + Gin (HTTP), pgx/v5 (DB), axios (HTTP client), Pinia (state), Vue Router (005-fix-session-expiry)
 - PostgreSQL 17 (refresh_tokens table) (005-fix-session-expiry)
+- Go 1.25 (backend), TypeScript + Vue 3 (frontend) + Gin (HTTP), pgx/v5 (DB), encoding/xml (FB2 parsing), axios (HTTP client), Pinia (state), Vue Router, Vuetify 3 (006-fb2-reader)
+- PostgreSQL 17 (reading_progress, user settings), файловый кеш (конвертированный HTML) (006-fb2-reader)
 
 ## Recent Changes
 - 001-github-ci-setup: Added Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`)

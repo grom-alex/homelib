@@ -33,6 +33,7 @@ services:
     volumes:
       - ${LIBRARY_PATH:-/mnt/smb/media/MyHomeLib/lib.rus.ec}:/library:ro
       - ../backend/config.yaml:/etc/homelib/config.yaml:ro
+      - reader_cache:/cache/books
     expose:
       - "8080"
     healthcheck:
@@ -82,3 +83,4 @@ services:
 
 volumes:
   postgres_data:
+  reader_cache:

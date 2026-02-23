@@ -66,7 +66,17 @@
                   {{ genre.name }}
                 </v-chip>
               </div>
-              <v-btn color="primary" block prepend-icon="mdi-download" @click="handleDownload">
+              <v-btn
+                v-if="book.format === 'fb2'"
+                color="primary"
+                block
+                prepend-icon="mdi-book-open-page-variant"
+                class="mb-2"
+                :to="`/books/${book.id}/read`"
+              >
+                Читать
+              </v-btn>
+              <v-btn color="primary" block prepend-icon="mdi-download" variant="outlined" @click="handleDownload">
                 Скачать
               </v-btn>
             </v-card-text>

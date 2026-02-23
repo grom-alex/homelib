@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -15,6 +17,13 @@ type Config struct {
 	Auth     AuthConfig     `yaml:"auth"`
 	Library  LibraryConfig  `yaml:"library"`
 	Import   ImportConfig   `yaml:"import"`
+	Reader   ReaderConfig   `yaml:"reader"`
+}
+
+type ReaderConfig struct {
+	CachePath   string        `yaml:"cache_path"`
+	CacheTTLRaw string        `yaml:"cache_ttl"`
+	CacheTTL    time.Duration `yaml:"-"`
 }
 
 type ServerConfig struct {
@@ -84,10 +93,23 @@ func Load(path string) (*Config, error) {
 			BatchSize: 3000,
 			LogEvery:  10000,
 		},
+		Reader: ReaderConfig{
+			CachePath: "./cache/books",
+			CacheTTL:  30 * 24 * time.Hour,
+		},
 	}
 
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parse config file: %w", err)
+	}
+
+	// Parse cache_ttl (supports "d" suffix for days, e.g. "30d")
+	if cfg.Reader.CacheTTLRaw != "" {
+		d, err := parseDuration(cfg.Reader.CacheTTLRaw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid reader.cache_ttl %q: %w", cfg.Reader.CacheTTLRaw, err)
+		}
+		cfg.Reader.CacheTTL = d
 	}
 
 	applyEnvOverrides(cfg)
@@ -136,4 +158,28 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("INPX_PATH"); v != "" {
 		cfg.Library.INPXPath = v
 	}
+	if v := os.Getenv("READER_CACHE_PATH"); v != "" {
+		cfg.Reader.CachePath = v
+	}
+	if v := os.Getenv("READER_CACHE_TTL"); v != "" {
+		if d, err := parseDuration(v); err == nil {
+			cfg.Reader.CacheTTL = d
+		}
+	}
+}
+
+// parseDuration extends time.ParseDuration with support for "d" (days) suffix.
+// Examples: "30d" → 30*24h, "720h", "0".
+func parseDuration(s string) (time.Duration, error) {
+	if d, err := time.ParseDuration(s); err == nil {
+		return d, nil
+	}
+	if strings.HasSuffix(s, "d") {
+		days, err := strconv.ParseFloat(strings.TrimSuffix(s, "d"), 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid duration: %s", s)
+		}
+		return time.Duration(days * float64(24*time.Hour)), nil
+	}
+	return 0, fmt.Errorf("invalid duration: %s", s)
 }
