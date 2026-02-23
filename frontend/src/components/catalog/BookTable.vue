@@ -79,25 +79,126 @@
       </div>
 
       <div v-if="catalog.totalPages > 1" class="book-table__pagination">
-        <v-pagination
-          :model-value="catalog.filters.page || 1"
-          :length="catalog.totalPages"
-          density="compact"
-          size="small"
-          @update:model-value="catalog.setPage($event)"
-        />
+        <div class="pagination__size">
+          <select
+            :value="catalog.filters.limit"
+            class="pagination__size-select"
+            @change="onPageSizeChange($event)"
+          >
+            <option v-for="s in pageSizes" :key="s" :value="s">
+              {{ s }}
+            </option>
+          </select>
+        </div>
+
+        <div class="pagination__nav">
+          <button
+            class="pagination__btn"
+            :disabled="currentPage <= 1"
+            title="В начало"
+            @click="catalog.setPage(1)"
+          >
+            &laquo;&laquo;
+          </button>
+          <button
+            class="pagination__btn"
+            :disabled="currentPage <= 1"
+            title="-10 страниц"
+            @click="catalog.setPage(Math.max(1, currentPage - 10))"
+          >
+            &laquo;
+          </button>
+          <button
+            class="pagination__btn"
+            :disabled="currentPage <= 1"
+            title="Предыдущая"
+            @click="catalog.setPage(currentPage - 1)"
+          >
+            &lsaquo;
+          </button>
+
+          <button
+            v-for="p in visiblePages"
+            :key="p"
+            class="pagination__page"
+            :class="{ 'pagination__page--active': p === currentPage }"
+            @click="catalog.setPage(p)"
+          >
+            {{ p }}
+          </button>
+
+          <button
+            class="pagination__btn"
+            :disabled="currentPage >= catalog.totalPages"
+            title="Следующая"
+            @click="catalog.setPage(currentPage + 1)"
+          >
+            &rsaquo;
+          </button>
+          <button
+            class="pagination__btn"
+            :disabled="currentPage >= catalog.totalPages"
+            title="+10 страниц"
+            @click="catalog.setPage(Math.min(catalog.totalPages, currentPage + 10))"
+          >
+            &raquo;
+          </button>
+          <button
+            class="pagination__btn"
+            :disabled="currentPage >= catalog.totalPages"
+            title="В конец"
+            @click="catalog.setPage(catalog.totalPages)"
+          >
+            &raquo;&raquo;
+          </button>
+        </div>
+
+        <div class="pagination__info">
+          Стр. {{ currentPage }} из {{ catalog.totalPages }}
+        </div>
       </div>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCatalogStore } from '@/stores/catalog'
+import type { PageSize } from '@/types/catalog'
 
 const router = useRouter()
 
 const catalog = useCatalogStore()
+
+const pageSizes: PageSize[] = [25, 50, 75, 100]
+
+const currentPage = computed(() => catalog.filters.page || 1)
+
+const visiblePages = computed(() => {
+  const total = catalog.totalPages
+  const current = currentPage.value
+  const windowSize = 10
+
+  if (total <= windowSize) {
+    return Array.from({ length: total }, (_, i) => i + 1)
+  }
+
+  let start = Math.max(1, current - Math.floor(windowSize / 2))
+  let end = start + windowSize - 1
+
+  if (end > total) {
+    end = total
+    start = Math.max(1, end - windowSize + 1)
+  }
+
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+})
+
+function onPageSizeChange(event: Event) {
+  const value = Number((event.target as HTMLSelectElement).value) as PageSize
+  catalog.setPageSize(value)
+}
 
 interface Column {
   field: string
@@ -300,9 +401,100 @@ function formatFileSize(bytes?: number): string {
 
 .book-table__pagination {
   border-top: 1px solid rgb(var(--v-theme-surface-variant));
-  padding: 4px;
+  padding: 4px 12px;
   flex-shrink: 0;
   display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.pagination__size {
+  flex-shrink: 0;
+}
+
+.pagination__size-select {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 4px;
+  border: 1px solid rgb(var(--v-theme-surface-variant));
+  border-radius: 3px;
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+  cursor: pointer;
+  outline: none;
+}
+
+.pagination__size-select:focus {
+  border-color: rgb(var(--v-theme-primary));
+}
+
+.pagination__nav {
+  flex: 1;
+  display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 2px;
+}
+
+.pagination__btn {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.6;
+  cursor: pointer;
+  border-radius: 3px;
+  line-height: 1.4;
+}
+
+.pagination__btn:hover:not(:disabled) {
+  opacity: 1;
+  background: rgb(var(--v-theme-table-row-hover));
+}
+
+.pagination__btn:disabled {
+  opacity: 0.2;
+  cursor: default;
+}
+
+.pagination__page {
+  font-family: inherit;
+  font-size: 12px;
+  min-width: 24px;
+  padding: 2px 4px;
+  border: none;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.6;
+  cursor: pointer;
+  border-radius: 3px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.pagination__page:hover {
+  opacity: 1;
+  background: rgb(var(--v-theme-table-row-hover));
+}
+
+.pagination__page--active {
+  background: rgb(var(--v-theme-primary));
+  color: #fff;
+  opacity: 1;
+}
+
+.pagination__page--active:hover {
+  background: rgb(var(--v-theme-primary));
+}
+
+.pagination__info {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.45;
+  white-space: nowrap;
 }
 </style>

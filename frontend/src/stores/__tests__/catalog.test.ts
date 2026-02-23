@@ -93,7 +93,7 @@ describe('catalog store', () => {
   })
 
   it('totalPages computed correctly', async () => {
-    vi.mocked(booksApi.getBooks).mockResolvedValue({ items: [], total: 45, page: 1, limit: 20 })
+    vi.mocked(booksApi.getBooks).mockResolvedValue({ items: [], total: 75, page: 1, limit: 25 })
     const store = useCatalogStore()
     await store.fetchBooks()
     expect(store.totalPages).toBe(3)

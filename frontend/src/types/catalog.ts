@@ -14,6 +14,7 @@ export type TabType = 'authors' | 'series' | 'genres' | 'search'
 
 export type SortField = 'title' | 'year' | 'file_size'
 export type SortOrder = 'asc' | 'desc'
+export type PageSize = 25 | 50 | 75 | 100
 
 export interface PanelSizes {
   leftWidth: number // 0-100, default 25
@@ -30,6 +31,7 @@ export interface CatalogSettings {
   panelSizes: PanelSizes
   activeTab: TabType
   tableSort: TableSort
+  pageSize: PageSize
 }
 
 export const defaultCatalogSettings: CatalogSettings = {
@@ -43,6 +45,7 @@ export const defaultCatalogSettings: CatalogSettings = {
     field: 'title',
     order: 'asc',
   },
+  pageSize: 25,
 }
 
 export interface NavigationFilter {

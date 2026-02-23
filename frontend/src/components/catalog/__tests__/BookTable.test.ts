@@ -151,4 +151,126 @@ describe('BookTable', () => {
     const wrapper = mountBookTable()
     expect(wrapper.find('.book-table__pagination').exists()).toBe(false)
   })
+
+  it('renders page size selector with options', () => {
+    const store = useCatalogStore()
+    store.navigationFilter = { type: 'author', id: 1 }
+    store.books = mockBooks as never[]
+    store.total = 100
+
+    const wrapper = mountBookTable()
+    const select = wrapper.find('.pagination__size-select')
+    expect(select.exists()).toBe(true)
+
+    const options = select.findAll('option')
+    expect(options).toHaveLength(4)
+    expect(options.map(o => Number(o.element.value))).toEqual([25, 50, 75, 100])
+  })
+
+  it('renders navigation buttons', () => {
+    const store = useCatalogStore()
+    store.navigationFilter = { type: 'author', id: 1 }
+    store.books = mockBooks as never[]
+    store.total = 100
+
+    const wrapper = mountBookTable()
+    const nav = wrapper.find('.pagination__nav')
+    expect(nav.exists()).toBe(true)
+
+    const buttons = nav.findAll('.pagination__btn')
+    // first, -10, prev, next, +10, last = 6 buttons
+    expect(buttons).toHaveLength(6)
+  })
+
+  it('renders page number buttons (max 10)', () => {
+    const store = useCatalogStore()
+    store.navigationFilter = { type: 'author', id: 1 }
+    store.books = mockBooks as never[]
+    store.total = 1000 // 40 pages with limit 25
+
+    const wrapper = mountBookTable()
+    const pages = wrapper.findAll('.pagination__page')
+    expect(pages).toHaveLength(10)
+    expect(pages[0].text()).toBe('1')
+    expect(pages[9].text()).toBe('10')
+  })
+
+  it('shows all page buttons when total pages <= 10', () => {
+    const store = useCatalogStore()
+    store.navigationFilter = { type: 'author', id: 1 }
+    store.books = mockBooks as never[]
+    store.total = 75 // 3 pages with limit 25
+
+    const wrapper = mountBookTable()
+    const pages = wrapper.findAll('.pagination__page')
+    expect(pages).toHaveLength(3)
+  })
+
+  it('highlights current page', () => {
+    const store = useCatalogStore()
+    store.navigationFilter = { type: 'author', id: 1 }
+    store.books = mockBooks as never[]
+    store.total = 100
+
+    const wrapper = mountBookTable()
+    const activePage = wrapper.find('.pagination__page--active')
+    expect(activePage.exists()).toBe(true)
+    expect(activePage.text()).toBe('1')
+  })
+
+  it('disables prev/first buttons on first page', () => {
+    const store = useCatalogStore()
+    store.navigationFilter = { type: 'author', id: 1 }
+    store.books = mockBooks as never[]
+    store.total = 100
+    store.filters.page = 1
+
+    const wrapper = mountBookTable()
+    const buttons = wrapper.findAll('.pagination__btn')
+    // first 3 buttons: first, -10, prev should be disabled
+    expect((buttons[0].element as HTMLButtonElement).disabled).toBe(true)
+    expect((buttons[1].element as HTMLButtonElement).disabled).toBe(true)
+    expect((buttons[2].element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('disables next/last buttons on last page', () => {
+    const store = useCatalogStore()
+    store.navigationFilter = { type: 'author', id: 1 }
+    store.books = mockBooks as never[]
+    store.total = 50 // 2 pages
+    store.filters.page = 2
+
+    const wrapper = mountBookTable()
+    const buttons = wrapper.findAll('.pagination__btn')
+    // last 3 buttons: next, +10, last should be disabled
+    expect((buttons[3].element as HTMLButtonElement).disabled).toBe(true)
+    expect((buttons[4].element as HTMLButtonElement).disabled).toBe(true)
+    expect((buttons[5].element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('shows page info text', () => {
+    const store = useCatalogStore()
+    store.navigationFilter = { type: 'author', id: 1 }
+    store.books = mockBooks as never[]
+    store.total = 100
+
+    const wrapper = mountBookTable()
+    const info = wrapper.find('.pagination__info')
+    expect(info.exists()).toBe(true)
+    expect(info.text()).toContain('Стр. 1 из 4')
+  })
+
+  it('changes page size on select change', async () => {
+    const store = useCatalogStore()
+    store.navigationFilter = { type: 'author', id: 1 }
+    store.books = mockBooks as never[]
+    store.total = 100
+    store.setPageSize = vi.fn()
+
+    const wrapper = mountBookTable()
+    const select = wrapper.find('.pagination__size-select')
+    await select.setValue('50')
+
+    expect(store.setPageSize).toHaveBeenCalledWith(50)
+  })
 })

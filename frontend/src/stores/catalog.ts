@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { BookListItem, BookDetail, BookFilters } from '@/api/books'
 import * as booksApi from '@/api/books'
-import type { TabType, NavigationFilter, SortField, SortOrder } from '@/types/catalog'
+import type { TabType, NavigationFilter, SortField, SortOrder, PageSize } from '@/types/catalog'
 import { defaultCatalogSettings } from '@/types/catalog'
 
 export const useCatalogStore = defineStore('catalog', () => {
@@ -19,12 +19,12 @@ export const useCatalogStore = defineStore('catalog', () => {
 
   const filters = ref<BookFilters>({
     page: 1,
-    limit: 20,
+    limit: defaultCatalogSettings.pageSize,
     sort: defaultCatalogSettings.tableSort.field,
     order: defaultCatalogSettings.tableSort.order,
   })
 
-  const totalPages = computed(() => Math.ceil(total.value / (filters.value.limit || 20)))
+  const totalPages = computed(() => Math.ceil(total.value / (filters.value.limit || defaultCatalogSettings.pageSize)))
 
   let fetchBooksController: AbortController | null = null
 
@@ -123,8 +123,13 @@ export const useCatalogStore = defineStore('catalog', () => {
     return fetchBooks()
   }
 
+  function setPageSize(size: PageSize) {
+    filters.value = { ...filters.value, limit: size, page: 1 }
+    return fetchBooks()
+  }
+
   function resetFilters() {
-    filters.value = { page: 1, limit: 20, sort: 'title', order: 'asc' }
+    filters.value = { page: 1, limit: defaultCatalogSettings.pageSize, sort: 'title', order: 'asc' }
     navigationFilter.value = null
     selectedBookId.value = null
     currentBook.value = null
@@ -151,6 +156,7 @@ export const useCatalogStore = defineStore('catalog', () => {
     setSort,
     updateFilters,
     setPage,
+    setPageSize,
     resetFilters,
   }
 })
