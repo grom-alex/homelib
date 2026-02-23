@@ -92,6 +92,11 @@ const night: ThemeDefinition = {
   },
 }
 
+const custom: ThemeDefinition = {
+  dark: false,
+  colors: { ...light.colors } as Record<string, string>,
+}
+
 export default createVuetify({
   icons: {
     defaultSet: 'mdi',
@@ -100,6 +105,6 @@ export default createVuetify({
   },
   theme: {
     defaultTheme: 'light',
-    themes: { light, dark, sepia, night },
+    themes: { light, dark, sepia, night, custom },
   },
 })

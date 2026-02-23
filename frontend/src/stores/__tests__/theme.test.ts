@@ -55,7 +55,7 @@ describe('theme store', () => {
 
     vi.advanceTimersByTime(1000)
     expect(api.put).toHaveBeenCalledWith('/me/settings', {
-      catalog: { theme: 'dark' },
+      catalog: expect.objectContaining({ theme: 'dark' }),
       reader: { theme: null },
     })
   })
@@ -67,7 +67,7 @@ describe('theme store', () => {
 
     vi.advanceTimersByTime(1000)
     expect(api.put).toHaveBeenCalledWith('/me/settings', {
-      catalog: { theme: 'light' },
+      catalog: expect.objectContaining({ theme: 'light' }),
       reader: { theme: 'night' },
     })
   })
@@ -131,7 +131,7 @@ describe('theme store', () => {
     vi.advanceTimersByTime(1000)
     expect(api.put).toHaveBeenCalledTimes(1)
     expect(api.put).toHaveBeenCalledWith('/me/settings', {
-      catalog: { theme: 'night' },
+      catalog: expect.objectContaining({ theme: 'night' }),
       reader: { theme: null },
     })
   })

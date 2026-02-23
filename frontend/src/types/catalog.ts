@@ -1,13 +1,20 @@
 // Catalog types per spec 007-catalog-redesign
 
-export type CatalogThemeName = 'light' | 'dark' | 'sepia' | 'night'
+export type CatalogThemeName = 'light' | 'dark' | 'sepia' | 'night' | 'custom'
 
 export interface CatalogThemeDefinition {
   name: CatalogThemeName
-  label: string // «Светлая», «Тёмная», «Сепия», «Ночная»
+  label: string
   dark: boolean // Vuetify dark flag
   colors: Record<string, string>
   variables?: Record<string, string | number>
+}
+
+export interface CustomCatalogColors {
+  background: string
+  text: string
+  link: string
+  selection: string
 }
 
 export type TabType = 'authors' | 'series' | 'genres' | 'search'

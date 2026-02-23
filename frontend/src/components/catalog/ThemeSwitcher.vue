@@ -17,12 +17,23 @@
         {{ theme.label }}
       </v-btn>
     </div>
+
+    <div v-if="themeStore.catalogTheme === 'custom'" class="theme-switcher__custom">
+      <label v-for="field in colorFields" :key="field.key" class="theme-switcher__color-field">
+        <input
+          type="color"
+          :value="themeStore.customCatalogColors[field.key]"
+          @input="onColorChange(field.key, ($event.target as HTMLInputElement).value)"
+        />
+        <span>{{ field.label }}</span>
+      </label>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useThemeStore } from '@/stores/theme'
-import type { CatalogThemeName } from '@/types/catalog'
+import type { CatalogThemeName, CustomCatalogColors } from '@/types/catalog'
 
 const themeStore = useThemeStore()
 
@@ -31,7 +42,22 @@ const themes: Array<{ name: CatalogThemeName; label: string; previewColor: strin
   { name: 'dark', label: 'Тёмная', previewColor: '#1E1E1E', dark: true },
   { name: 'sepia', label: 'Сепия', previewColor: '#f5e6d3', dark: false },
   { name: 'night', label: 'Ночная', previewColor: '#000000', dark: true },
+  { name: 'custom', label: 'Своя', previewColor: 'linear-gradient(135deg, #ff6b6b, #4ecdc4)', dark: false },
 ]
+
+const colorFields: Array<{ key: keyof CustomCatalogColors; label: string }> = [
+  { key: 'background', label: 'Фон' },
+  { key: 'text', label: 'Текст' },
+  { key: 'link', label: 'Акцент' },
+  { key: 'selection', label: 'Выделение' },
+]
+
+function onColorChange(key: keyof CustomCatalogColors, value: string) {
+  themeStore.setCatalogCustomColors({
+    ...themeStore.customCatalogColors,
+    [key]: value,
+  })
+}
 </script>
 
 <style scoped>
@@ -46,5 +72,32 @@ const themes: Array<{ name: CatalogThemeName; label: string; previewColor: strin
   width: 12px;
   height: 12px;
   border-radius: 50%;
+}
+
+.theme-switcher__custom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 6px 0;
+}
+
+.theme-switcher__color-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.7;
+}
+
+.theme-switcher__color-field input[type="color"] {
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgb(var(--v-theme-surface-variant));
+  border-radius: 3px;
+  padding: 0;
+  cursor: pointer;
+  background: none;
 }
 </style>

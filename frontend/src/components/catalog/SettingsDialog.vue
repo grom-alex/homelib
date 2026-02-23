@@ -62,5 +62,6 @@ const themes: Array<{ name: CatalogThemeName; label: string }> = [
   { name: 'dark', label: 'Тёмная' },
   { name: 'sepia', label: 'Сепия' },
   { name: 'night', label: 'Ночная' },
+  { name: 'custom', label: 'Своя' },
 ]
 </script>
