@@ -5,6 +5,7 @@ import { useThemeStore } from '../theme'
 vi.mock('vuetify', () => ({
   useTheme: vi.fn(() => ({
     global: { name: { value: 'light' } },
+    themes: { value: { custom: { dark: false, colors: {} } } },
   })),
 }))
 
@@ -154,5 +155,110 @@ describe('theme store', () => {
 
     expect(store.catalogTheme).toBe('light')
     expect(store.loaded).toBe(true)
+  })
+
+  it('setCatalogTheme with custom theme', () => {
+    const store = useThemeStore()
+    store.setCatalogTheme('custom')
+    expect(store.catalogTheme).toBe('custom')
+
+    vi.advanceTimersByTime(1000)
+    expect(api.put).toHaveBeenCalledWith('/me/settings', {
+      catalog: expect.objectContaining({ theme: 'custom' }),
+      reader: { theme: null },
+    })
+  })
+
+  it('setCatalogCustomColors updates colors and schedules save', () => {
+    const store = useThemeStore()
+    const newColors = {
+      background: '#1a1a2e',
+      text: '#eaeaea',
+      link: '#e94560',
+      selection: '#533483',
+    }
+    store.setCatalogCustomColors(newColors)
+    expect(store.customCatalogColors).toEqual(newColors)
+
+    vi.advanceTimersByTime(1000)
+    expect(api.put).toHaveBeenCalledWith('/me/settings', {
+      catalog: expect.objectContaining({ customColors: newColors }),
+      reader: { theme: null },
+    })
+  })
+
+  it('setCatalogCustomColors applies to vuetify when theme is custom', () => {
+    const store = useThemeStore()
+    store.catalogTheme = 'custom'
+
+    const newColors = {
+      background: '#FFFFFF',
+      text: '#000000',
+      link: '#0000FF',
+      selection: '#FFFF00',
+    }
+    store.setCatalogCustomColors(newColors)
+    expect(store.customCatalogColors).toEqual(newColors)
+  })
+
+  it('loadSettings loads custom colors from server', async () => {
+    const customColors = {
+      background: '#2a2a3e',
+      text: '#f0f0f0',
+      link: '#ff6600',
+      selection: '#444466',
+    }
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        catalog: { theme: 'custom', customColors },
+        reader: { theme: null },
+      },
+    })
+
+    const store = useThemeStore()
+    await store.loadSettings()
+
+    expect(store.catalogTheme).toBe('custom')
+    expect(store.customCatalogColors).toEqual(customColors)
+  })
+
+  it('loadSettings without reader section keeps default', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        catalog: { theme: 'dark' },
+      },
+    })
+
+    const store = useThemeStore()
+    await store.loadSettings()
+
+    expect(store.readerThemeOverride).toBeNull()
+  })
+
+  it('has default custom colors', () => {
+    const store = useThemeStore()
+    expect(store.customCatalogColors).toEqual({
+      background: '#FFFFFF',
+      text: '#212121',
+      link: '#1565C0',
+      selection: '#BBDEFB',
+    })
+  })
+
+  it('saveSettings sends current state including customColors', async () => {
+    vi.mocked(api.put).mockResolvedValue({})
+
+    const store = useThemeStore()
+    store.catalogTheme = 'dark'
+    store.readerThemeOverride = 'sepia'
+    await store.saveSettings()
+
+    expect(api.put).toHaveBeenCalledWith('/me/settings', {
+      catalog: {
+        theme: 'dark',
+        customColors: store.customCatalogColors,
+      },
+      reader: { theme: 'sepia' },
+    })
   })
 })

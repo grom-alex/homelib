@@ -105,4 +105,133 @@ describe('SearchTab', () => {
 
     expect(input.element.value).toBe('')
   })
+
+  it('renders genre options from API', async () => {
+    vi.mocked(booksApi.getGenres).mockResolvedValue([
+      { id: 1, code: 'sf', name: 'Фантастика', books_count: 100 },
+      { id: 2, code: 'det', name: 'Детектив', books_count: 50 },
+    ])
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Фантастика')
+    expect(wrapper.text()).toContain('Детектив')
+  })
+
+  it('renders genres with meta_group prefix', async () => {
+    vi.mocked(booksApi.getGenres).mockResolvedValue([
+      { id: 1, code: 'sf', name: 'Фантастика', meta_group: 'Проза', books_count: 100 },
+    ])
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Проза / Фантастика')
+  })
+
+  it('renders genre children', async () => {
+    vi.mocked(booksApi.getGenres).mockResolvedValue([
+      {
+        id: 1, code: 'sf', name: 'Фантастика', meta_group: 'Проза', books_count: 100,
+        children: [
+          { id: 3, code: 'sf_space', name: 'Космическая', books_count: 30 },
+        ],
+      },
+    ])
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Космическая')
+  })
+
+  it('renders format select options from stats', async () => {
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    const selects = wrapper.findAll('select')
+    // Find format select (second one after genre)
+    const formatSelect = selects.find(s => s.text().includes('fb2'))
+    expect(formatSelect).toBeDefined()
+  })
+
+  it('renders language select options from stats', async () => {
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    const selects = wrapper.findAll('select')
+    const langSelect = selects.find(s => s.text().includes('ru'))
+    expect(langSelect).toBeDefined()
+  })
+
+  it('submits search with author_name param', async () => {
+    vi.mocked(booksApi.getBooks).mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 20,
+    })
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    const inputs = wrapper.findAll('input')
+    // Second input is author_name
+    await inputs[1].setValue('Азимов')
+
+    await wrapper.find('form').trigger('submit')
+
+    const store = useCatalogStore()
+    expect(store.navigationFilter?.params?.author_name).toBe('Азимов')
+  })
+
+  it('submits search with series_name param', async () => {
+    vi.mocked(booksApi.getBooks).mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 20,
+    })
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    const inputs = wrapper.findAll('input')
+    // Third input is series_name
+    await inputs[2].setValue('Основание')
+
+    await wrapper.find('form').trigger('submit')
+
+    const store = useCatalogStore()
+    expect(store.navigationFilter?.params?.series_name).toBe('Основание')
+  })
+
+  it('uses "Расширенный поиск" label when no text fields filled', async () => {
+    vi.mocked(booksApi.getBooks).mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 20,
+    })
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    await wrapper.find('form').trigger('submit')
+
+    const store = useCatalogStore()
+    expect(store.navigationFilter?.label).toBe('Расширенный поиск')
+  })
+
+  it('handles loadOptions errors gracefully', async () => {
+    vi.mocked(booksApi.getGenres).mockRejectedValue(new Error('Network'))
+    vi.mocked(booksApi.getStats).mockRejectedValue(new Error('Network'))
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    // Should not crash, form still renders
+    expect(wrapper.text()).toContain('Найти')
+  })
 })

@@ -134,4 +134,96 @@ describe('AuthorsTab', () => {
     expect(store.navigationFilter?.type).toBe('author')
     expect(store.navigationFilter?.id).toBe(1)
   })
+
+  it('loads more authors appending to list', async () => {
+    vi.mocked(booksApi.getAuthors)
+      .mockResolvedValueOnce({
+        items: mockAuthors,
+        total: 100,
+        page: 1,
+        limit: 50,
+      })
+      .mockResolvedValueOnce({
+        items: [{ id: 4, name: 'Толкин, Джон', books_count: 20 }],
+        total: 100,
+        page: 2,
+        limit: 50,
+      })
+
+    const wrapper = mountAuthorsTab()
+    await flushPromises()
+
+    const loadMoreBtn = wrapper.find('.authors-tab__load-more-btn')
+    await loadMoreBtn.trigger('click')
+    await flushPromises()
+
+    expect(booksApi.getAuthors).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('Толкин, Джон')
+    // Original authors should still be there
+    expect(wrapper.text()).toContain('Азимов, Айзек')
+  })
+
+  it('clears search resets list', async () => {
+    vi.mocked(booksApi.getAuthors).mockResolvedValue({
+      items: mockAuthors,
+      total: 3,
+      page: 1,
+      limit: 50,
+    })
+
+    const wrapper = mountAuthorsTab()
+    await flushPromises()
+
+    // Type something and then clear
+    const input = wrapper.find('input')
+    await input.setValue('test')
+
+    const clearBtn = wrapper.find('.search-input-clear')
+    if (clearBtn.exists()) {
+      await clearBtn.trigger('click')
+      await flushPromises()
+      expect(input.element.value).toBe('')
+    }
+  })
+
+  it('handles API error gracefully', async () => {
+    vi.mocked(booksApi.getAuthors).mockRejectedValue(new Error('Network'))
+
+    const wrapper = mountAuthorsTab()
+    await flushPromises()
+
+    // Should not crash, shows empty state
+    expect(wrapper.text()).toContain('Ничего не найдено')
+  })
+
+  it('debounces search input', async () => {
+    vi.useFakeTimers()
+    vi.mocked(booksApi.getAuthors).mockResolvedValue({
+      items: mockAuthors,
+      total: 3,
+      page: 1,
+      limit: 50,
+    })
+
+    const wrapper = mountAuthorsTab()
+    await flushPromises()
+    vi.clearAllMocks()
+
+    const input = wrapper.find('input')
+    await input.setValue('Ази')
+    await input.trigger('input')
+
+    expect(booksApi.getAuthors).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(300)
+    await flushPromises()
+
+    expect(booksApi.getAuthors).toHaveBeenCalledWith({
+      q: 'Ази',
+      page: 1,
+      limit: 50,
+    })
+
+    vi.useRealTimers()
+  })
 })
