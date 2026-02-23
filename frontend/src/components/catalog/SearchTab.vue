@@ -2,65 +2,58 @@
   <div class="search-tab">
     <div class="search-tab__header">Критерии поиска</div>
     <div class="search-tab__body">
-      <v-form class="search-tab__form" @submit.prevent="onSubmit">
-        <v-text-field
-          v-model="form.q"
-          label="Название"
-          density="compact"
-          variant="outlined"
-          hide-details
-          clearable
-          class="mb-2"
-        />
+      <form class="search-tab__form" @submit.prevent="onSubmit">
+        <div class="search-field">
+          <label>Название</label>
+          <input v-model="form.q" placeholder="Введите название..." />
+        </div>
 
-        <v-select
-          v-if="genreOptions.length > 0"
-          v-model="form.genre_id"
-          :items="genreOptions"
-          item-title="name"
-          item-value="id"
-          label="Жанр"
-          density="compact"
-          variant="outlined"
-          hide-details
-          clearable
-          class="mb-2"
-        />
+        <div class="search-field">
+          <label>Автор</label>
+          <input v-model="form.author_name" placeholder="Введите автора..." />
+        </div>
 
-        <v-select
-          v-if="formatOptions.length > 0"
-          v-model="form.format"
-          :items="formatOptions"
-          label="Формат"
-          density="compact"
-          variant="outlined"
-          hide-details
-          clearable
-          class="mb-2"
-        />
+        <div class="search-field">
+          <label>Серия</label>
+          <input v-model="form.series_name" placeholder="Введите серию..." />
+        </div>
 
-        <v-select
-          v-if="langOptions.length > 0"
-          v-model="form.lang"
-          :items="langOptions"
-          label="Язык"
-          density="compact"
-          variant="outlined"
-          hide-details
-          clearable
-          class="mb-2"
-        />
+        <div v-if="genreOptions.length > 0" class="search-field">
+          <label>Жанр</label>
+          <select v-model="form.genre_id">
+            <option :value="null">Все жанры</option>
+            <option v-for="g in genreOptions" :key="g.id" :value="g.id">{{ g.name }}</option>
+          </select>
+        </div>
+
+        <div v-if="formatOptions.length > 0" class="search-field">
+          <label>Формат</label>
+          <select v-model="form.format">
+            <option :value="null">Все форматы</option>
+            <option v-for="f in formatOptions" :key="f" :value="f">{{ f }}</option>
+          </select>
+        </div>
+
+        <div v-if="langOptions.length > 0" class="search-field">
+          <label>Язык</label>
+          <select v-model="form.lang">
+            <option :value="null">Все языки</option>
+            <option v-for="l in langOptions" :key="l" :value="l">{{ l }}</option>
+          </select>
+        </div>
 
         <div class="search-tab__actions">
           <button type="submit" class="search-tab__btn-find">
-            <v-icon size="14" class="mr-1">mdi-magnify</v-icon>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
             Найти
           </button>
           <button type="button" class="search-tab__btn-clear" @click="onClear">
             Очистить
           </button>
         </div>
-      </v-form>
+      </form>
     </div>
   </div>
 </template>
@@ -74,6 +67,8 @@ const catalog = useCatalogStore()
 
 const form = reactive({
   q: '',
+  author_name: '',
+  series_name: '',
   genre_id: null as number | null,
   format: null as string | null,
   lang: null as string | null,
@@ -111,15 +106,20 @@ async function loadOptions() {
 function onSubmit() {
   const params: Record<string, string> = {}
   if (form.q) params.q = form.q
+  if (form.author_name) params.author_name = form.author_name
+  if (form.series_name) params.series_name = form.series_name
   if (form.genre_id) params.genre_id = String(form.genre_id)
   if (form.format) params.format = form.format
   if (form.lang) params.lang = form.lang
 
-  catalog.selectNavItem('search', undefined, params, form.q || 'Расширенный поиск')
+  const label = form.q || form.author_name || form.series_name || 'Расширенный поиск'
+  catalog.selectNavItem('search', undefined, params, label)
 }
 
 function onClear() {
   form.q = ''
+  form.author_name = ''
+  form.series_name = ''
   form.genre_id = null
   form.format = null
   form.lang = null
@@ -160,10 +160,48 @@ onMounted(() => {
 .search-tab__form {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-field label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.45;
+  font-weight: 600;
+}
+
+.search-field input,
+.search-field select {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgb(var(--v-theme-surface-variant));
+  color: rgb(var(--v-theme-on-surface));
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-field input:focus,
+.search-field select:focus {
+  border-color: rgb(var(--v-theme-primary));
+}
+
+.search-field select option {
+  background: rgb(var(--v-theme-surface));
 }
 
 .search-tab__actions {
-  margin-top: 8px;
+  margin-top: 4px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -173,7 +211,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
   padding: 9px 0;
   background: rgb(var(--v-theme-primary));
   color: #1a1d23;

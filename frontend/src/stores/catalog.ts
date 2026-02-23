@@ -74,7 +74,9 @@ export const useCatalogStore = defineStore('catalog', () => {
     // Clear all navigation-specific filters before applying new ones
     const apiFilters: Partial<BookFilters> = {
       author_id: undefined,
+      author_name: undefined,
       series_id: undefined,
+      series_name: undefined,
       genre_id: undefined,
       q: undefined,
       format: undefined,
@@ -85,7 +87,9 @@ export const useCatalogStore = defineStore('catalog', () => {
     else if (type === 'genre' && id) apiFilters.genre_id = id
     else if (type === 'search' && params) {
       if (params.q) apiFilters.q = params.q
+      if (params.author_name) apiFilters.author_name = params.author_name
       if (params.genre_id) apiFilters.genre_id = Number(params.genre_id)
+      if (params.series_name) apiFilters.series_name = params.series_name
       if (params.format) apiFilters.format = params.format
       if (params.lang) apiFilters.lang = params.lang
     }
