@@ -46,14 +46,22 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  console.warn('[GUARD] to:', to.fullPath, 'initialized:', auth.initialized, 'authenticated:', auth.isAuthenticated)
   if (!auth.initialized) {
     await auth.init()
+    console.warn('[GUARD] after init: authenticated:', auth.isAuthenticated, 'user:', auth.user?.email)
   }
   if (to.meta.guest) {
-    if (to.name === 'login' && auth.isAuthenticated) return { name: 'catalog' }
+    if (to.name === 'login' && auth.isAuthenticated) {
+      console.warn('[GUARD] guest route + authenticated → redirect to catalog')
+      return { name: 'catalog' }
+    }
     return true
   }
-  if (!auth.isAuthenticated) return { name: 'login' }
+  if (!auth.isAuthenticated) {
+    console.warn('[GUARD] NOT authenticated → redirect to login')
+    return { name: 'login' }
+  }
   if (to.meta.admin && !auth.isAdmin) return { name: 'catalog' }
   return true
 })
