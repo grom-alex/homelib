@@ -92,7 +92,7 @@ func (r *SeriesRepo) ListWithBookCount(ctx context.Context, query string, limit,
 		 ),
 		 series_authors_agg AS (
 		   SELECT series_id,
-		          string_agg(author_name, ', ' ORDER BY rn) ||
+		          COALESCE(string_agg(author_name, ', ' ORDER BY rn), '') ||
 		            CASE WHEN MAX(total_authors) > 2 THEN ' и др.' ELSE '' END AS authors
 		   FROM series_authors
 		   WHERE rn <= 2

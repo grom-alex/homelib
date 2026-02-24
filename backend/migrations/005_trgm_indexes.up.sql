@@ -1,4 +1,3 @@
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-
-CREATE INDEX IF NOT EXISTS idx_authors_name_trgm ON authors USING gin (name gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_series_name_trgm ON series USING gin (name gin_trgm_ops);
+-- No-op: pg_trgm extension and indexes already created in 001_init.up.sql
+-- authors.name: idx_authors_name_trgm (GIN)
+-- series.name: idx_series_name_trgm (GIN)

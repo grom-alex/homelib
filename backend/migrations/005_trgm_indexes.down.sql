@@ -1,2 +1,1 @@
-DROP INDEX IF EXISTS idx_authors_name_trgm;
-DROP INDEX IF EXISTS idx_series_name_trgm;
+-- No-op: indexes are owned by 001_init and should not be dropped here
