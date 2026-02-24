@@ -27,6 +27,8 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({ name: 'CatalogView' })
+
 import { onMounted } from 'vue'
 import { Splitpanes, Pane } from 'splitpanes'
 import 'splitpanes/dist/splitpanes.css'
