@@ -20,7 +20,6 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function clearAuth() {
-    console.warn('[AUTH] clearAuth called, stack:', new Error().stack?.split('\n').slice(1, 4).join(' <- '))
     user.value = null
     accessToken.value = null
     setAccessToken(null)
@@ -69,37 +68,30 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function doInit() {
-    console.warn('[AUTH] doInit: starting refresh')
     try {
       const data = await refreshWithRetry()
-      console.warn('[AUTH] doInit: refresh OK, user:', data.user?.email, 'token length:', data.access_token?.length)
       setAuth(data)
-    } catch (e) {
-      console.warn('[AUTH] doInit: refresh FAILED:', e)
+    } catch {
       clearAuth()
     } finally {
       initialized.value = true
       initPromise = null
       setAuthInitPromise(null)
-      console.warn('[AUTH] doInit: done, isAuthenticated:', !!accessToken.value)
     }
   }
 
   /** Retry refresh on transient errors (network, 5xx); give up immediately on 401/403. */
   async function refreshWithRetry(): Promise<{ user: UserInfo; access_token: string }> {
-    const maxAttempts = 3
+    const maxAttempts = 5
     let lastError: unknown
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        console.warn(`[AUTH] refreshWithRetry: attempt ${attempt}/${maxAttempts}`)
         return await authApi.refresh()
       } catch (error: unknown) {
         lastError = error
-        const status = (error as { response?: { status?: number } })?.response?.status
-        console.warn(`[AUTH] refreshWithRetry: attempt ${attempt} failed, status:`, status, 'error:', error)
         if (isAuthError(error)) throw error
         if (attempt < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 500 * attempt))
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
         }
       }
     }

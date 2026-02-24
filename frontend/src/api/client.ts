@@ -68,16 +68,12 @@ api.interceptors.response.use(
       !originalRequest._retry &&
       !originalRequest.url?.includes('/auth/refresh')
     ) {
-      console.warn('[INTERCEPTOR] 401 for:', originalRequest.url, 'hasInitPromise:', !!authInitPromise, 'isRefreshing:', isRefreshing)
-
       // If auth is initializing, wait for it instead of triggering a parallel refresh
       // that would race with token rotation
       if (authInitPromise) {
-        console.warn('[INTERCEPTOR] waiting for auth init to complete')
         try {
           await authInitPromise
         } catch { /* init handles its own errors */ }
-        console.warn('[INTERCEPTOR] auth init done, hasToken:', !!accessToken)
         if (accessToken) {
           originalRequest.headers.Authorization = `Bearer ${accessToken}`
           return api(originalRequest)
@@ -107,7 +103,6 @@ api.interceptors.response.use(
         onRefreshed(data.access_token)
         return api(originalRequest)
       } catch (refreshError) {
-        console.warn('[INTERCEPTOR] refresh FAILED, redirecting to login. Error:', refreshError)
         accessToken = null
         if (onAuthExpired) onAuthExpired()
         onRefreshFailed(refreshError)

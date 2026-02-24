@@ -162,10 +162,11 @@ describe('auth store', () => {
 
     const store = useAuthStore()
     const p = store.init()
-    await vi.advanceTimersByTimeAsync(5000)
+    // 5 attempts with delays: 1s + 2s + 3s + 4s = 10s between retries
+    await vi.advanceTimersByTimeAsync(15000)
     await p
 
-    expect(authApi.refresh).toHaveBeenCalledTimes(3)
+    expect(authApi.refresh).toHaveBeenCalledTimes(5)
     expect(store.isAuthenticated).toBe(false)
     expect(store.initialized).toBe(true)
     vi.useRealTimers()
