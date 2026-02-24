@@ -124,13 +124,61 @@ describe('auth store', () => {
     expect(store.initialized).toBe(true)
   })
 
-  it('init clears auth if refresh fails', async () => {
-    vi.mocked(authApi.refresh).mockRejectedValue(new Error('expired'))
+  it('init clears auth if refresh fails with 401', async () => {
+    const axiosError = Object.assign(new Error('Unauthorized'), {
+      response: { status: 401 },
+    })
+    vi.mocked(authApi.refresh).mockRejectedValue(axiosError)
     const store = useAuthStore()
     await store.init()
+    expect(authApi.refresh).toHaveBeenCalledTimes(1)
     expect(store.accessToken).toBeNull()
     expect(store.user).toBeNull()
     expect(store.initialized).toBe(true)
+  })
+
+  it('init retries on network error then succeeds', async () => {
+    vi.useFakeTimers()
+    vi.mocked(authApi.refresh)
+      .mockRejectedValueOnce(new Error('Network Error'))
+      .mockResolvedValueOnce({ user: mockUser, access_token: 'tok' })
+
+    const store = useAuthStore()
+    const p = store.init()
+    await vi.advanceTimersByTimeAsync(2000)
+    await p
+
+    expect(authApi.refresh).toHaveBeenCalledTimes(2)
+    expect(store.isAuthenticated).toBe(true)
+    expect(store.accessToken).toBe('tok')
+    expect(store.initialized).toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('init gives up after max retries on network errors', async () => {
+    vi.useFakeTimers()
+    vi.mocked(authApi.refresh).mockRejectedValue(new Error('Network Error'))
+
+    const store = useAuthStore()
+    const p = store.init()
+    await vi.advanceTimersByTimeAsync(5000)
+    await p
+
+    expect(authApi.refresh).toHaveBeenCalledTimes(3)
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.initialized).toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('init does not retry on 403 auth error', async () => {
+    const axiosError = Object.assign(new Error('Forbidden'), {
+      response: { status: 403 },
+    })
+    vi.mocked(authApi.refresh).mockRejectedValue(axiosError)
+    const store = useAuthStore()
+    await store.init()
+    expect(authApi.refresh).toHaveBeenCalledTimes(1)
+    expect(store.isAuthenticated).toBe(false)
   })
 
   it('init does nothing on second call', async () => {
