@@ -5,6 +5,31 @@ import * as booksApi from '@/api/books'
 import type { TabType, NavigationFilter, SortField, SortOrder, PageSize } from '@/types/catalog'
 import { defaultCatalogSettings } from '@/types/catalog'
 
+interface TabState {
+  books: BookListItem[]
+  total: number
+  filters: BookFilters
+  navigationFilter: NavigationFilter | null
+  selectedBookId: number | null
+  currentBook: BookDetail | null
+}
+
+function createEmptyTabState(): TabState {
+  return {
+    books: [],
+    total: 0,
+    filters: {
+      page: 1,
+      limit: defaultCatalogSettings.pageSize,
+      sort: defaultCatalogSettings.tableSort.field,
+      order: defaultCatalogSettings.tableSort.order,
+    },
+    navigationFilter: null,
+    selectedBookId: null,
+    currentBook: null,
+  }
+}
+
 export const useCatalogStore = defineStore('catalog', () => {
   const books = ref<BookListItem[]>([])
   const total = ref(0)
@@ -23,6 +48,8 @@ export const useCatalogStore = defineStore('catalog', () => {
     sort: defaultCatalogSettings.tableSort.field,
     order: defaultCatalogSettings.tableSort.order,
   })
+
+  const tabStates = new Map<TabType, TabState>()
 
   const totalPages = computed(() => Math.ceil(total.value / (filters.value.limit || defaultCatalogSettings.pageSize)))
 
@@ -97,14 +124,42 @@ export const useCatalogStore = defineStore('catalog', () => {
     updateFilters(apiFilters)
   }
 
+  function saveCurrentTabState() {
+    tabStates.set(activeTab.value, {
+      books: books.value,
+      total: total.value,
+      filters: { ...filters.value },
+      navigationFilter: navigationFilter.value,
+      selectedBookId: selectedBookId.value,
+      currentBook: currentBook.value,
+    })
+  }
+
+  function restoreTabState(tab: TabType) {
+    const state = tabStates.get(tab)
+    if (state) {
+      books.value = state.books
+      total.value = state.total
+      filters.value = { ...state.filters }
+      navigationFilter.value = state.navigationFilter
+      selectedBookId.value = state.selectedBookId
+      currentBook.value = state.currentBook
+    } else {
+      const empty = createEmptyTabState()
+      books.value = empty.books
+      total.value = empty.total
+      filters.value = empty.filters
+      navigationFilter.value = empty.navigationFilter
+      selectedBookId.value = empty.selectedBookId
+      currentBook.value = empty.currentBook
+    }
+  }
+
   function setActiveTab(tab: TabType) {
     if (activeTab.value === tab) return
+    saveCurrentTabState()
     activeTab.value = tab
-    selectedBookId.value = null
-    currentBook.value = null
-    navigationFilter.value = null
-    books.value = []
-    total.value = 0
+    restoreTabState(tab)
   }
 
   function setSelectedBook(id: number) {
