@@ -59,8 +59,17 @@ router.beforeEach(async (to) => {
     return true
   }
   if (!auth.isAuthenticated) {
-    console.warn('[GUARD] NOT authenticated → redirect to login')
-    return { name: 'login' }
+    // Safety net: if init failed but cookie might still be valid, try one more refresh
+    // before giving up. Handles race conditions and transient failures during init.
+    console.warn('[GUARD] NOT authenticated, trying safety-net refresh')
+    try {
+      await auth.refreshToken()
+      console.warn('[GUARD] safety-net refresh succeeded')
+      return true
+    } catch {
+      console.warn('[GUARD] safety-net refresh also failed → redirect to login')
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
   }
   if (to.meta.admin && !auth.isAdmin) return { name: 'catalog' }
   return true
