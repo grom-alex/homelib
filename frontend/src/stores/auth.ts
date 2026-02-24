@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserInfo, RegisterInput, LoginInput } from '@/api/auth'
 import * as authApi from '@/api/auth'
-import { setAccessToken, setOnAuthExpired } from '@/api/client'
+import { setAccessToken, setOnAuthExpired, setAuthInitPromise } from '@/api/client'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserInfo | null>(null)
@@ -63,6 +63,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (initialized.value) return
     if (initPromise) return initPromise
     initPromise = doInit()
+    setAuthInitPromise(initPromise)
     return initPromise
   }
 
@@ -75,6 +76,7 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       initialized.value = true
       initPromise = null
+      setAuthInitPromise(null)
     }
   }
 

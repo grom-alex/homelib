@@ -13,10 +13,11 @@ vi.mock('@/api/client', () => ({
   default: {},
   setAccessToken: vi.fn(),
   setOnAuthExpired: vi.fn(),
+  setAuthInitPromise: vi.fn(),
 }))
 
 import * as authApi from '@/api/auth'
-import { setOnAuthExpired } from '@/api/client'
+import { setOnAuthExpired, setAuthInitPromise } from '@/api/client'
 
 const mockUser = {
   id: '1',
@@ -214,5 +215,22 @@ describe('auth store', () => {
 
     expect(store.isAuthenticated).toBe(false)
     expect(store.user).toBeNull()
+  })
+
+  it('init sets and clears authInitPromise on client module', async () => {
+    vi.mocked(authApi.refresh).mockResolvedValue({
+      user: mockUser,
+      access_token: 'tok',
+    })
+    const store = useAuthStore()
+    vi.mocked(setAuthInitPromise).mockClear()
+
+    await store.init()
+
+    // Should have been called with a promise, then with null
+    expect(setAuthInitPromise).toHaveBeenCalledTimes(2)
+    expect(setAuthInitPromise).toHaveBeenNthCalledWith(1, expect.any(Promise))
+    expect(setAuthInitPromise).toHaveBeenNthCalledWith(2, null)
+    expect(store.initialized).toBe(true)
   })
 })
