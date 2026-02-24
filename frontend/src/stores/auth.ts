@@ -82,7 +82,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   /** Retry refresh on transient errors (network, 5xx); give up immediately on 401/403. */
   async function refreshWithRetry(): Promise<{ user: UserInfo; access_token: string }> {
-    const maxAttempts = 5
+    const maxAttempts = 3
     let lastError: unknown
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
