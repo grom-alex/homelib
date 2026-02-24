@@ -80,15 +80,15 @@ func (r *SeriesRepo) ListWithBookCount(ctx context.Context, query string, limit,
 		   LIMIT $%d OFFSET $%d
 		 ),
 		 series_authors AS (
-		   SELECT ba2.series_id,
+		   SELECT bb.series_id,
 		          a.name AS author_name,
-		          COUNT(*) OVER (PARTITION BY ba2.series_id) AS total_authors,
-		          ROW_NUMBER() OVER (PARTITION BY ba2.series_id ORDER BY COUNT(*) DESC, a.name) AS rn
+		          COUNT(*) OVER (PARTITION BY bb.series_id) AS total_authors,
+		          ROW_NUMBER() OVER (PARTITION BY bb.series_id ORDER BY COUNT(*) DESC, a.name) AS rn
 		   FROM page_series ps
 		   JOIN books bb ON bb.series_id = ps.id
 		   JOIN book_authors ba2 ON ba2.book_id = bb.id
 		   JOIN authors a ON a.id = ba2.author_id
-		   GROUP BY ba2.series_id, a.id, a.name
+		   GROUP BY bb.series_id, a.id, a.name
 		 ),
 		 series_authors_agg AS (
 		   SELECT series_id,
