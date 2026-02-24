@@ -70,29 +70,39 @@ func (r *SeriesRepo) ListWithBookCount(ctx context.Context, query string, limit,
 	}
 
 	listQuery := fmt.Sprintf(
-		`SELECT s.id, s.name, COUNT(b.id) as books_count,
-		        COALESCE(sa.authors, '') as authors
-		 FROM series s
-		 LEFT JOIN books b ON b.series_id = s.id
-		 LEFT JOIN LATERAL (
-		   SELECT string_agg(sub.author_name, ', ' ORDER BY sub.rn) ||
-		            CASE WHEN sub.total > 2 THEN ' и др.' ELSE '' END AS authors
-		   FROM (
-		     SELECT a.name AS author_name,
-		            COUNT(*) OVER () AS total,
-		            ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC, a.name) AS rn
-		     FROM book_authors ba2
-		     JOIN authors a ON a.id = ba2.author_id
-		     WHERE ba2.book_id IN (SELECT bb.id FROM books bb WHERE bb.series_id = s.id)
-		     GROUP BY a.id, a.name
-		   ) sub
-		   WHERE sub.rn <= 2
-		   GROUP BY sub.total
-		 ) sa ON true
-		 %s
-		 GROUP BY s.id, s.name, sa.authors
-		 ORDER BY s.name
-		 LIMIT $%d OFFSET $%d`,
+		`WITH page_series AS (
+		   SELECT s.id, s.name, COUNT(b.id) AS books_count
+		   FROM series s
+		   LEFT JOIN books b ON b.series_id = s.id
+		   %s
+		   GROUP BY s.id, s.name
+		   ORDER BY s.name
+		   LIMIT $%d OFFSET $%d
+		 ),
+		 series_authors AS (
+		   SELECT ba2.series_id,
+		          a.name AS author_name,
+		          COUNT(*) OVER (PARTITION BY ba2.series_id) AS total_authors,
+		          ROW_NUMBER() OVER (PARTITION BY ba2.series_id ORDER BY COUNT(*) DESC, a.name) AS rn
+		   FROM page_series ps
+		   JOIN books bb ON bb.series_id = ps.id
+		   JOIN book_authors ba2 ON ba2.book_id = bb.id
+		   JOIN authors a ON a.id = ba2.author_id
+		   GROUP BY ba2.series_id, a.id, a.name
+		 ),
+		 series_authors_agg AS (
+		   SELECT series_id,
+		          string_agg(author_name, ', ' ORDER BY rn) ||
+		            CASE WHEN MAX(total_authors) > 2 THEN ' и др.' ELSE '' END AS authors
+		   FROM series_authors
+		   WHERE rn <= 2
+		   GROUP BY series_id
+		 )
+		 SELECT ps.id, ps.name, ps.books_count,
+		        COALESCE(sa.authors, '') AS authors
+		 FROM page_series ps
+		 LEFT JOIN series_authors_agg sa ON sa.series_id = ps.id
+		 ORDER BY ps.name`,
 		where, argIdx, argIdx+1,
 	)
 	args = append(args, limit, offset)
