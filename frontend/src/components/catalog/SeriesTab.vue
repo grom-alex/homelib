@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
 import { getSeries, type SeriesListItem } from '@/api/books'
 
@@ -116,7 +116,13 @@ function selectSeries(seriesId: number, name: string) {
 onMounted(() => {
   fetchSeries()
 })
+
+onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 </script>
+
+<style src="@/assets/nav-tab.css"></style>
 
 <style scoped>
 .series-tab {
@@ -129,77 +135,6 @@ onMounted(() => {
   padding: 10px 10px 8px;
   border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
   flex-shrink: 0;
-}
-
-.search-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-input-icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: rgb(var(--v-theme-on-surface));
-  opacity: 0.35;
-  pointer-events: none;
-}
-
-.search-input-wrapper input {
-  width: 100%;
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgb(var(--v-theme-surface-variant));
-  color: rgb(var(--v-theme-on-surface));
-  padding: 6px 28px 6px 32px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.search-input-wrapper input:focus {
-  border-color: rgb(var(--v-theme-primary));
-}
-
-.search-input-wrapper input::placeholder {
-  color: rgb(var(--v-theme-on-surface));
-  opacity: 0.3;
-}
-
-.search-input-clear {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: rgb(var(--v-theme-on-surface));
-  opacity: 0.4;
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 4px;
-}
-
-.search-input-clear:hover {
-  opacity: 0.7;
-}
-
-.spinner {
-  display: inline-block;
-  width: 24px;
-  height: 24px;
-  border: 2.5px solid rgb(var(--v-theme-surface-variant));
-  border-top-color: rgb(var(--v-theme-primary));
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .series-tab__status {

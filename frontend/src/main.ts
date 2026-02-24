@@ -1,3 +1,5 @@
+import '@fontsource-variable/source-sans-3'
+import '@fontsource-variable/jetbrains-mono'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import vuetify from '@/plugins/vuetify'

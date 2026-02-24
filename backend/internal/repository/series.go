@@ -70,30 +70,25 @@ func (r *SeriesRepo) ListWithBookCount(ctx context.Context, query string, limit,
 	}
 
 	listQuery := fmt.Sprintf(
-		`WITH series_authors AS (
-		   SELECT ba.series_id,
-		          a.name AS author_name,
-		          COUNT(*) AS book_cnt,
-		          COUNT(*) OVER (PARTITION BY ba.series_id) AS total_authors,
-		          ROW_NUMBER() OVER (PARTITION BY ba.series_id ORDER BY COUNT(*) DESC, a.name) AS rn
-		   FROM book_authors ba2
-		   JOIN authors a ON a.id = ba2.author_id
-		   JOIN books ba ON ba.id = ba2.book_id AND ba.series_id IS NOT NULL
-		   GROUP BY ba.series_id, a.id, a.name
-		 ),
-		 series_authors_agg AS (
-		   SELECT series_id,
-		          string_agg(author_name, ', ' ORDER BY rn) ||
-		            CASE WHEN MAX(total_authors) > 2 THEN ' и др.' ELSE '' END AS authors
-		   FROM series_authors
-		   WHERE rn <= 2
-		   GROUP BY series_id
-		 )
-		 SELECT s.id, s.name, COUNT(b.id) as books_count,
+		`SELECT s.id, s.name, COUNT(b.id) as books_count,
 		        COALESCE(sa.authors, '') as authors
 		 FROM series s
 		 LEFT JOIN books b ON b.series_id = s.id
-		 LEFT JOIN series_authors_agg sa ON sa.series_id = s.id
+		 LEFT JOIN LATERAL (
+		   SELECT string_agg(sub.author_name, ', ' ORDER BY sub.rn) ||
+		            CASE WHEN sub.total > 2 THEN ' и др.' ELSE '' END AS authors
+		   FROM (
+		     SELECT a.name AS author_name,
+		            COUNT(*) OVER () AS total,
+		            ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC, a.name) AS rn
+		     FROM book_authors ba2
+		     JOIN authors a ON a.id = ba2.author_id
+		     WHERE ba2.book_id IN (SELECT bb.id FROM books bb WHERE bb.series_id = s.id)
+		     GROUP BY a.id, a.name
+		   ) sub
+		   WHERE sub.rn <= 2
+		   GROUP BY sub.total
+		 ) sa ON true
 		 %s
 		 GROUP BY s.id, s.name, sa.authors
 		 ORDER BY s.name

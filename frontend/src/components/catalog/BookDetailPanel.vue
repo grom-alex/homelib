@@ -90,26 +90,10 @@
 import { useRouter } from 'vue-router'
 import { useCatalogStore } from '@/stores/catalog'
 import { downloadBook } from '@/api/books'
+import { formatAuthorsFull as formatAuthors, formatGenresFull as formatGenres, formatFileSize } from '@/utils/formatters'
 
 const catalog = useCatalogStore()
 const router = useRouter()
-
-function formatAuthors(authors: Array<{ id: number; name: string }>): string {
-  if (!authors || authors.length === 0) return '—'
-  return authors.map((a) => a.name).join(', ')
-}
-
-function formatGenres(genres: Array<{ id: number; name: string }>): string {
-  if (!genres || genres.length === 0) return '—'
-  return genres.map((g) => g.name).join(', ')
-}
-
-function formatFileSize(bytes?: number): string {
-  if (!bytes) return '—'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 function readBook() {
   if (catalog.currentBook) {
@@ -206,7 +190,7 @@ function downloadCurrentBook() {
 }
 
 .book-detail-panel__mono {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
 }
 
 .book-detail-panel__actions {

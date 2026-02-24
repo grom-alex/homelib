@@ -168,10 +168,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCatalogStore } from '@/stores/catalog'
 import type { PageSize, SortField } from '@/types/catalog'
+import { formatAuthorsSummary as formatAuthors, formatSeries, formatGenres, formatFileSize } from '@/utils/formatters'
 
 const router = useRouter()
 
@@ -228,8 +229,15 @@ function onSortClick(field: string) {
   catalog.setSort(field as SortField, order)
 }
 
+let navigateTimer: ReturnType<typeof setTimeout> | null = null
+
 function selectBook(id: number) {
   catalog.setSelectedBook(id)
+}
+
+function selectBookDebounced(id: number) {
+  if (navigateTimer) clearTimeout(navigateTimer)
+  navigateTimer = setTimeout(() => selectBook(id), 150)
 }
 
 function navigateRow(direction: number, event: KeyboardEvent) {
@@ -240,9 +248,13 @@ function navigateRow(direction: number, event: KeyboardEvent) {
   if (sibling) {
     sibling.focus()
     const bookId = Number(sibling.dataset?.bookId)
-    if (bookId) selectBook(bookId)
+    if (bookId) selectBookDebounced(bookId)
   }
 }
+
+onUnmounted(() => {
+  if (navigateTimer) clearTimeout(navigateTimer)
+})
 
 function onEnterKey() {
   const book = catalog.currentBook
@@ -251,30 +263,6 @@ function onEnterKey() {
   }
 }
 
-function formatAuthors(authors: Array<{ id: number; name: string }>): string {
-  if (!authors || authors.length === 0) return '—'
-  if (authors.length === 1) return authors[0].name
-  return `${authors[0].name} и др.`
-}
-
-function formatSeries(book: { series?: { name: string; num?: number } }): string {
-  if (!book.series) return '—'
-  return book.series.num
-    ? `${book.series.name} #${book.series.num}`
-    : book.series.name
-}
-
-function formatGenres(genres: Array<{ id: number; name: string }>): string {
-  if (!genres || genres.length === 0) return '—'
-  return genres[0].name
-}
-
-function formatFileSize(bytes?: number): string {
-  if (!bytes) return '—'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 </script>
 
 <style scoped>
@@ -404,7 +392,7 @@ function formatFileSize(bytes?: number): string {
 }
 
 .book-table__cell--mono {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
   font-size: 12px;
   color: rgb(var(--v-theme-on-surface));
   opacity: 0.6;

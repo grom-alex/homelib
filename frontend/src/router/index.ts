@@ -20,6 +20,18 @@ const router = createRouter({
       component: () => import('@/views/CatalogView.vue'),
     },
     {
+      path: '/authors',
+      redirect: '/books',
+    },
+    {
+      path: '/genres',
+      redirect: '/books',
+    },
+    {
+      path: '/series',
+      redirect: '/books',
+    },
+    {
       path: '/books/:id',
       name: 'book',
       component: () => import('@/views/BookView.vue'),

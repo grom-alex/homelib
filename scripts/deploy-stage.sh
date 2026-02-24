@@ -185,6 +185,7 @@ log_section "Step 3: Copying Deployment Files"
 ssh_exec "mkdir -p ${REMOTE_APP_DIR}/nginx"
 scp_file "${PROJECT_ROOT}/docker/docker-compose.stage.yml" "${REMOTE_APP_DIR}/docker-compose.yml"
 scp_file "${PROJECT_ROOT}/docker/nginx/nginx.prod.conf" "${REMOTE_APP_DIR}/nginx/nginx.conf"
+scp_file "${PROJECT_ROOT}/docker/nginx/proxy-headers.conf" "${REMOTE_APP_DIR}/nginx/proxy-headers.conf"
 scp_file "${PROJECT_ROOT}/config/config.stage.yaml" "${REMOTE_APP_DIR}/config.yaml"
 log_info "Deployment files copied"
 
