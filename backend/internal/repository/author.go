@@ -81,13 +81,18 @@ func (r *AuthorRepo) ListWithBookCount(ctx context.Context, query string, limit,
 	}
 
 	listQuery := fmt.Sprintf(
-		`SELECT a.id, a.name, COUNT(ba.book_id) as books_count
-		 FROM authors a
-		 LEFT JOIN book_authors ba ON ba.author_id = a.id
-		 %s
-		 GROUP BY a.id, a.name
-		 ORDER BY a.name_sort
-		 LIMIT $%d OFFSET $%d`,
+		`WITH page_authors AS (
+		   SELECT a.id, a.name, a.name_sort
+		   FROM authors a
+		   %s
+		   ORDER BY a.name_sort
+		   LIMIT $%d OFFSET $%d
+		 )
+		 SELECT pa.id, pa.name, COUNT(ba.book_id) AS books_count
+		 FROM page_authors pa
+		 LEFT JOIN book_authors ba ON ba.author_id = pa.id
+		 GROUP BY pa.id, pa.name, pa.name_sort
+		 ORDER BY pa.name_sort`,
 		where, argIdx, argIdx+1,
 	)
 	args = append(args, limit, offset)

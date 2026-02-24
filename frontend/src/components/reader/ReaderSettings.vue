@@ -234,9 +234,9 @@ import ReaderFontPicker from './ReaderFontPicker.vue'
 const store = useReaderStore()
 
 const themes: { id: ReaderSettings['theme']; bg: string; text: string; border: string }[] = [
-  { id: 'light', bg: '#ffffff', text: '#1a1a1a', border: '#e2e8f0' },
+  { id: 'light', bg: '#FFFFFF', text: '#212121', border: '#E0E0E0' },
   { id: 'sepia', bg: '#f5e6d3', text: '#5c4b37', border: '#d4c4b0' },
-  { id: 'dark', bg: '#1e1e1e', text: '#d4d4d4', border: '#404040' },
+  { id: 'dark', bg: '#1E1E1E', text: '#E0E0E0', border: '#2D2D2D' },
   { id: 'night', bg: '#000000', text: '#666666', border: '#1a1a1a' },
   { id: 'custom', bg: 'linear-gradient(135deg, #ff6b6b, #4ecdc4)', text: '#ffffff', border: '#999' },
 ]

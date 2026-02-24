@@ -20,6 +20,18 @@ const router = createRouter({
       component: () => import('@/views/CatalogView.vue'),
     },
     {
+      path: '/authors',
+      redirect: '/books',
+    },
+    {
+      path: '/genres',
+      redirect: '/books',
+    },
+    {
+      path: '/series',
+      redirect: '/books',
+    },
+    {
       path: '/books/:id',
       name: 'book',
       component: () => import('@/views/BookView.vue'),
@@ -28,26 +40,6 @@ const router = createRouter({
       path: '/books/:id/read',
       name: 'reader',
       component: () => import('@/views/ReaderView.vue'),
-    },
-    {
-      path: '/authors',
-      name: 'authors',
-      component: () => import('@/views/AuthorsView.vue'),
-    },
-    {
-      path: '/authors/:id',
-      name: 'author',
-      component: () => import('@/views/AuthorView.vue'),
-    },
-    {
-      path: '/genres',
-      name: 'genres',
-      component: () => import('@/views/GenresView.vue'),
-    },
-    {
-      path: '/series',
-      name: 'series',
-      component: () => import('@/views/SeriesView.vue'),
     },
     {
       path: '/admin/import',
@@ -73,7 +65,16 @@ router.beforeEach(async (to) => {
     if (to.name === 'login' && auth.isAuthenticated) return { name: 'catalog' }
     return true
   }
-  if (!auth.isAuthenticated) return { name: 'login' }
+  if (!auth.isAuthenticated) {
+    // Safety net: if init failed but cookie might still be valid, try one more refresh
+    // before giving up. Handles transient 503s during backend restart.
+    try {
+      await auth.refreshToken()
+      return true
+    } catch {
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
+  }
   if (to.meta.admin && !auth.isAdmin) return { name: 'catalog' }
   return true
 })

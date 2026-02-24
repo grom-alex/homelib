@@ -271,6 +271,12 @@ func (r *BookRepo) List(ctx context.Context, f models.BookFilter) ([]models.Book
 		args = append(args, *f.AuthorID)
 		argIdx++
 	}
+	if f.AuthorName != "" {
+		conditions = append(conditions, fmt.Sprintf(
+			"EXISTS (SELECT 1 FROM book_authors ba JOIN authors a ON a.id = ba.author_id WHERE ba.book_id = b.id AND a.name ILIKE '%%' || $%d || '%%')", argIdx))
+		args = append(args, f.AuthorName)
+		argIdx++
+	}
 	if f.GenreID != nil {
 		conditions = append(conditions, fmt.Sprintf(
 			"EXISTS (SELECT 1 FROM book_genres bg WHERE bg.book_id = b.id AND bg.genre_id = $%d)", argIdx))
@@ -280,6 +286,12 @@ func (r *BookRepo) List(ctx context.Context, f models.BookFilter) ([]models.Book
 	if f.SeriesID != nil {
 		conditions = append(conditions, fmt.Sprintf("b.series_id = $%d", argIdx))
 		args = append(args, *f.SeriesID)
+		argIdx++
+	}
+	if f.SeriesName != "" {
+		conditions = append(conditions, fmt.Sprintf(
+			"EXISTS (SELECT 1 FROM series s WHERE s.id = b.series_id AND s.name ILIKE '%%' || $%d || '%%')", argIdx))
+		args = append(args, f.SeriesName)
 		argIdx++
 	}
 	if f.Lang != "" {
@@ -315,6 +327,12 @@ func (r *BookRepo) List(ctx context.Context, f models.BookFilter) ([]models.Book
 		orderCol = "b.added_at"
 	case "lib_rate":
 		orderCol = "b.lib_rate"
+	case "lang":
+		orderCol = "b.lang"
+	case "format":
+		orderCol = "b.format"
+	case "file_size":
+		orderCol = "b.file_size"
 	}
 	orderDir := "ASC"
 	if strings.EqualFold(f.Order, "desc") {

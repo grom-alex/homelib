@@ -4,6 +4,11 @@ import router from '@/router'
 // Access token stored in memory only (not sessionStorage/localStorage)
 let accessToken: string | null = null
 let onAuthExpired: (() => void) | null = null
+let authInitPromise: Promise<void> | null = null
+
+export function setAuthInitPromise(promise: Promise<void> | null) {
+  authInitPromise = promise
+}
 
 export function setAccessToken(token: string | null) {
   accessToken = token
@@ -63,6 +68,19 @@ api.interceptors.response.use(
       !originalRequest._retry &&
       !originalRequest.url?.includes('/auth/refresh')
     ) {
+      // If auth is initializing, wait for it instead of triggering a parallel refresh
+      // that would race with token rotation
+      if (authInitPromise) {
+        try {
+          await authInitPromise
+        } catch { /* init handles its own errors */ }
+        if (accessToken) {
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`
+          return api(originalRequest)
+        }
+        return Promise.reject(error)
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           refreshSubscribers.push({

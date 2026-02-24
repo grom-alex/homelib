@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserInfo, RegisterInput, LoginInput } from '@/api/auth'
 import * as authApi from '@/api/auth'
-import { setAccessToken, setOnAuthExpired } from '@/api/client'
+import { setAccessToken, setOnAuthExpired, setAuthInitPromise } from '@/api/client'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserInfo | null>(null)
@@ -63,20 +63,47 @@ export const useAuthStore = defineStore('auth', () => {
     if (initialized.value) return
     if (initPromise) return initPromise
     initPromise = doInit()
+    setAuthInitPromise(initPromise)
     return initPromise
   }
 
   async function doInit() {
     try {
-      const data = await authApi.refresh()
+      const data = await refreshWithRetry()
       setAuth(data)
-      initialized.value = true
     } catch {
       clearAuth()
-      initialized.value = true
     } finally {
+      initialized.value = true
       initPromise = null
+      setAuthInitPromise(null)
     }
+  }
+
+  /** Retry refresh on transient errors (network, 5xx); give up immediately on 401/403. */
+  async function refreshWithRetry(): Promise<{ user: UserInfo; access_token: string }> {
+    const maxAttempts = 3
+    let lastError: unknown
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await authApi.refresh()
+      } catch (error: unknown) {
+        lastError = error
+        if (isAuthError(error)) throw error
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+        }
+      }
+    }
+    throw lastError
+  }
+
+  function isAuthError(error: unknown): boolean {
+    if (error && typeof error === 'object' && 'response' in error) {
+      const resp = (error as { response?: { status?: number } }).response
+      return resp?.status === 401 || resp?.status === 403
+    }
+    return false
   }
 
   return {

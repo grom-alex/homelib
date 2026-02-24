@@ -70,13 +70,39 @@ func (r *SeriesRepo) ListWithBookCount(ctx context.Context, query string, limit,
 	}
 
 	listQuery := fmt.Sprintf(
-		`SELECT s.id, s.name, COUNT(b.id) as books_count
-		 FROM series s
-		 LEFT JOIN books b ON b.series_id = s.id
-		 %s
-		 GROUP BY s.id, s.name
-		 ORDER BY s.name
-		 LIMIT $%d OFFSET $%d`,
+		`WITH page_series AS (
+		   SELECT s.id, s.name, COUNT(b.id) AS books_count
+		   FROM series s
+		   LEFT JOIN books b ON b.series_id = s.id
+		   %s
+		   GROUP BY s.id, s.name
+		   ORDER BY s.name
+		   LIMIT $%d OFFSET $%d
+		 ),
+		 series_authors AS (
+		   SELECT bb.series_id,
+		          a.name AS author_name,
+		          COUNT(*) OVER (PARTITION BY bb.series_id) AS total_authors,
+		          ROW_NUMBER() OVER (PARTITION BY bb.series_id ORDER BY COUNT(*) DESC, a.name) AS rn
+		   FROM page_series ps
+		   JOIN books bb ON bb.series_id = ps.id
+		   JOIN book_authors ba2 ON ba2.book_id = bb.id
+		   JOIN authors a ON a.id = ba2.author_id
+		   GROUP BY bb.series_id, a.id, a.name
+		 ),
+		 series_authors_agg AS (
+		   SELECT series_id,
+		          COALESCE(string_agg(author_name, ', ' ORDER BY rn), '') ||
+		            CASE WHEN MAX(total_authors) > 2 THEN ' и др.' ELSE '' END AS authors
+		   FROM series_authors
+		   WHERE rn <= 2
+		   GROUP BY series_id
+		 )
+		 SELECT ps.id, ps.name, ps.books_count,
+		        COALESCE(sa.authors, '') AS authors
+		 FROM page_series ps
+		 LEFT JOIN series_authors_agg sa ON sa.series_id = ps.id
+		 ORDER BY ps.name`,
 		where, argIdx, argIdx+1,
 	)
 	args = append(args, limit, offset)
@@ -90,7 +116,7 @@ func (r *SeriesRepo) ListWithBookCount(ctx context.Context, query string, limit,
 	var items []models.SeriesListItem
 	for rows.Next() {
 		var item models.SeriesListItem
-		if err := rows.Scan(&item.ID, &item.Name, &item.BooksCount); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.BooksCount, &item.Authors); err != nil {
 			return nil, 0, fmt.Errorf("scan series: %w", err)
 		}
 		items = append(items, item)

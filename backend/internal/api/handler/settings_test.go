@@ -183,6 +183,32 @@ func TestSettingsHandler_UpdateUserSettings_RejectsUnknownKeys(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestSettingsHandler_UpdateUserSettings_CatalogKeyAllowed(t *testing.T) {
+	repo := &mockSettingsRepo{
+		updateSettingsFn: func(_ context.Context, _ string, patch json.RawMessage) (json.RawMessage, error) {
+			var p map[string]interface{}
+			require.NoError(t, json.Unmarshal(patch, &p))
+			_, hasCatalog := p["catalog"]
+			assert.True(t, hasCatalog, "catalog key should be present in whitelist")
+			catalog := p["catalog"].(map[string]interface{})
+			assert.Equal(t, "dark", catalog["theme"])
+			return patch, nil
+		},
+	}
+	h := NewSettingsHandler(repo)
+
+	body := `{"catalog":{"theme":"dark","panelSizes":{"leftWidth":30,"tableHeight":55}}}`
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/me/settings", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("user_id", "user-123")
+
+	h.UpdateUserSettings(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
 func TestSettingsHandler_UpdateUserSettings_TooLargeResult(t *testing.T) {
 	// Simulate repo returning a result exceeding maxSettingsSize
 	bigResult := json.RawMessage(`{"reader":` + strings.Repeat(`"x"`, maxSettingsSize) + `}`)

@@ -1,0 +1,3 @@
+-- No-op: pg_trgm extension and indexes already created in 001_init.up.sql
+-- authors.name: idx_authors_name_trgm (GIN)
+-- series.name: idx_series_name_trgm (GIN)

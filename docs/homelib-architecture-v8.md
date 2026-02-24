@@ -2451,11 +2451,19 @@ homelib/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── AppHeader.vue          # Навигация, user menu (layout)
+│   │   │   ├── catalog/               # Трёхпанельный каталог (MyHomeLib-style)
+│   │   │   │   ├── CatalogHeader.vue  # Хедер: лого, табы, счётчик, user-меню
+│   │   │   │   ├── NavigationPanel.vue # Контейнер вкладок (Authors/Series/Genres/Search)
+│   │   │   │   ├── AuthorsTab.vue     # Список авторов с поиском
+│   │   │   │   ├── SeriesTab.vue      # Список серий с поиском
+│   │   │   │   ├── GenresTab.vue      # Дерево жанров по meta_group
+│   │   │   │   ├── SearchTab.vue      # Форма расширенного поиска
+│   │   │   │   ├── BookTable.vue      # CSS Grid таблица книг с сортировкой
+│   │   │   │   ├── BookDetailPanel.vue # Панель деталей книги
+│   │   │   │   ├── StatusBar.vue      # Статус-бар (контекст + счётчик)
+│   │   │   │   ├── ThemeSwitcher.vue  # Быстрый переключатель 4 тем
+│   │   │   │   └── SettingsDialog.vue # Диалог настроек (тема каталога/читалки)
 │   │   │   ├── common/                 # Общие компоненты
-│   │   │   │   ├── BookCard.vue
-│   │   │   │   ├── BookFilters.vue    # Фильтры каталога
-│   │   │   │   ├── PaginationBar.vue  # Пагинация с выбором limit
-│   │   │   │   ├── SearchBar.vue
 │   │   │   │   ├── BookStatusButton.vue
 │   │   │   │   ├── BookRating.vue
 │   │   │   │   ├── GenreTree.vue
@@ -2477,10 +2485,6 @@ homelib/
 │   │   │   ├── HomeView.vue
 │   │   │   ├── CatalogView.vue
 │   │   │   ├── BookView.vue
-│   │   │   ├── AuthorsView.vue        # Список авторов с поиском
-│   │   │   ├── AuthorView.vue
-│   │   │   ├── GenresView.vue         # Дерево жанров
-│   │   │   ├── SeriesView.vue         # Список серий с поиском
 │   │   │   ├── AdminImportView.vue    # Управление импортом INPX
 │   │   │   ├── ReaderView.vue          # Страница читалки (обёртка над BookReader)
 │   │   │   ├── SearchView.vue
@@ -2494,11 +2498,13 @@ homelib/
 │   │   │   ├── useReaderGestures.ts    # Свайпы и тапы
 │   │   │   ├── useReaderKeyboard.ts    # Горячие клавиши
 │   │   │   ├── useTextSelection.ts     # Выделение → закладка/цитата
-│   │   │   └── useReadingProgress.ts   # Сохранение/загрузка прогресса
+│   │   │   ├── useReadingProgress.ts   # Сохранение/загрузка прогресса
+│   │   │   └── usePanelResize.ts      # Размеры панелей каталога + persist
 │   │   ├── stores/                     # Pinia
 │   │   │   ├── auth.ts
 │   │   │   ├── catalog.ts
 │   │   │   ├── reader.ts               # Состояние читалки
+│   │   │   ├── theme.ts               # Темы каталога/читалки + persist
 │   │   │   └── userLibrary.ts
 │   │   ├── api/                        # HTTP-клиент
 │   │   │   ├── client.ts              # Axios instance, interceptors
@@ -2513,7 +2519,8 @@ homelib/
 │   │   ├── types/                      # TypeScript типы
 │   │   │   ├── book.ts
 │   │   │   ├── user.ts
-│   │   │   └── reader.ts               # ReaderSettings, ReadingPosition
+│   │   │   ├── reader.ts               # ReaderSettings, ReadingPosition
+│   │   │   └── catalog.ts             # CatalogSettings, NavigationFilter, PanelSizes
 │   │   ├── assets/
 │   │   │   └── styles/
 │   │   │       ├── main.css

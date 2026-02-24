@@ -203,4 +203,140 @@ describe('api service', () => {
     }
     await expect(responseRejector!(error)).rejects.toEqual(error)
   })
+
+  it('getAccessToken returns current token', async () => {
+    const createSpy = vi.fn().mockReturnValue({
+      interceptors: {
+        request: { use: vi.fn() },
+        response: { use: vi.fn() },
+      },
+    })
+    vi.doMock('axios', () => ({ default: { create: createSpy } }))
+    const mod = await import('../client')
+
+    expect(mod.getAccessToken()).toBeNull()
+    mod.setAccessToken('test-token')
+    expect(mod.getAccessToken()).toBe('test-token')
+  })
+
+  it('interceptor waits for authInitPromise and retries with token', async () => {
+    let responseRejector: (error: unknown) => Promise<unknown>
+    const mockApiCall = vi.fn().mockResolvedValue({ data: 'retried' })
+
+    const apiInstance = Object.assign(mockApiCall, {
+      interceptors: {
+        request: { use: vi.fn() },
+        response: {
+          use: vi.fn((_: unknown, rej: typeof responseRejector) => { responseRejector = rej }),
+        },
+      },
+    })
+    const refreshInstance = { post: vi.fn() }
+
+    let callCount = 0
+    const createSpy = vi.fn(() => {
+      callCount++
+      return callCount === 1 ? apiInstance : refreshInstance
+    })
+    vi.doMock('axios', () => ({ default: { create: createSpy } }))
+
+    const mod = await import('../client')
+
+    // Simulate auth init in progress that resolves and sets token
+    let resolveInit!: () => void
+    const initPromise = new Promise<void>((r) => { resolveInit = r })
+    mod.setAuthInitPromise(initPromise)
+    mod.setAccessToken('init-token')
+
+    const error = {
+      response: { status: 401 },
+      config: { headers: {} as Record<string, string>, _retry: false, url: '/books' },
+    }
+
+    const resultPromise = responseRejector!(error)
+    resolveInit()
+    const result = await resultPromise
+
+    expect(result).toEqual({ data: 'retried' })
+    expect(refreshInstance.post).not.toHaveBeenCalled()
+  })
+
+  it('interceptor rejects when authInitPromise resolves but no token', async () => {
+    let responseRejector: (error: unknown) => Promise<unknown>
+
+    const apiInstance = {
+      interceptors: {
+        request: { use: vi.fn() },
+        response: {
+          use: vi.fn((_: unknown, rej: typeof responseRejector) => { responseRejector = rej }),
+        },
+      },
+    }
+    const refreshInstance = { post: vi.fn() }
+
+    let callCount = 0
+    const createSpy = vi.fn(() => {
+      callCount++
+      return callCount === 1 ? apiInstance : refreshInstance
+    })
+    vi.doMock('axios', () => ({ default: { create: createSpy } }))
+
+    const mod = await import('../client')
+
+    // Init promise resolves but token stays null
+    mod.setAccessToken(null)
+    mod.setAuthInitPromise(Promise.resolve())
+
+    const error = {
+      response: { status: 401 },
+      config: { headers: {} as Record<string, string>, _retry: false, url: '/books' },
+    }
+
+    await expect(responseRejector!(error)).rejects.toEqual(error)
+  })
+
+  it('interceptor queues requests while refresh is in progress', async () => {
+    let responseRejector: (error: unknown) => Promise<unknown>
+    const mockApiCall = vi.fn().mockResolvedValue({ data: 'queued-result' })
+    let resolveRefresh!: (val: { data: { access_token: string } }) => void
+    const mockRefreshPost = vi.fn().mockReturnValue(
+      new Promise((r) => { resolveRefresh = r }),
+    )
+
+    const apiInstance = Object.assign(mockApiCall, {
+      interceptors: {
+        request: { use: vi.fn() },
+        response: {
+          use: vi.fn((_: unknown, rej: typeof responseRejector) => { responseRejector = rej }),
+        },
+      },
+    })
+    const refreshInstance = { post: mockRefreshPost }
+
+    let callCount = 0
+    const createSpy = vi.fn(() => {
+      callCount++
+      return callCount === 1 ? apiInstance : refreshInstance
+    })
+    vi.doMock('axios', () => ({ default: { create: createSpy } }))
+    await import('../client')
+
+    const makeError = (url: string) => ({
+      response: { status: 401 },
+      config: { headers: {} as Record<string, string>, _retry: false, url },
+    })
+
+    // First request triggers refresh
+    const first = responseRejector!(makeError('/books'))
+    // Second request should queue (isRefreshing is true)
+    const second = responseRejector!(makeError('/authors'))
+
+    // Resolve the refresh
+    resolveRefresh({ data: { access_token: 'queued-tok' } })
+
+    const [r1, r2] = await Promise.all([first, second])
+    expect(r1).toEqual({ data: 'queued-result' })
+    expect(r2).toEqual({ data: 'queued-result' })
+    expect(mockRefreshPost).toHaveBeenCalledTimes(1)
+  })
 })

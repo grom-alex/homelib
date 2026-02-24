@@ -58,8 +58,10 @@ export interface PaginatedResponse<T> {
 export interface BookFilters {
   q?: string
   author_id?: number
+  author_name?: string
   genre_id?: number
   series_id?: number
+  series_name?: string
   lang?: string
   format?: string
   page?: number
@@ -94,6 +96,7 @@ export interface SeriesListItem {
   id: number
   name: string
   books_count: number
+  authors: string
 }
 
 export interface CatalogStats {

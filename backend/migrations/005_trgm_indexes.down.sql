@@ -1,0 +1,1 @@
+-- No-op: indexes are owned by 001_init and should not be dropped here
