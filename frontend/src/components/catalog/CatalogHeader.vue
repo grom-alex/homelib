@@ -14,8 +14,8 @@
         v-for="tab in tabs"
         :key="tab.value"
         class="catalog-header__tab"
-        :class="{ 'catalog-header__tab--active': catalog.activeTab === tab.value }"
-        @click="catalog.setActiveTab(tab.value)"
+        :class="{ 'catalog-header__tab--active': isCatalogRoute && catalog.activeTab === tab.value }"
+        @click="onTabClick(tab.value)"
       >
         <v-icon size="14">{{ tab.icon }}</v-icon>
         {{ tab.label }}
@@ -27,6 +27,19 @@
     <span v-if="booksCount > 0" class="catalog-header__count">
       Книг: <span class="catalog-header__count-value">{{ formatCount(booksCount) }}</span>
     </span>
+
+    <template v-if="parentalStore.pinSet">
+      <div class="catalog-header__divider" />
+      <button
+        class="catalog-header__parental-btn"
+        :class="{ 'catalog-header__parental-btn--unlocked': parentalStore.adultContentEnabled }"
+        :title="parentalStore.adultContentEnabled ? 'Контент 18+ разблокирован. Нажмите для блокировки' : 'Контент 18+ заблокирован. Нажмите для разблокировки'"
+        @click="onParentalToggle"
+      >
+        <v-icon size="16">{{ parentalStore.adultContentEnabled ? 'mdi-lock-open-variant' : 'mdi-lock' }}</v-icon>
+        <span class="catalog-header__parental-label">18+</span>
+      </button>
+    </template>
 
     <div class="catalog-header__divider" />
 
@@ -75,6 +88,22 @@
               <v-icon size="15">mdi-upload</v-icon>
               Загрузить книги
             </button>
+            <button
+              v-if="auth.user?.role === 'admin'"
+              class="catalog-header__dropdown-item"
+              @click="onOpenImport"
+            >
+              <v-icon size="15">mdi-database-import</v-icon>
+              Импорт
+            </button>
+            <button
+              v-if="auth.user?.role === 'admin'"
+              class="catalog-header__dropdown-item"
+              @click="onOpenParentalAdmin"
+            >
+              <v-icon size="15">mdi-shield-lock</v-icon>
+              Родительский контроль
+            </button>
           </div>
           <div class="catalog-header__dropdown-divider" />
           <div class="catalog-header__dropdown-section">
@@ -92,22 +121,31 @@
     </div>
 
     <SettingsDialog v-model="showSettings" />
+    <PinUnlockDialog v-model="showPinDialog" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useCatalogStore } from '@/stores/catalog'
 import { useAuthStore } from '@/stores/auth'
+import { useParentalStore } from '@/stores/parental'
 import { getStats } from '@/api/books'
 import type { TabType } from '@/types/catalog'
 import SettingsDialog from '@/components/catalog/SettingsDialog.vue'
 import ThemeSwitcher from '@/components/catalog/ThemeSwitcher.vue'
+import PinUnlockDialog from '@/components/common/PinUnlockDialog.vue'
 
 const catalog = useCatalogStore()
 const auth = useAuthStore()
+const parentalStore = useParentalStore()
 const router = useRouter()
+const route = useRoute()
+
+const isCatalogRoute = computed(() => route.name === 'catalog')
+
+const showPinDialog = ref(false)
 
 const showSettings = ref(false)
 const booksCount = ref(0)
@@ -137,13 +175,39 @@ function formatCount(count: number): string {
   return String(count)
 }
 
+function onTabClick(tab: TabType) {
+  catalog.setActiveTab(tab)
+  if (!isCatalogRoute.value) {
+    router.push({ name: 'catalog' })
+  }
+}
+
 function onOpenSettings() {
   userMenuOpen.value = false
   showSettings.value = true
 }
 
+function onOpenImport() {
+  userMenuOpen.value = false
+  router.push('/admin/import')
+}
+
+function onOpenParentalAdmin() {
+  userMenuOpen.value = false
+  router.push('/admin/parental')
+}
+
+function onParentalToggle() {
+  if (parentalStore.adultContentEnabled) {
+    parentalStore.lock()
+  } else {
+    showPinDialog.value = true
+  }
+}
+
 async function onLogout() {
   userMenuOpen.value = false
+  parentalStore.reset()
   await auth.logout()
   router.push({ name: 'login' })
 }
@@ -241,6 +305,38 @@ onMounted(async () => {
   color: rgb(var(--v-theme-primary));
   font-weight: 600;
   opacity: 1;
+}
+
+.catalog-header__parental-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: none;
+  border: 1px solid rgb(var(--v-theme-surface-variant));
+  border-radius: 6px;
+  cursor: pointer;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.5;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+.catalog-header__parental-btn:hover {
+  opacity: 0.8;
+  background: rgb(var(--v-theme-table-row-hover));
+}
+
+.catalog-header__parental-btn--unlocked {
+  opacity: 0.8;
+  color: rgb(var(--v-theme-warning));
+  border-color: rgb(var(--v-theme-warning));
+}
+
+.catalog-header__parental-label {
+  line-height: 1;
 }
 
 .catalog-header__divider {
