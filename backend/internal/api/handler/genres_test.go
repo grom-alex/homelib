@@ -17,7 +17,7 @@ import (
 
 func TestGenresHandler_ListGenres_Success(t *testing.T) {
 	svc := &mockCatalogService{
-		listGenresFn: func(_ context.Context) ([]models.GenreTreeItem, error) {
+		listGenresFn: func(_ context.Context, _ []int) ([]models.GenreTreeItem, error) {
 			return []models.GenreTreeItem{
 				{
 					ID: 1, Code: "sf_all", Name: "Фантастика", Position: "0.1", BooksCount: 350,
@@ -50,7 +50,7 @@ func TestGenresHandler_ListGenres_Success(t *testing.T) {
 
 func TestGenresHandler_ListGenres_Error(t *testing.T) {
 	svc := &mockCatalogService{
-		listGenresFn: func(_ context.Context) ([]models.GenreTreeItem, error) {
+		listGenresFn: func(_ context.Context, _ []int) ([]models.GenreTreeItem, error) {
 			return nil, fmt.Errorf("db error")
 		},
 	}

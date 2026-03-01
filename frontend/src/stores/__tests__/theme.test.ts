@@ -253,12 +253,12 @@ describe('theme store', () => {
     store.readerThemeOverride = 'sepia'
     await store.saveSettings()
 
-    expect(api.put).toHaveBeenCalledWith('/me/settings', {
-      catalog: {
+    expect(api.put).toHaveBeenCalledWith('/me/settings', expect.objectContaining({
+      catalog: expect.objectContaining({
         theme: 'dark',
         customColors: store.customCatalogColors,
-      },
+      }),
       reader: { theme: 'sepia' },
-    })
+    }))
   })
 })

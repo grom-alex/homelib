@@ -6,6 +6,14 @@ import CatalogHeader from '../CatalogHeader.vue'
 import { useCatalogStore } from '@/stores/catalog'
 import { useAuthStore } from '@/stores/auth'
 
+const mockRoute = { name: 'catalog' as string | undefined }
+const mockPush = vi.fn()
+
+vi.mock('vue-router', () => ({
+  useRoute: vi.fn(() => mockRoute),
+  useRouter: vi.fn(() => ({ push: mockPush })),
+}))
+
 vi.mock('vuetify', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vuetify')>()
   return {
@@ -44,6 +52,7 @@ function mountCatalogHeader() {
       stubs: {
         ThemeSwitcher: { template: '<div class="theme-switcher-stub" />' },
         SettingsDialog: { template: '<div class="settings-dialog-stub" />' },
+        PinUnlockDialog: { template: '<div class="pin-unlock-dialog-stub" />' },
       },
     },
   })
@@ -53,6 +62,7 @@ describe('CatalogHeader', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    mockRoute.name = 'catalog'
     vi.mocked(booksApi.getStats).mockResolvedValue({
       books_count: 0,
       authors_count: 0,

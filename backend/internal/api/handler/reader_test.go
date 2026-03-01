@@ -41,7 +41,7 @@ func TestReaderHandler_GetBookContent_Success(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewReaderHandler(svc)
+	h := NewReaderHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -61,7 +61,7 @@ func TestReaderHandler_GetBookContent_Success(t *testing.T) {
 }
 
 func TestReaderHandler_GetBookContent_InvalidID(t *testing.T) {
-	h := NewReaderHandler(&mockReaderService{})
+	h := NewReaderHandler(&mockReaderService{}, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -79,7 +79,7 @@ func TestReaderHandler_GetBookContent_NotFound(t *testing.T) {
 			return nil, fmt.Errorf("%w: no rows", service.ErrBookNotFound)
 		},
 	}
-	h := NewReaderHandler(svc)
+	h := NewReaderHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -98,7 +98,7 @@ func TestReaderHandler_GetBookContent_UnsupportedFormat(t *testing.T) {
 			return nil, fmt.Errorf("%w: epub", service.ErrUnsupportedFormat)
 		},
 	}
-	h := NewReaderHandler(svc)
+	h := NewReaderHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -117,7 +117,7 @@ func TestReaderHandler_GetBookContent_MalformedFB2(t *testing.T) {
 			return nil, fmt.Errorf("%w: XML syntax error", service.ErrMalformedFile)
 		},
 	}
-	h := NewReaderHandler(svc)
+	h := NewReaderHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -144,7 +144,7 @@ func TestReaderHandler_GetChapter_Success(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewReaderHandler(svc)
+	h := NewReaderHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -163,7 +163,7 @@ func TestReaderHandler_GetChapter_Success(t *testing.T) {
 }
 
 func TestReaderHandler_GetChapter_InvalidBookID(t *testing.T) {
-	h := NewReaderHandler(&mockReaderService{})
+	h := NewReaderHandler(&mockReaderService{}, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -181,7 +181,7 @@ func TestReaderHandler_GetChapter_ChapterNotFound(t *testing.T) {
 			return nil, fmt.Errorf("%w: chapter \"nonexistent\"", service.ErrBookNotFound)
 		},
 	}
-	h := NewReaderHandler(svc)
+	h := NewReaderHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -208,7 +208,7 @@ func TestReaderHandler_GetBookImage_Success(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewReaderHandler(svc)
+	h := NewReaderHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -233,7 +233,7 @@ func TestReaderHandler_GetBookImage_PNG(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewReaderHandler(svc)
+	h := NewReaderHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -247,7 +247,7 @@ func TestReaderHandler_GetBookImage_PNG(t *testing.T) {
 }
 
 func TestReaderHandler_GetBookImage_InvalidID(t *testing.T) {
-	h := NewReaderHandler(&mockReaderService{})
+	h := NewReaderHandler(&mockReaderService{}, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -265,7 +265,7 @@ func TestReaderHandler_GetBookImage_NotFound(t *testing.T) {
 			return nil, fmt.Errorf("%w: image \"nonexistent\"", service.ErrBookNotFound)
 		},
 	}
-	h := NewReaderHandler(svc)
+	h := NewReaderHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -285,7 +285,7 @@ func TestReaderHandler_InternalError(t *testing.T) {
 			return nil, fmt.Errorf("unexpected disk error")
 		},
 	}
-	h := NewReaderHandler(svc)
+	h := NewReaderHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)

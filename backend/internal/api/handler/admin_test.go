@@ -26,7 +26,7 @@ func TestAdminHandler_StartImport_Accepted(t *testing.T) {
 			return nil
 		},
 	}
-	h := NewAdminHandler(svc, &mockGenreTreeService{})
+	h := NewAdminHandler(svc, &mockGenreTreeService{}, &mockParentalCacheInvalidator{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -46,7 +46,7 @@ func TestAdminHandler_StartImport_Conflict(t *testing.T) {
 			return fmt.Errorf("import is already running")
 		},
 	}
-	h := NewAdminHandler(svc, &mockGenreTreeService{})
+	h := NewAdminHandler(svc, &mockGenreTreeService{}, &mockParentalCacheInvalidator{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -66,7 +66,7 @@ func TestAdminHandler_ImportStatus(t *testing.T) {
 			return models.ImportStatus{Status: "idle"}
 		},
 	}
-	h := NewAdminHandler(svc, &mockGenreTreeService{})
+	h := NewAdminHandler(svc, &mockGenreTreeService{}, &mockParentalCacheInvalidator{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -87,7 +87,7 @@ func TestAdminHandler_CancelImport(t *testing.T) {
 			cancelCalled = true
 		},
 	}
-	h := NewAdminHandler(svc, &mockGenreTreeService{})
+	h := NewAdminHandler(svc, &mockGenreTreeService{}, &mockParentalCacheInvalidator{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -112,7 +112,7 @@ func TestAdminHandler_ReloadGenres_Success(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewAdminHandler(&mockImportService{}, genreSvc)
+	h := NewAdminHandler(&mockImportService{}, genreSvc, &mockParentalCacheInvalidator{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -134,7 +134,7 @@ func TestAdminHandler_ReloadGenres_Conflict(t *testing.T) {
 			return nil, service.ErrGenreReloadAlreadyRunning
 		},
 	}
-	h := NewAdminHandler(&mockImportService{}, genreSvc)
+	h := NewAdminHandler(&mockImportService{}, genreSvc, &mockParentalCacheInvalidator{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -151,7 +151,7 @@ func TestAdminHandler_ReloadGenres_Error(t *testing.T) {
 			return nil, fmt.Errorf("database error")
 		},
 	}
-	h := NewAdminHandler(&mockImportService{}, genreSvc)
+	h := NewAdminHandler(&mockImportService{}, genreSvc, &mockParentalCacheInvalidator{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
