@@ -23,6 +23,7 @@ type Server struct {
 	importSvc    *service.ImportService
 	readerSvc    *service.ReaderService
 	genreTreeSvc *service.GenreTreeService
+	parentalSvc  *service.ParentalService
 }
 
 // loadGenreData reads genre file from the path specified in config.
@@ -62,6 +63,7 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 	authSvc := service.NewAuthService(cfg.Auth, userRepo, refreshRepo)
 	downloadSvc := service.NewDownloadService(bookRepo, cfg.Library)
 	readerSvc := service.NewReaderService(bookRepo, cfg.Library, cfg.Reader)
+	parentalSvc := service.NewParentalService(metadataRepo, genreRepo, userRepo)
 
 	// Reading progress repository
 	progressRepo := repository.NewReadingProgressRepo(pool)
@@ -70,21 +72,25 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 	authValidator := &authServiceValidator{authSvc: authSvc}
 	authMw := middleware.NewAuthMiddleware(authValidator)
 
+	// Parental control middleware
+	parentalMw := middleware.ParentalFilter(parentalSvc)
+
 	// Handlers
 	h := Handlers{
-		Books:    handler.NewBooksHandler(catalogSvc),
+		Books:    handler.NewBooksHandler(catalogSvc, bookRepo),
 		Authors:  handler.NewAuthorsHandler(catalogSvc),
 		Genres:   handler.NewGenresHandler(catalogSvc),
 		Series:   handler.NewSeriesHandler(catalogSvc),
-		Admin:    handler.NewAdminHandler(importSvc, genreTreeSvc),
+		Admin:    handler.NewAdminHandler(importSvc, genreTreeSvc, parentalSvc),
 		Auth:     handler.NewAuthHandler(authSvc, cfg.Auth.RefreshTokenTTL, cfg.Auth.CookieSecure),
-		Download: handler.NewDownloadHandler(downloadSvc),
-		Reader:   handler.NewReaderHandler(readerSvc),
+		Download: handler.NewDownloadHandler(downloadSvc, bookRepo),
+		Reader:   handler.NewReaderHandler(readerSvc, bookRepo),
 		Progress: handler.NewProgressHandler(progressRepo),
 		Settings: handler.NewSettingsHandler(userRepo),
+		Parental: handler.NewParentalHandler(parentalSvc),
 	}
 
-	router := SetupRouter(h, authMw)
+	router := SetupRouter(h, authMw, parentalMw)
 
 	return &Server{
 		httpServer: &http.Server{
@@ -99,6 +105,7 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 		importSvc:    importSvc,
 		readerSvc:    readerSvc,
 		genreTreeSvc: genreTreeSvc,
+		parentalSvc:  parentalSvc,
 	}
 }
 

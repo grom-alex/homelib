@@ -64,13 +64,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
 import { useThemeStore } from '@/stores/theme'
+import { useParentalStore } from '@/stores/parental'
 import { getGenres, type GenreTreeItem } from '@/api/books'
 
 const catalog = useCatalogStore()
 const themeStore = useThemeStore()
+const parentalStore = useParentalStore()
 
 const genres = ref<GenreTreeItem[]>([])
 const loading = ref(false)
@@ -162,6 +164,11 @@ async function fetchGenres() {
     loading.value = false
   }
 }
+
+// Re-fetch genres when parental content status changes (backend filters server-side)
+watch(() => parentalStore.adultContentEnabled, () => {
+  fetchGenres()
+})
 
 onMounted(() => {
   fetchGenres()

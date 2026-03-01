@@ -128,6 +128,28 @@ func (r *UserRepo) GetSettings(ctx context.Context, userID string) (json.RawMess
 	return settings, nil
 }
 
+// ListUsersWithAdultStatus returns all users with their adult_content_enabled flag from settings.
+func (r *UserRepo) ListUsersWithAdultStatus(ctx context.Context) ([]models.UserAdultStatus, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, username, display_name, role,
+				COALESCE((settings->'parental'->>'adult_content_enabled')::boolean, FALSE) as adult_enabled
+		 FROM users WHERE is_active = TRUE ORDER BY username`)
+	if err != nil {
+		return nil, fmt.Errorf("list users adult status: %w", err)
+	}
+	defer rows.Close()
+
+	var result []models.UserAdultStatus
+	for rows.Next() {
+		var u models.UserAdultStatus
+		if err := rows.Scan(&u.UserID, &u.Username, &u.DisplayName, &u.Role, &u.AdultContentEnabled); err != nil {
+			return nil, fmt.Errorf("scan user adult status: %w", err)
+		}
+		result = append(result, u)
+	}
+	return result, rows.Err()
+}
+
 // UpdateSettings merges the provided JSON into existing user settings using JSONB || operator.
 func (r *UserRepo) UpdateSettings(ctx context.Context, userID string, patch json.RawMessage) (json.RawMessage, error) {
 	var result json.RawMessage

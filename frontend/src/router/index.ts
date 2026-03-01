@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useParentalStore } from '@/stores/parental'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -48,6 +49,12 @@ const router = createRouter({
       meta: { admin: true },
     },
     {
+      path: '/admin/parental',
+      name: 'admin-parental',
+      component: () => import('@/views/AdminParentalView.vue'),
+      meta: { admin: true },
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('@/views/NotFoundView.vue'),
@@ -58,8 +65,13 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  const parental = useParentalStore()
   if (!auth.initialized) {
     await auth.init()
+  }
+  // Load parental status once after authentication
+  if (auth.isAuthenticated && !parental.loaded) {
+    parental.loadStatus()
   }
   if (to.meta.guest) {
     if (to.name === 'login' && auth.isAuthenticated) return { name: 'catalog' }

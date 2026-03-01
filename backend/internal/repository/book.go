@@ -309,6 +309,12 @@ func (r *BookRepo) List(ctx context.Context, f models.BookFilter) ([]models.Book
 		args = append(args, f.Format)
 		argIdx++
 	}
+	if len(f.ExcludeGenreIDs) > 0 {
+		conditions = append(conditions, fmt.Sprintf(
+			"NOT EXISTS (SELECT 1 FROM book_genres bg2 WHERE bg2.book_id = b.id AND bg2.genre_id = ANY($%d::int[]))", argIdx))
+		args = append(args, f.ExcludeGenreIDs)
+		argIdx++
+	}
 
 	where := ""
 	if len(conditions) > 0 {
@@ -587,4 +593,20 @@ func (r *BookRepo) RemapBookGenres(ctx context.Context, codeToIDs map[string][]i
 	}
 
 	return totalProcessed, nil
+}
+
+// IsBookRestricted checks whether a book belongs to any of the given restricted genre IDs.
+func (r *BookRepo) IsBookRestricted(ctx context.Context, bookID int64, restrictedGenreIDs []int) (bool, error) {
+	if len(restrictedGenreIDs) == 0 {
+		return false, nil
+	}
+	var exists bool
+	err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM book_genres bg WHERE bg.book_id = $1 AND bg.genre_id = ANY($2::int[]))`,
+		bookID, restrictedGenreIDs,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check book restricted %d: %w", bookID, err)
+	}
+	return exists, nil
 }

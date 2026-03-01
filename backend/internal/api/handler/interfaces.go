@@ -4,10 +4,22 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/grom-alex/homelib/backend/internal/bookfile"
 	"github.com/grom-alex/homelib/backend/internal/models"
 	"github.com/grom-alex/homelib/backend/internal/service"
 )
+
+// getRestrictedGenreIDs extracts restricted genre IDs set by the parental middleware.
+func getRestrictedGenreIDs(c *gin.Context) []int {
+	if ids, ok := c.Get("restricted_genre_ids"); ok {
+		if genreIDs, ok := ids.([]int); ok {
+			return genreIDs
+		}
+	}
+	return nil
+}
 
 // AuthServicer is the interface that auth handlers need from the auth service.
 type AuthServicer interface {
@@ -23,9 +35,19 @@ type CatalogServicer interface {
 	GetBook(ctx context.Context, id int64) (*models.BookDetail, error)
 	ListAuthors(ctx context.Context, query string, page, limit int) ([]models.AuthorListItem, int, error)
 	GetAuthor(ctx context.Context, id int64) (*models.AuthorDetail, error)
-	ListGenres(ctx context.Context) ([]models.GenreTreeItem, error)
+	ListGenres(ctx context.Context, excludeIDs []int) ([]models.GenreTreeItem, error)
 	ListSeries(ctx context.Context, query string, page, limit int) ([]models.SeriesListItem, int, error)
 	GetStats(ctx context.Context) (*service.Stats, error)
+}
+
+// BookRestrictionChecker checks if a book belongs to restricted genres.
+type BookRestrictionChecker interface {
+	IsBookRestricted(ctx context.Context, bookID int64, restrictedGenreIDs []int) (bool, error)
+}
+
+// ParentalCacheInvalidator invalidates cached parental control data.
+type ParentalCacheInvalidator interface {
+	InvalidateCache()
 }
 
 // DownloadServicer is the interface that the download handler needs.

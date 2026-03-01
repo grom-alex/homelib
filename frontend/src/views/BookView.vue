@@ -2,7 +2,10 @@
   <v-container>
     <v-progress-linear v-if="catalog.loading" indeterminate color="primary" />
 
-    <v-alert v-if="catalog.error" type="error" class="mb-4">{{ catalog.error }}</v-alert>
+    <v-alert v-if="catalog.error === 'content_restricted'" type="warning" class="mb-4">
+      Доступ к этой книге ограничен родительским контролем
+    </v-alert>
+    <v-alert v-else-if="catalog.error" type="error" class="mb-4">{{ catalog.error }}</v-alert>
 
     <template v-if="book">
       <v-row>

@@ -11,11 +11,12 @@ import (
 )
 
 type DownloadHandler struct {
-	downloadSvc DownloadServicer
+	downloadSvc        DownloadServicer
+	restrictionChecker BookRestrictionChecker
 }
 
-func NewDownloadHandler(downloadSvc DownloadServicer) *DownloadHandler {
-	return &DownloadHandler{downloadSvc: downloadSvc}
+func NewDownloadHandler(downloadSvc DownloadServicer, restrictionChecker BookRestrictionChecker) *DownloadHandler {
+	return &DownloadHandler{downloadSvc: downloadSvc, restrictionChecker: restrictionChecker}
 }
 
 // DownloadBook handles GET /api/books/:id/download.
@@ -24,6 +25,15 @@ func (h *DownloadHandler) DownloadBook(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid book id"})
 		return
+	}
+
+	// Check parental restriction
+	if restrictedIDs := getRestrictedGenreIDs(c); len(restrictedIDs) > 0 {
+		restricted, err := h.restrictionChecker.IsBookRestricted(c.Request.Context(), id, restrictedIDs)
+		if err == nil && restricted {
+			c.JSON(http.StatusForbidden, gin.H{"error": "content_restricted"})
+			return
+		}
 	}
 
 	result, err := h.downloadSvc.DownloadBook(c.Request.Context(), id)

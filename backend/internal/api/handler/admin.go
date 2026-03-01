@@ -10,12 +10,13 @@ import (
 )
 
 type AdminHandler struct {
-	importSvc    ImportServicer
-	genreTreeSvc GenreTreeServicer
+	importSvc      ImportServicer
+	genreTreeSvc   GenreTreeServicer
+	parentalCache  ParentalCacheInvalidator
 }
 
-func NewAdminHandler(importSvc ImportServicer, genreTreeSvc GenreTreeServicer) *AdminHandler {
-	return &AdminHandler{importSvc: importSvc, genreTreeSvc: genreTreeSvc}
+func NewAdminHandler(importSvc ImportServicer, genreTreeSvc GenreTreeServicer, parentalCache ParentalCacheInvalidator) *AdminHandler {
+	return &AdminHandler{importSvc: importSvc, genreTreeSvc: genreTreeSvc, parentalCache: parentalCache}
 }
 
 // StartImport handles POST /api/admin/import.
@@ -50,5 +51,10 @@ func (h *AdminHandler) ReloadGenres(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "genre reload failed"})
 		return
 	}
+	// Invalidate parental cache since genre IDs may have changed
+	if h.parentalCache != nil {
+		h.parentalCache.InvalidateCache()
+	}
+
 	c.JSON(http.StatusOK, result)
 }

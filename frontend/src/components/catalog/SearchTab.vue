@@ -86,13 +86,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
 import { useThemeStore } from '@/stores/theme'
+import { useParentalStore } from '@/stores/parental'
 import { getGenres, getStats, type GenreTreeItem } from '@/api/books'
 
 const catalog = useCatalogStore()
 const themeStore = useThemeStore()
+const parentalStore = useParentalStore()
 
 const form = reactive({
   q: '',
@@ -193,6 +195,11 @@ function onClear() {
   form.lang = null
   catalog.resetFilters()
 }
+
+// Re-fetch genres when parental content status changes
+watch(() => parentalStore.adultContentEnabled, () => {
+  loadOptions()
+})
 
 onMounted(() => {
   loadOptions()

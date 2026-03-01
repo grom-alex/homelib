@@ -237,6 +237,141 @@ func (r *GenreRepo) GetUnsortedGenreID(ctx context.Context) (int, error) {
 	return id, nil
 }
 
+// GetDescendantIDs returns all descendant genre IDs for the given parent IDs,
+// using the materialized path (position LIKE parent.position || '.%').
+func (r *GenreRepo) GetDescendantIDs(ctx context.Context, parentIDs []int) ([]int, error) {
+	if len(parentIDs) == 0 {
+		return nil, nil
+	}
+
+	rows, err := r.pool.Query(ctx,
+		`SELECT DISTINCT g2.id
+		 FROM genres g1
+		 JOIN genres g2 ON g2.position LIKE g1.position || '.%' AND g2.is_active = TRUE
+		 WHERE g1.id = ANY($1) AND g1.is_active = TRUE`,
+		parentIDs,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get descendant genre IDs: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan descendant ID: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// GetAllFiltered returns the genre tree excluding genres with the given IDs and their children.
+// If excludeIDs is empty, it returns the full tree (same as GetAll).
+func (r *GenreRepo) GetAllFiltered(ctx context.Context, excludeIDs []int) ([]models.GenreTreeItem, error) {
+	if len(excludeIDs) == 0 {
+		return r.GetAll(ctx)
+	}
+
+	rows, err := r.pool.Query(ctx,
+		`SELECT g.id, g.code, g.name, g.position, g.parent_id,
+				COUNT(bg.book_id) as books_count
+		 FROM genres g
+		 LEFT JOIN book_genres bg ON bg.genre_id = g.id
+		 WHERE g.is_active = TRUE AND g.id != ALL($1::int[])
+		 GROUP BY g.id, g.code, g.name, g.position, g.parent_id
+		 ORDER BY g.sort_order`,
+		excludeIDs,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query filtered genres: %w", err)
+	}
+	defer rows.Close()
+
+	type flatGenre struct {
+		models.GenreTreeItem
+		ParentID *int
+	}
+
+	var flat []flatGenre
+	for rows.Next() {
+		var g flatGenre
+		if err := rows.Scan(&g.ID, &g.Code, &g.Name, &g.Position, &g.ParentID, &g.BooksCount); err != nil {
+			return nil, fmt.Errorf("scan genre: %w", err)
+		}
+		flat = append(flat, g)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Build excluded ID set for fast parent lookup
+	excludeSet := make(map[int]bool, len(excludeIDs))
+	for _, id := range excludeIDs {
+		excludeSet[id] = true
+	}
+
+	type pNode struct {
+		ID         int
+		Code       string
+		Name       string
+		Position   string
+		BooksCount int
+		ParentID   *int
+		children   []*pNode
+	}
+
+	nodeMap := make(map[int]*pNode, len(flat))
+	nodes := make([]pNode, len(flat))
+	for i := range flat {
+		nodes[i] = pNode{
+			ID: flat[i].ID, Code: flat[i].Code, Name: flat[i].Name,
+			Position: flat[i].Position, BooksCount: flat[i].BooksCount,
+			ParentID: flat[i].ParentID,
+		}
+		nodeMap[flat[i].ID] = &nodes[i]
+	}
+
+	var rootNodes []*pNode
+	for i := range nodes {
+		n := &nodes[i]
+		if n.ParentID != nil {
+			if excludeSet[*n.ParentID] {
+				continue // parent was excluded — skip orphan
+			}
+			if parent, ok := nodeMap[*n.ParentID]; ok {
+				parent.children = append(parent.children, n)
+			} else {
+				rootNodes = append(rootNodes, n)
+			}
+		} else {
+			rootNodes = append(rootNodes, n)
+		}
+	}
+
+	var convert func(n *pNode) models.GenreTreeItem
+	convert = func(n *pNode) models.GenreTreeItem {
+		item := models.GenreTreeItem{
+			ID: n.ID, Code: n.Code, Name: n.Name,
+			Position: n.Position, BooksCount: n.BooksCount,
+		}
+		for _, c := range n.children {
+			child := convert(c)
+			item.BooksCount += child.BooksCount
+			item.Children = append(item.Children, child)
+		}
+		return item
+	}
+
+	roots := make([]models.GenreTreeItem, 0, len(rootNodes))
+	for _, rn := range rootNodes {
+		roots = append(roots, convert(rn))
+	}
+
+	return roots, nil
+}
+
 // GetIDsByCodes returns a mapping of genre code to all matching genre IDs.
 // One code can map to multiple IDs when duplicates exist across tree levels.
 func (r *GenreRepo) GetIDsByCodes(ctx context.Context, codes []string) (map[string][]int, error) {

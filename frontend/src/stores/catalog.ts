@@ -87,10 +87,22 @@ export const useCatalogStore = defineStore('catalog', () => {
     try {
       currentBook.value = await booksApi.getBook(id)
     } catch (e: unknown) {
-      error.value = e instanceof Error ? e.message : 'Failed to load book'
+      if (isContentRestricted(e)) {
+        error.value = 'content_restricted'
+      } else {
+        error.value = e instanceof Error ? e.message : 'Failed to load book'
+      }
     } finally {
       bookLoading.value = false
     }
+  }
+
+  function isContentRestricted(e: unknown): boolean {
+    if (e && typeof e === 'object' && 'response' in e) {
+      const resp = (e as { response?: { status?: number; data?: { error?: string } } }).response
+      return resp?.status === 403 && resp?.data?.error === 'content_restricted'
+    }
+    return false
   }
 
   function selectNavItem(type: NavigationFilter['type'], id?: number, params?: Record<string, string>, label?: string) {
