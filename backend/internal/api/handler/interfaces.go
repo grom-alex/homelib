@@ -40,6 +40,11 @@ type ImportServicer interface {
 	CancelImport()
 }
 
+// GenreTreeServicer is the interface that admin handlers need from the genre tree service.
+type GenreTreeServicer interface {
+	ForceReload(ctx context.Context) (*service.GenreTreeResult, error)
+}
+
 // ReaderServicer is the interface that reader handlers need from the reader service.
 type ReaderServicer interface {
 	GetBookContent(ctx context.Context, bookID int64) (*bookfile.BookContent, error)

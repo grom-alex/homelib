@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/grom-alex/homelib/backend/internal/api/handler"
 	"github.com/grom-alex/homelib/backend/internal/api/middleware"
 	"github.com/grom-alex/homelib/backend/internal/config"
+	"github.com/grom-alex/homelib/backend/internal/glst"
 	"github.com/grom-alex/homelib/backend/internal/repository"
 	"github.com/grom-alex/homelib/backend/internal/service"
 
@@ -17,10 +19,24 @@ import (
 )
 
 type Server struct {
-	httpServer *http.Server
-	pool       *pgxpool.Pool
-	importSvc  *service.ImportService
-	readerSvc  *service.ReaderService
+	httpServer   *http.Server
+	pool         *pgxpool.Pool
+	importSvc    *service.ImportService
+	readerSvc    *service.ReaderService
+	genreTreeSvc *service.GenreTreeService
+}
+
+// loadGenreData returns genre file data: from config path if set, otherwise embedded default.
+func loadGenreData(cfg config.GenreTreeConfig) []byte {
+	if cfg.FilePath != "" {
+		data, err := os.ReadFile(cfg.FilePath)
+		if err != nil {
+			log.Printf("WARNING: failed to read genre file %q, using embedded default: %v", cfg.FilePath, err)
+			return glst.DefaultGenreFile
+		}
+		return data
+	}
+	return glst.DefaultGenreFile
 }
 
 func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
@@ -32,6 +48,11 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 	collectionRepo := repository.NewCollectionRepo(pool)
 	userRepo := repository.NewUserRepo(pool)
 	refreshRepo := repository.NewRefreshTokenRepo(pool)
+	metadataRepo := repository.NewMetadataRepo(pool)
+
+	// Genre tree service
+	genreData := loadGenreData(cfg.GenreTree)
+	genreTreeSvc := service.NewGenreTreeService(genreData, metadataRepo, genreRepo, bookRepo)
 
 	// Services
 	catalogSvc := service.NewCatalogService(pool, bookRepo, authorRepo, genreRepo, seriesRepo, collectionRepo)
@@ -53,7 +74,7 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 		Authors:  handler.NewAuthorsHandler(catalogSvc),
 		Genres:   handler.NewGenresHandler(catalogSvc),
 		Series:   handler.NewSeriesHandler(catalogSvc),
-		Admin:    handler.NewAdminHandler(importSvc),
+		Admin:    handler.NewAdminHandler(importSvc, genreTreeSvc),
 		Auth:     handler.NewAuthHandler(authSvc, cfg.Auth.RefreshTokenTTL, cfg.Auth.CookieSecure),
 		Download: handler.NewDownloadHandler(downloadSvc),
 		Reader:   handler.NewReaderHandler(readerSvc),
@@ -72,9 +93,10 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       120 * time.Second,
 		},
-		pool:      pool,
-		importSvc: importSvc,
-		readerSvc: readerSvc,
+		pool:         pool,
+		importSvc:    importSvc,
+		readerSvc:    readerSvc,
+		genreTreeSvc: genreTreeSvc,
 	}
 }
 
@@ -98,6 +120,19 @@ func (v *authServiceValidator) ValidateToken(tokenString string) (*middleware.Cl
 func (s *Server) Start(ctx context.Context) error {
 	// Set app context so imports started via API are cancelled on shutdown
 	s.importSvc.SetAppContext(ctx)
+
+	// Load genre tree if needed (idempotent — skips if hash unchanged)
+	if s.genreTreeSvc != nil {
+		result, err := s.genreTreeSvc.LoadIfNeeded(ctx)
+		if err != nil {
+			log.Printf("WARNING: genre tree load failed: %v", err)
+		} else if result.Skipped {
+			log.Println("Genre tree: up to date, skipped")
+		} else {
+			log.Printf("Genre tree loaded: %d genres, %d books remapped, %d warnings",
+				result.GenresLoaded, result.BooksRemapped, len(result.Warnings))
+		}
+	}
 
 	// Start periodic cache cleanup (stops on ctx cancellation)
 	s.readerSvc.StartCacheCleanup(ctx)

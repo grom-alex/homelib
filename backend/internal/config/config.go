@@ -12,12 +12,17 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Auth     AuthConfig     `yaml:"auth"`
-	Library  LibraryConfig  `yaml:"library"`
-	Import   ImportConfig   `yaml:"import"`
-	Reader   ReaderConfig   `yaml:"reader"`
+	Server    ServerConfig    `yaml:"server"`
+	Database  DatabaseConfig  `yaml:"database"`
+	Auth      AuthConfig      `yaml:"auth"`
+	Library   LibraryConfig   `yaml:"library"`
+	Import    ImportConfig    `yaml:"import"`
+	Reader    ReaderConfig    `yaml:"reader"`
+	GenreTree GenreTreeConfig `yaml:"genre_tree"`
+}
+
+type GenreTreeConfig struct {
+	FilePath string `yaml:"file_path"` // Override path to .glst file (empty = use embedded)
 }
 
 type ReaderConfig struct {

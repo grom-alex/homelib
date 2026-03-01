@@ -127,6 +127,33 @@ func TestBooksHandler_GetBook_NotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
+func TestBooksHandler_ListBooks_GenreIDFilter(t *testing.T) {
+	// Verifies that genre_id filter is correctly forwarded to the service.
+	// The cascading behavior (parent genre includes descendants) is handled
+	// at the repository SQL level via materialized path queries.
+	svc := &mockCatalogService{
+		listBooksFn: func(_ context.Context, f models.BookFilter) ([]models.BookListItem, int, error) {
+			assert.NotNil(t, f.GenreID, "GenreID filter should be set")
+			assert.Equal(t, 42, *f.GenreID)
+			return []models.BookListItem{
+				{ID: 1, Title: "Sci-Fi Book", Format: "fb2"},
+			}, 1, nil
+		},
+	}
+	h := NewBooksHandler(svc)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/books?genre_id=42", nil)
+
+	h.ListBooks(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, float64(1), resp["total"])
+}
+
 func TestBooksHandler_GetStats_Success(t *testing.T) {
 	svc := &mockCatalogService{
 		getStatsFn: func(_ context.Context) (*service.Stats, error) {

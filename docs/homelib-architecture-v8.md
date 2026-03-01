@@ -72,7 +72,8 @@
 | Улучшить описание | `POST /api/books/:id/improve-summary` | Запрос на LLM-генерацию описания | Авториз. |
 | Авторы | `GET /api/authors?q=&page=` | Список/поиск авторов | Авториз. |
 | Автор | `GET /api/authors/:id` | Автор + его книги | Авториз. |
-| Жанры | `GET /api/genres` | Дерево жанров | Авториз. |
+| Жанры | `GET /api/genres` | Иерархическое дерево жанров (position-based) | Авториз. |
+| Перезагрузка жанров | `POST /api/admin/genres/reload` | Принудительная перезагрузка дерева из GLST | Admin |
 | Серии | `GET /api/series?q=&page=` | Список/поиск серий | Авториз. |
 | Поиск | `POST /api/search {query}` | Гибридный поиск (полнотекстовый + семантический) | Авториз. |
 | **Пользовательские данные** (per-user) | | | |
@@ -401,10 +402,20 @@ CREATE INDEX idx_authors_name_trgm ON authors USING gin (name gin_trgm_ops);
 
 CREATE TABLE genres (
     id          SERIAL PRIMARY KEY,
-    code        TEXT UNIQUE NOT NULL,       -- sf_fantasy, detective, etc.
+    code        TEXT NOT NULL,              -- sf_fantasy, detective, etc. (дубликаты допускаются в разных ветках)
     name        TEXT NOT NULL,              -- человекочитаемое название
     parent_id   INTEGER REFERENCES genres(id),
-    meta_group  TEXT                        -- группировка: Фантастика, Детектив...
+    position    VARCHAR(50) UNIQUE NOT NULL,-- materialized path: "0.1.2" (уровень вложенности)
+    sort_order  INTEGER NOT NULL DEFAULT 0, -- порядок из GLST-файла
+    is_active   BOOLEAN NOT NULL DEFAULT TRUE -- FALSE = удалён из GLST, но есть в book_genres
+);
+CREATE INDEX idx_genres_code ON genres(code);
+CREATE INDEX idx_genres_position ON genres(position);
+CREATE INDEX idx_genres_is_active ON genres(is_active) WHERE is_active = TRUE;
+
+CREATE TABLE app_metadata (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
 );
 
 -- Коллекции/библиотеки (из collection.info)
@@ -2456,7 +2467,7 @@ homelib/
 │   │   │   │   ├── NavigationPanel.vue # Контейнер вкладок (Authors/Series/Genres/Search)
 │   │   │   │   ├── AuthorsTab.vue     # Список авторов с поиском
 │   │   │   │   ├── SeriesTab.vue      # Список серий с поиском
-│   │   │   │   ├── GenresTab.vue      # Дерево жанров по meta_group
+│   │   │   │   ├── GenresTab.vue      # Дерево жанров (VTreeview, поиск, каскадная фильтрация)
 │   │   │   │   ├── SearchTab.vue      # Форма расширенного поиска
 │   │   │   │   ├── BookTable.vue      # CSS Grid таблица книг с сортировкой
 │   │   │   │   ├── BookDetailPanel.vue # Панель деталей книги
@@ -2588,6 +2599,7 @@ homelib/
 | `backend/internal/` | Основной код, не экспортируется как библиотека |
 | `backend/internal/api/` | HTTP-слой: handler/, middleware/, router.go, server.go |
 | `backend/internal/bookfile/` | Конвертеры форматов книг (FB2/EPUB/PDF/DJVU → HTML) |
+| `backend/internal/glst/` | GLST-парсер: разбор файла жанров, встроенный genres_all.glst (go:embed) |
 | `backend/internal/ollama/` | Ollama Pool: балансировка, embed, generate |
 | `backend/internal/worker/` | Фоновые воркеры: саммаризация, LLM |
 | `backend/migrations/` | SQL-миграции, версионирование схемы БД |

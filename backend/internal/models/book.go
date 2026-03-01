@@ -75,9 +75,10 @@ type BookDetail struct {
 }
 
 type BookGenreDetailRef struct {
-	ID   int    `json:"id"`
-	Code string `json:"code"`
-	Name string `json:"name"`
+	ID       int    `json:"id"`
+	Code     string `json:"code"`
+	Name     string `json:"name"`
+	Position string `json:"position"`
 }
 
 type BookSeriesDetailRef struct {

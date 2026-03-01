@@ -23,6 +23,16 @@ import * as booksApi from '@/api/books'
 
 const vuetify = createVuetify()
 
+const mockGenreTree = [
+  {
+    id: 1, code: 'sf_all', name: 'Фантастика', position: '0.1', books_count: 100,
+    children: [
+      { id: 3, code: 'sf_space', name: 'Космическая', position: '0.1.1', books_count: 30 },
+    ],
+  },
+  { id: 2, code: 'det_all', name: 'Детектив', position: '0.2', books_count: 50 },
+]
+
 function mountSearchTab() {
   return mount(SearchTab, {
     global: {
@@ -106,44 +116,15 @@ describe('SearchTab', () => {
     expect(input.element.value).toBe('')
   })
 
-  it('renders genre options from API', async () => {
-    vi.mocked(booksApi.getGenres).mockResolvedValue([
-      { id: 1, code: 'sf', name: 'Фантастика', books_count: 100 },
-      { id: 2, code: 'det', name: 'Детектив', books_count: 50 },
-    ])
+  it('shows genre dropdown button when genres loaded', async () => {
+    vi.mocked(booksApi.getGenres).mockResolvedValue(mockGenreTree)
 
     const wrapper = mountSearchTab()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Фантастика')
-    expect(wrapper.text()).toContain('Детектив')
-  })
-
-  it('renders genres with meta_group prefix', async () => {
-    vi.mocked(booksApi.getGenres).mockResolvedValue([
-      { id: 1, code: 'sf', name: 'Фантастика', meta_group: 'Проза', books_count: 100 },
-    ])
-
-    const wrapper = mountSearchTab()
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Проза / Фантастика')
-  })
-
-  it('renders genre children', async () => {
-    vi.mocked(booksApi.getGenres).mockResolvedValue([
-      {
-        id: 1, code: 'sf', name: 'Фантастика', meta_group: 'Проза', books_count: 100,
-        children: [
-          { id: 3, code: 'sf_space', name: 'Космическая', books_count: 30 },
-        ],
-      },
-    ])
-
-    const wrapper = mountSearchTab()
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Космическая')
+    const genreBtn = wrapper.find('.search-field__genre-btn')
+    expect(genreBtn.exists()).toBe(true)
+    expect(genreBtn.text()).toContain('Все жанры')
   })
 
   it('renders format select options from stats', async () => {
@@ -151,7 +132,6 @@ describe('SearchTab', () => {
     await flushPromises()
 
     const selects = wrapper.findAll('select')
-    // Find format select (second one after genre)
     const formatSelect = selects.find(s => s.text().includes('fb2'))
     expect(formatSelect).toBeDefined()
   })
@@ -233,5 +213,25 @@ describe('SearchTab', () => {
 
     // Should not crash, form still renders
     expect(wrapper.text()).toContain('Найти')
+  })
+
+  it('clears genre selection on reset', async () => {
+    vi.mocked(booksApi.getGenres).mockResolvedValue(mockGenreTree)
+    vi.mocked(booksApi.getBooks).mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 20,
+    })
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    // Genre btn should show "Все жанры" after clear
+    const clearBtn = wrapper.find('.search-tab__btn-clear')
+    await clearBtn.trigger('click')
+
+    const genreBtn = wrapper.find('.search-field__genre-btn')
+    expect(genreBtn.text()).toContain('Все жанры')
   })
 })

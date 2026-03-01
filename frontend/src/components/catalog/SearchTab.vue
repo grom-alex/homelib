@@ -18,12 +18,39 @@
           <input v-model="form.series_name" placeholder="Введите серию..." />
         </div>
 
-        <div v-if="genreOptions.length > 0" class="search-field">
+        <div v-if="genreTree.length > 0" class="search-field">
           <label>Жанр</label>
-          <select v-model="form.genre_id">
-            <option :value="null">Все жанры</option>
-            <option v-for="g in genreOptions" :key="g.id" :value="g.id">{{ g.name }}</option>
-          </select>
+          <v-menu v-model="genreMenuOpen" :close-on-content-click="false" location="bottom start">
+            <template #activator="{ props: menuProps }">
+              <button
+                type="button"
+                class="search-field__genre-btn"
+                v-bind="menuProps"
+              >
+                <span>{{ selectedGenreName }}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+            </template>
+            <v-card class="genre-dropdown" max-height="320" min-width="260">
+              <div class="genre-dropdown__clear" @click="clearGenre">
+                Все жанры
+              </div>
+              <v-treeview
+                :items="genreTree"
+                item-value="id"
+                item-title="name"
+                item-children="children"
+                activatable
+                open-on-click
+                density="compact"
+                slim
+                :activated="genreActivated"
+                @update:activated="onGenreActivated"
+              />
+            </v-card>
+          </v-menu>
         </div>
 
         <div v-if="formatOptions.length > 0" class="search-field">
@@ -59,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
 import { getGenres, getStats, type GenreTreeItem } from '@/api/books'
 
@@ -74,28 +101,52 @@ const form = reactive({
   lang: null as string | null,
 })
 
-const genreOptions = ref<Array<{ id: number; name: string }>>([])
+const genreTree = ref<GenreTreeItem[]>([])
+const genreMenuOpen = ref(false)
 const formatOptions = ref<string[]>([])
 const langOptions = ref<string[]>([])
 
-function flattenGenres(genres: GenreTreeItem[]): Array<{ id: number; name: string }> {
-  const result: Array<{ id: number; name: string }> = []
-  for (const genre of genres) {
-    const prefix = genre.meta_group ? `${genre.meta_group} / ` : ''
-    result.push({ id: genre.id, name: `${prefix}${genre.name}` })
-    if (genre.children) {
-      for (const child of genre.children) {
-        result.push({ id: child.id, name: `${prefix}${child.name}` })
-      }
+// Build a flat lookup map for id → genre
+const genreMap = computed(() => {
+  const map = new Map<number, GenreTreeItem>()
+  function walk(items: GenreTreeItem[]) {
+    for (const item of items) {
+      map.set(item.id, item)
+      if (item.children) walk(item.children)
     }
   }
-  return result.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+  walk(genreTree.value)
+  return map
+})
+
+const selectedGenreName = computed(() => {
+  if (form.genre_id) {
+    const genre = genreMap.value.get(form.genre_id)
+    return genre?.name ?? 'Все жанры'
+  }
+  return 'Все жанры'
+})
+
+const genreActivated = computed(() => {
+  return form.genre_id ? [form.genre_id] : []
+})
+
+function onGenreActivated(ids: number[]) {
+  if (ids.length > 0) {
+    form.genre_id = ids[0]
+  }
+  genreMenuOpen.value = false
+}
+
+function clearGenre() {
+  form.genre_id = null
+  genreMenuOpen.value = false
 }
 
 async function loadOptions() {
   const [genresResult, statsResult] = await Promise.allSettled([getGenres(), getStats()])
   if (genresResult.status === 'fulfilled') {
-    genreOptions.value = flattenGenres(genresResult.value)
+    genreTree.value = genresResult.value
   }
   if (statsResult.status === 'fulfilled') {
     formatOptions.value = statsResult.value.formats
@@ -198,6 +249,45 @@ onMounted(() => {
 
 .search-field select option {
   background: rgb(var(--v-theme-surface));
+}
+
+.search-field__genre-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgb(var(--v-theme-surface-variant));
+  color: rgb(var(--v-theme-on-surface));
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  text-align: left;
+}
+
+.search-field__genre-btn:hover {
+  border-color: rgb(var(--v-theme-primary));
+}
+
+.genre-dropdown {
+  overflow-y: auto;
+}
+
+.genre-dropdown__clear {
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.6;
+  border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
+}
+
+.genre-dropdown__clear:hover {
+  background: rgb(var(--v-theme-table-row-hover));
+  opacity: 1;
 }
 
 .search-tab__actions {

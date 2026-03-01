@@ -19,8 +19,14 @@ func TestGenresHandler_ListGenres_Success(t *testing.T) {
 	svc := &mockCatalogService{
 		listGenresFn: func(_ context.Context) ([]models.GenreTreeItem, error) {
 			return []models.GenreTreeItem{
-				{ID: 1, Code: "sf", Name: "Science Fiction", BooksCount: 100},
-				{ID: 2, Code: "det", Name: "Detective", BooksCount: 200},
+				{
+					ID: 1, Code: "sf_all", Name: "Фантастика", Position: "0.1", BooksCount: 350,
+					Children: []models.GenreTreeItem{
+						{ID: 3, Code: "sf_history", Name: "Альтернативная история", Position: "0.1.1", BooksCount: 150},
+						{ID: 4, Code: "sf_action", Name: "Боевая фантастика", Position: "0.1.2", BooksCount: 200},
+					},
+				},
+				{ID: 2, Code: "det_all", Name: "Детективы", Position: "0.2", BooksCount: 200},
 			}, nil
 		},
 	}
@@ -36,7 +42,10 @@ func TestGenresHandler_ListGenres_Success(t *testing.T) {
 	var resp []models.GenreTreeItem
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	assert.Len(t, resp, 2)
-	assert.Equal(t, "Science Fiction", resp[0].Name)
+	assert.Equal(t, "Фантастика", resp[0].Name)
+	assert.Equal(t, "0.1", resp[0].Position)
+	assert.Equal(t, 350, resp[0].BooksCount)
+	assert.Len(t, resp[0].Children, 2)
 }
 
 func TestGenresHandler_ListGenres_Error(t *testing.T) {

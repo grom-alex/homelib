@@ -150,6 +150,19 @@ func (m *mockImportService) CancelImport() {
 	}
 }
 
+// --- Genre tree service mock ---
+
+type mockGenreTreeService struct {
+	forceReloadFn func(ctx context.Context) (*service.GenreTreeResult, error)
+}
+
+func (m *mockGenreTreeService) ForceReload(ctx context.Context) (*service.GenreTreeResult, error) {
+	if m.forceReloadFn != nil {
+		return m.forceReloadFn(ctx)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
 // --- Reader service mock ---
 
 type mockReaderService struct {
