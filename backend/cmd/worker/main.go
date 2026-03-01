@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/grom-alex/homelib/backend/internal/config"
-	"github.com/grom-alex/homelib/backend/internal/glst"
 	"github.com/grom-alex/homelib/backend/internal/repository"
 	"github.com/grom-alex/homelib/backend/internal/service"
 )
@@ -45,15 +44,12 @@ func main() {
 		bookRepo := repository.NewBookRepo(pool)
 		metadataRepo := repository.NewMetadataRepo(pool)
 
-		var genreData []byte
-		if cfg.GenreTree.FilePath != "" {
-			data, err := os.ReadFile(cfg.GenreTree.FilePath)
-			if err != nil {
-				log.Fatalf("Failed to read genre file %q: %v", cfg.GenreTree.FilePath, err)
-			}
-			genreData = data
-		} else {
-			genreData = glst.DefaultGenreFile
+		if cfg.GenreTree.FilePath == "" {
+			log.Fatalf("genre_tree.file_path is not configured")
+		}
+		genreData, err := os.ReadFile(cfg.GenreTree.FilePath)
+		if err != nil {
+			log.Fatalf("Failed to read genre file %q: %v", cfg.GenreTree.FilePath, err)
 		}
 
 		genreTreeSvc := service.NewGenreTreeService(genreData, metadataRepo, genreRepo, bookRepo)

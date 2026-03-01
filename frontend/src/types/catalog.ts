@@ -16,6 +16,8 @@ export interface BookGenreDetailRef {
   position: string
 }
 
+export type GenreSortOrder = 'original' | 'alphabetical'
+
 export interface GenreReloadResult {
   genres_loaded: number
   books_remapped: number

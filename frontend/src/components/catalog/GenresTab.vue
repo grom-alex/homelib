@@ -13,6 +13,20 @@
         />
         <button v-if="searchQuery" class="search-input-clear" @click="clearSearch">&times;</button>
       </div>
+      <button
+        class="genres-tab__sort-btn"
+        :title="themeStore.genreSortOrder === 'original' ? 'Порядок из файла' : 'По алфавиту'"
+        @click="toggleSort"
+      >
+        <svg v-if="themeStore.genreSortOrder === 'alphabetical'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <text x="3" y="10" font-size="8" stroke="none" fill="currentColor" font-weight="bold">Aa</text>
+          <line x1="17" y1="4" x2="17" y2="20" /><polyline points="13 16 17 20 21 16" />
+        </svg>
+        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6" x2="14" y2="6" /><line x1="4" y1="12" x2="11" y2="12" /><line x1="4" y1="18" x2="8" y2="18" />
+          <line x1="17" y1="4" x2="17" y2="20" /><polyline points="13 16 17 20 21 16" />
+        </svg>
+      </button>
     </div>
 
     <div v-if="loading" class="genres-tab__status">
@@ -29,7 +43,7 @@
       </div>
       <v-treeview
         v-show="!debouncedSearch || filteredCount > 0"
-        :items="genres"
+        :items="sortedGenres"
         item-value="id"
         item-title="name"
         item-children="children"
@@ -52,15 +66,38 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
+import { useThemeStore } from '@/stores/theme'
 import { getGenres, type GenreTreeItem } from '@/api/books'
 
 const catalog = useCatalogStore()
+const themeStore = useThemeStore()
 
 const genres = ref<GenreTreeItem[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
 const debouncedSearch = ref('')
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+function sortGenreTree(items: GenreTreeItem[]): GenreTreeItem[] {
+  const sorted = [...items].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+  return sorted.map(item => ({
+    ...item,
+    children: item.children ? sortGenreTree(item.children) : undefined,
+  }))
+}
+
+const sortedGenres = computed(() => {
+  if (themeStore.genreSortOrder === 'alphabetical') {
+    return sortGenreTree(genres.value)
+  }
+  return genres.value
+})
+
+function toggleSort() {
+  themeStore.setGenreSortOrder(
+    themeStore.genreSortOrder === 'original' ? 'alphabetical' : 'original',
+  )
+}
 
 // Build a flat lookup map for id → genre
 const genreMap = computed(() => {
@@ -149,6 +186,31 @@ onUnmounted(() => {
   padding: 10px 10px 8px;
   border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.genres-tab__sort-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgb(var(--v-theme-surface-variant));
+  border-radius: 4px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.5;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.genres-tab__sort-btn:hover {
+  opacity: 1;
+  border-color: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-primary));
 }
 
 .genres-tab__status {

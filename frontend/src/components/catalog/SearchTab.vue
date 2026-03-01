@@ -38,7 +38,7 @@
                 Все жанры
               </div>
               <v-treeview
-                :items="genreTree"
+                :items="sortedGenreTree"
                 item-value="id"
                 item-title="name"
                 item-children="children"
@@ -88,9 +88,11 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
+import { useThemeStore } from '@/stores/theme'
 import { getGenres, getStats, type GenreTreeItem } from '@/api/books'
 
 const catalog = useCatalogStore()
+const themeStore = useThemeStore()
 
 const form = reactive({
   q: '',
@@ -105,6 +107,21 @@ const genreTree = ref<GenreTreeItem[]>([])
 const genreMenuOpen = ref(false)
 const formatOptions = ref<string[]>([])
 const langOptions = ref<string[]>([])
+
+function sortGenreTree(items: GenreTreeItem[]): GenreTreeItem[] {
+  const sorted = [...items].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+  return sorted.map(item => ({
+    ...item,
+    children: item.children ? sortGenreTree(item.children) : undefined,
+  }))
+}
+
+const sortedGenreTree = computed(() => {
+  if (themeStore.genreSortOrder === 'alphabetical') {
+    return sortGenreTree(genreTree.value)
+  }
+  return genreTree.value
+})
 
 // Build a flat lookup map for id → genre
 const genreMap = computed(() => {
@@ -272,23 +289,6 @@ onMounted(() => {
   border-color: rgb(var(--v-theme-primary));
 }
 
-.genre-dropdown {
-  overflow-y: auto;
-}
-
-.genre-dropdown__clear {
-  padding: 6px 16px;
-  font-size: 13px;
-  cursor: pointer;
-  color: rgb(var(--v-theme-on-surface));
-  opacity: 0.6;
-  border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
-}
-
-.genre-dropdown__clear:hover {
-  background: rgb(var(--v-theme-table-row-hover));
-  opacity: 1;
-}
 
 .search-tab__actions {
   margin-top: 4px;
@@ -336,5 +336,42 @@ onMounted(() => {
 .search-tab__btn-clear:hover {
   opacity: 0.8;
   border-color: rgb(var(--v-theme-on-surface));
+}
+</style>
+
+<style>
+/* Unscoped: v-menu teleports dropdown outside component tree */
+.genre-dropdown {
+  overflow-y: auto;
+  font-family: 'Source Sans 3 Variable', 'Source Sans 3', sans-serif;
+}
+
+.genre-dropdown .v-treeview-item {
+  min-height: 28px;
+}
+
+.genre-dropdown .v-list-item-title {
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.genre-dropdown .v-list-item--active {
+  background: rgba(var(--v-theme-primary), 0.12);
+  color: rgb(var(--v-theme-primary));
+}
+
+.genre-dropdown__clear {
+  padding: 5px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.6;
+  border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
+}
+
+.genre-dropdown__clear:hover {
+  background: rgb(var(--v-theme-table-row-hover));
+  opacity: 1;
 }
 </style>

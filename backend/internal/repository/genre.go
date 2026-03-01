@@ -89,26 +89,62 @@ func (r *GenreRepo) GetAll(ctx context.Context) ([]models.GenreTreeItem, error) 
 		genreMap[flat[i].ID] = &flat[i]
 	}
 
-	// Build tree and accumulate recursive book counts
-	var roots []models.GenreTreeItem
-	for i := len(flat) - 1; i >= 0; i-- {
-		g := &flat[i]
-		if g.ParentID != nil {
-			if parent, ok := genreMap[*g.ParentID]; ok {
-				parent.BooksCount += g.BooksCount
+	// Build pointer-based tree, then convert to values via recursive copy.
+	// This avoids the copy-before-mutation bug when children are value types.
+	type pNode struct {
+		ID         int
+		Code       string
+		Name       string
+		Position   string
+		BooksCount int
+		ParentID   *int
+		children   []*pNode
+	}
+
+	nodeMap := make(map[int]*pNode, len(flat))
+	nodes := make([]pNode, len(flat))
+	for i := range flat {
+		nodes[i] = pNode{
+			ID: flat[i].ID, Code: flat[i].Code, Name: flat[i].Name,
+			Position: flat[i].Position, BooksCount: flat[i].BooksCount,
+			ParentID: flat[i].ParentID,
+		}
+		nodeMap[flat[i].ID] = &nodes[i]
+	}
+
+	// Assign children + accumulate book counts bottom-up
+	var rootNodes []*pNode
+	for i := range nodes {
+		n := &nodes[i]
+		if n.ParentID != nil {
+			if parent, ok := nodeMap[*n.ParentID]; ok {
+				parent.children = append(parent.children, n)
+			} else {
+				rootNodes = append(rootNodes, n)
 			}
+		} else {
+			rootNodes = append(rootNodes, n)
 		}
 	}
 
-	for i := range flat {
-		g := &flat[i]
-		if g.ParentID != nil {
-			if parent, ok := genreMap[*g.ParentID]; ok {
-				parent.Children = append(parent.Children, g.GenreTreeItem)
-				continue
-			}
+	// Recursive conversion: children are fully resolved via pointers before copying
+	var convert func(n *pNode) models.GenreTreeItem
+	convert = func(n *pNode) models.GenreTreeItem {
+		item := models.GenreTreeItem{
+			ID: n.ID, Code: n.Code, Name: n.Name,
+			Position: n.Position, BooksCount: n.BooksCount,
 		}
-		roots = append(roots, g.GenreTreeItem)
+		for _, c := range n.children {
+			child := convert(c)
+			item.BooksCount += child.BooksCount
+			item.Children = append(item.Children, child)
+		}
+		return item
+	}
+
+	roots := make([]models.GenreTreeItem, 0, len(rootNodes))
+	for _, rn := range rootNodes {
+		roots = append(roots, convert(rn))
 	}
 
 	return roots, nil

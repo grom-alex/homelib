@@ -11,7 +11,6 @@ import (
 	"github.com/grom-alex/homelib/backend/internal/api/handler"
 	"github.com/grom-alex/homelib/backend/internal/api/middleware"
 	"github.com/grom-alex/homelib/backend/internal/config"
-	"github.com/grom-alex/homelib/backend/internal/glst"
 	"github.com/grom-alex/homelib/backend/internal/repository"
 	"github.com/grom-alex/homelib/backend/internal/service"
 
@@ -26,17 +25,18 @@ type Server struct {
 	genreTreeSvc *service.GenreTreeService
 }
 
-// loadGenreData returns genre file data: from config path if set, otherwise embedded default.
+// loadGenreData reads genre file from the path specified in config.
+// Returns nil if no path configured (genre tree feature disabled).
 func loadGenreData(cfg config.GenreTreeConfig) []byte {
-	if cfg.FilePath != "" {
-		data, err := os.ReadFile(cfg.FilePath)
-		if err != nil {
-			log.Printf("WARNING: failed to read genre file %q, using embedded default: %v", cfg.FilePath, err)
-			return glst.DefaultGenreFile
-		}
-		return data
+	if cfg.FilePath == "" {
+		return nil
 	}
-	return glst.DefaultGenreFile
+	data, err := os.ReadFile(cfg.FilePath)
+	if err != nil {
+		log.Printf("WARNING: failed to read genre file %q: %v", cfg.FilePath, err)
+		return nil
+	}
+	return data
 }
 
 func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
@@ -50,9 +50,11 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 	refreshRepo := repository.NewRefreshTokenRepo(pool)
 	metadataRepo := repository.NewMetadataRepo(pool)
 
-	// Genre tree service
-	genreData := loadGenreData(cfg.GenreTree)
-	genreTreeSvc := service.NewGenreTreeService(genreData, metadataRepo, genreRepo, bookRepo)
+	// Genre tree service (nil if no genre file configured)
+	var genreTreeSvc *service.GenreTreeService
+	if genreData := loadGenreData(cfg.GenreTree); genreData != nil {
+		genreTreeSvc = service.NewGenreTreeService(genreData, metadataRepo, genreRepo, bookRepo)
+	}
 
 	// Services
 	catalogSvc := service.NewCatalogService(pool, bookRepo, authorRepo, genreRepo, seriesRepo, collectionRepo)

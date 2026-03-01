@@ -33,6 +33,7 @@ services:
     volumes:
       - ${LIBRARY_PATH:-/mnt/smb/media/MyHomeLib/lib.rus.ec}:/library:ro
       - ../backend/config.yaml:/etc/homelib/config.yaml:ro
+      - ../docs/genres_all.glst:/etc/homelib/genres_all.glst:ro
       - reader_cache:/cache/books
     expose:
       - "8080"
@@ -59,6 +60,7 @@ services:
     volumes:
       - ${LIBRARY_PATH:-/mnt/smb/media/MyHomeLib/lib.rus.ec}:/library:ro
       - ../backend/config.yaml:/etc/homelib/config.yaml:ro
+      - ../docs/genres_all.glst:/etc/homelib/genres_all.glst:ro
 
   frontend:
     build:
