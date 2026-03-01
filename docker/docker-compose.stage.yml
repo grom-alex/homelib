@@ -34,6 +34,7 @@ services:
     volumes:
       - ${LIBRARY_PATH}:/library:ro
       - ./config.yaml:/etc/homelib/config.yaml:ro
+      - ./genres_all.glst:/etc/homelib/genres_all.glst:ro
       - reader_cache:/cache/books
     expose:
       - "8080"
@@ -58,6 +59,7 @@ services:
     volumes:
       - ${LIBRARY_PATH}:/library:ro
       - ./config.yaml:/etc/homelib/config.yaml:ro
+      - ./genres_all.glst:/etc/homelib/genres_all.glst:ro
 
   frontend:
     image: ${DOCKER_REGISTRY:-registry.gromas.ru}/${IMAGE_PREFIX:-apps/homelib}/frontend:${IMAGE_TAG:-latest}
