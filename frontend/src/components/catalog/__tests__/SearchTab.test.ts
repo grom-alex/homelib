@@ -294,7 +294,7 @@ describe('SearchTab', () => {
   it('reloads options when parental status changes', async () => {
     vi.mocked(booksApi.getGenres).mockResolvedValue([])
 
-    const wrapper = mountSearchTab()
+    mountSearchTab()
     await flushPromises()
 
     expect(booksApi.getGenres).toHaveBeenCalledTimes(1)
