@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createVuetify } from 'vuetify'
 import SearchTab from '../SearchTab.vue'
 import { useCatalogStore } from '@/stores/catalog'
+import { useParentalStore } from '@/stores/parental'
 
 vi.mock('@/api/books', () => ({
   getGenres: vi.fn().mockResolvedValue([]),
@@ -17,6 +18,12 @@ vi.mock('@/api/books', () => ({
   }),
   getBooks: vi.fn(),
   getBook: vi.fn(),
+}))
+
+vi.mock('@/api/parental', () => ({
+  getMyParentalStatus: vi.fn().mockResolvedValue({ adult_content_enabled: false, pin_set: false }),
+  unlockAdultContent: vi.fn(),
+  lockAdultContent: vi.fn(),
 }))
 
 import * as booksApi from '@/api/books'
@@ -233,5 +240,85 @@ describe('SearchTab', () => {
 
     const genreBtn = wrapper.find('.search-field__genre-btn')
     expect(genreBtn.text()).toContain('Все жанры')
+  })
+
+  it('submits with genre_id when genre selected', async () => {
+    vi.mocked(booksApi.getGenres).mockResolvedValue(mockGenreTree)
+    vi.mocked(booksApi.getBooks).mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 20,
+    })
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    // Simulate genre activation via component internals
+    const vm = wrapper.vm as unknown as { onGenreActivated: (ids: number[]) => void; form: { genre_id: number | null } }
+    vm.onGenreActivated([1])
+    await flushPromises()
+
+    expect(vm.form.genre_id).toBe(1)
+
+    await wrapper.find('form').trigger('submit')
+
+    const store = useCatalogStore()
+    expect(store.navigationFilter?.params?.genre_id).toBe('1')
+  })
+
+  it('clears genre via clearGenre', async () => {
+    vi.mocked(booksApi.getGenres).mockResolvedValue(mockGenreTree)
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as { onGenreActivated: (ids: number[]) => void; clearGenre: () => void; form: { genre_id: number | null } }
+    vm.onGenreActivated([2])
+    expect(vm.form.genre_id).toBe(2)
+
+    vm.clearGenre()
+    expect(vm.form.genre_id).toBeNull()
+  })
+
+  it('genreActivated returns empty array when no genre selected', async () => {
+    vi.mocked(booksApi.getGenres).mockResolvedValue(mockGenreTree)
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as { genreActivated: number[] }
+    expect(vm.genreActivated).toEqual([])
+  })
+
+  it('reloads options when parental status changes', async () => {
+    vi.mocked(booksApi.getGenres).mockResolvedValue([])
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    expect(booksApi.getGenres).toHaveBeenCalledTimes(1)
+
+    // Change parental status
+    const parentalStore = useParentalStore()
+    parentalStore.adultContentEnabled = true
+    await flushPromises()
+
+    expect(booksApi.getGenres).toHaveBeenCalledTimes(2)
+  })
+
+  it('onGenreActivated does nothing with empty array', async () => {
+    vi.mocked(booksApi.getGenres).mockResolvedValue(mockGenreTree)
+
+    const wrapper = mountSearchTab()
+    await flushPromises()
+
+    const vm = wrapper.vm as unknown as { onGenreActivated: (ids: number[]) => void; form: { genre_id: number | null } }
+    vm.onGenreActivated([3])
+    expect(vm.form.genre_id).toBe(3)
+
+    // Empty activation should not change genre_id
+    vm.onGenreActivated([])
+    expect(vm.form.genre_id).toBe(3)
   })
 })
