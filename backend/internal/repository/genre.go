@@ -66,88 +66,12 @@ func (r *GenreRepo) GetAll(ctx context.Context) ([]models.GenreTreeItem, error) 
 	}
 	defer rows.Close()
 
-	type flatGenre struct {
-		models.GenreTreeItem
-		ParentID *int
-	}
-
-	var flat []flatGenre
-
-	for rows.Next() {
-		var g flatGenre
-		if err := rows.Scan(&g.ID, &g.Code, &g.Name, &g.Position, &g.ParentID, &g.BooksCount); err != nil {
-			return nil, fmt.Errorf("scan genre: %w", err)
-		}
-		flat = append(flat, g)
-	}
-	if err := rows.Err(); err != nil {
+	flat, err := scanFlatGenres(rows)
+	if err != nil {
 		return nil, err
 	}
 
-	genreMap := make(map[int]*flatGenre, len(flat))
-	for i := range flat {
-		genreMap[flat[i].ID] = &flat[i]
-	}
-
-	// Build pointer-based tree, then convert to values via recursive copy.
-	// This avoids the copy-before-mutation bug when children are value types.
-	type pNode struct {
-		ID         int
-		Code       string
-		Name       string
-		Position   string
-		BooksCount int
-		ParentID   *int
-		children   []*pNode
-	}
-
-	nodeMap := make(map[int]*pNode, len(flat))
-	nodes := make([]pNode, len(flat))
-	for i := range flat {
-		nodes[i] = pNode{
-			ID: flat[i].ID, Code: flat[i].Code, Name: flat[i].Name,
-			Position: flat[i].Position, BooksCount: flat[i].BooksCount,
-			ParentID: flat[i].ParentID,
-		}
-		nodeMap[flat[i].ID] = &nodes[i]
-	}
-
-	// Assign children + accumulate book counts bottom-up
-	var rootNodes []*pNode
-	for i := range nodes {
-		n := &nodes[i]
-		if n.ParentID != nil {
-			if parent, ok := nodeMap[*n.ParentID]; ok {
-				parent.children = append(parent.children, n)
-			} else {
-				rootNodes = append(rootNodes, n)
-			}
-		} else {
-			rootNodes = append(rootNodes, n)
-		}
-	}
-
-	// Recursive conversion: children are fully resolved via pointers before copying
-	var convert func(n *pNode) models.GenreTreeItem
-	convert = func(n *pNode) models.GenreTreeItem {
-		item := models.GenreTreeItem{
-			ID: n.ID, Code: n.Code, Name: n.Name,
-			Position: n.Position, BooksCount: n.BooksCount,
-		}
-		for _, c := range n.children {
-			child := convert(c)
-			item.BooksCount += child.BooksCount
-			item.Children = append(item.Children, child)
-		}
-		return item
-	}
-
-	roots := make([]models.GenreTreeItem, 0, len(rootNodes))
-	for _, rn := range rootNodes {
-		roots = append(roots, convert(rn))
-	}
-
-	return roots, nil
+	return buildGenreTree(flat, nil), nil
 }
 
 func (r *GenreRepo) GetByID(ctx context.Context, id int) (*models.Genre, error) {
@@ -289,11 +213,27 @@ func (r *GenreRepo) GetAllFiltered(ctx context.Context, excludeIDs []int) ([]mod
 	}
 	defer rows.Close()
 
-	type flatGenre struct {
-		models.GenreTreeItem
-		ParentID *int
+	flat, err := scanFlatGenres(rows)
+	if err != nil {
+		return nil, err
 	}
 
+	excludeSet := make(map[int]bool, len(excludeIDs))
+	for _, id := range excludeIDs {
+		excludeSet[id] = true
+	}
+
+	return buildGenreTree(flat, excludeSet), nil
+}
+
+// flatGenre holds a genre row with its parent ID for tree building.
+type flatGenre struct {
+	models.GenreTreeItem
+	ParentID *int
+}
+
+// scanFlatGenres scans rows into a slice of flatGenre.
+func scanFlatGenres(rows pgx.Rows) ([]flatGenre, error) {
 	var flat []flatGenre
 	for rows.Next() {
 		var g flatGenre
@@ -305,13 +245,12 @@ func (r *GenreRepo) GetAllFiltered(ctx context.Context, excludeIDs []int) ([]mod
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	return flat, nil
+}
 
-	// Build excluded ID set for fast parent lookup
-	excludeSet := make(map[int]bool, len(excludeIDs))
-	for _, id := range excludeIDs {
-		excludeSet[id] = true
-	}
-
+// buildGenreTree converts a flat list of genres into a tree with accumulated book counts.
+// If excludeSet is non-nil, nodes whose parent is in the set are skipped (orphaned by exclusion).
+func buildGenreTree(flat []flatGenre, excludeSet map[int]bool) []models.GenreTreeItem {
 	type pNode struct {
 		ID         int
 		Code       string
@@ -337,7 +276,7 @@ func (r *GenreRepo) GetAllFiltered(ctx context.Context, excludeIDs []int) ([]mod
 	for i := range nodes {
 		n := &nodes[i]
 		if n.ParentID != nil {
-			if excludeSet[*n.ParentID] {
+			if excludeSet != nil && excludeSet[*n.ParentID] {
 				continue // parent was excluded — skip orphan
 			}
 			if parent, ok := nodeMap[*n.ParentID]; ok {
@@ -368,8 +307,7 @@ func (r *GenreRepo) GetAllFiltered(ctx context.Context, excludeIDs []int) ([]mod
 	for _, rn := range rootNodes {
 		roots = append(roots, convert(rn))
 	}
-
-	return roots, nil
+	return roots
 }
 
 // GetIDsByCodes returns a mapping of genre code to all matching genre IDs.

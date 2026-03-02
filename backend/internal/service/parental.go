@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/grom-alex/homelib/backend/internal/models"
 )
@@ -41,6 +42,9 @@ type ParentalService struct {
 	cacheMu   sync.RWMutex
 	cachedIDs []int
 	cacheTime time.Time
+
+	// Prevents thundering herd on cache miss
+	sfGroup singleflight.Group
 }
 
 func NewParentalService(meta MetadataStore, genreRepo ParentalGenreRepo, userRepo ParentalUserRepo) *ParentalService {
@@ -122,6 +126,7 @@ func (s *ParentalService) IsPinSet(ctx context.Context) (bool, error) {
 
 // GetRestrictedGenreIDs resolves restricted genre codes to IDs, including all descendants.
 // Results are cached in memory for restrictedIDsCacheTTL.
+// Uses singleflight to prevent thundering herd on cache miss.
 func (s *ParentalService) GetRestrictedGenreIDs(ctx context.Context) ([]int, error) {
 	s.cacheMu.RLock()
 	if s.cachedIDs != nil && time.Since(s.cacheTime) < restrictedIDsCacheTTL {
@@ -132,6 +137,29 @@ func (s *ParentalService) GetRestrictedGenreIDs(ctx context.Context) ([]int, err
 	}
 	s.cacheMu.RUnlock()
 
+	// Singleflight: only one goroutine resolves IDs on cache miss
+	val, err, _ := s.sfGroup.Do("restricted_ids", func() (interface{}, error) {
+		// Double-check under singleflight (another goroutine may have populated)
+		s.cacheMu.RLock()
+		if s.cachedIDs != nil && time.Since(s.cacheTime) < restrictedIDsCacheTTL {
+			ids := make([]int, len(s.cachedIDs))
+			copy(ids, s.cachedIDs)
+			s.cacheMu.RUnlock()
+			return ids, nil
+		}
+		s.cacheMu.RUnlock()
+
+		return s.resolveRestrictedIDs(ctx)
+	})
+	if err != nil {
+		return nil, err
+	}
+	ids, _ := val.([]int)
+	return ids, nil
+}
+
+// resolveRestrictedIDs performs the actual resolution of restricted genre codes to IDs.
+func (s *ParentalService) resolveRestrictedIDs(ctx context.Context) ([]int, error) {
 	codes, err := s.GetRestrictedGenreCodes(ctx)
 	if err != nil {
 		return nil, err

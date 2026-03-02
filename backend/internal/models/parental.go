@@ -14,7 +14,7 @@ type AdminParentalStatus struct {
 
 // SetPinInput is the request body for setting a parental PIN.
 type SetPinInput struct {
-	Pin string `json:"pin" binding:"required,min=4,max=6"`
+	Pin string `json:"pin" binding:"required,min=4,max=6,numeric"`
 }
 
 // VerifyPinInput is the request body for verifying a parental PIN.

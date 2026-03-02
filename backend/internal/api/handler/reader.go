@@ -20,11 +20,16 @@ func NewReaderHandler(readerSvc ReaderServicer, restrictionChecker BookRestricti
 	return &ReaderHandler{readerSvc: readerSvc, restrictionChecker: restrictionChecker}
 }
 
-// checkBookRestriction returns true (and writes 403) if the book is restricted.
+// checkBookRestriction returns true (and writes error response) if the book is restricted or check fails.
+// Follows fail-closed principle: blocks access on errors.
 func (h *ReaderHandler) checkBookRestriction(c *gin.Context, bookID int64) bool {
 	if restrictedIDs := getRestrictedGenreIDs(c); len(restrictedIDs) > 0 {
 		restricted, err := h.restrictionChecker.IsBookRestricted(c.Request.Context(), bookID, restrictedIDs)
-		if err == nil && restricted {
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error", "message": "Ошибка проверки ограничений"})
+			return true
+		}
+		if restricted {
 			c.JSON(http.StatusForbidden, gin.H{"error": "content_restricted", "message": "Контент ограничен"})
 			return true
 		}

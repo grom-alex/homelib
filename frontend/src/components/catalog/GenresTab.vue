@@ -69,6 +69,7 @@ import { useCatalogStore } from '@/stores/catalog'
 import { useThemeStore } from '@/stores/theme'
 import { useParentalStore } from '@/stores/parental'
 import { getGenres, type GenreTreeItem } from '@/api/books'
+import { sortGenreTree } from '@/utils/genres'
 
 const catalog = useCatalogStore()
 const themeStore = useThemeStore()
@@ -79,14 +80,6 @@ const loading = ref(false)
 const searchQuery = ref('')
 const debouncedSearch = ref('')
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
-
-function sortGenreTree(items: GenreTreeItem[]): GenreTreeItem[] {
-  const sorted = [...items].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-  return sorted.map(item => ({
-    ...item,
-    children: item.children ? sortGenreTree(item.children) : undefined,
-  }))
-}
 
 const sortedGenres = computed(() => {
   if (themeStore.genreSortOrder === 'alphabetical') {

@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,18 +25,20 @@ func ParentalFilter(svc ParentalServicer) gin.HandlerFunc {
 			return
 		}
 
+		// Fail-closed: on error checking status, assume content is restricted.
 		enabled, err := svc.IsAdultContentEnabled(c.Request.Context(), userID)
 		if err != nil {
 			log.Printf("parental middleware: check adult content: %v", err)
-			c.Next()
-			return
+			enabled = false
 		}
 
 		if !enabled {
 			ids, err := svc.GetRestrictedGenreIDs(c.Request.Context())
 			if err != nil {
+				// Fail-closed: cannot determine restricted genres, block access.
 				log.Printf("parental middleware: get restricted IDs: %v", err)
-				c.Next()
+				c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service_unavailable", "message": "Не удалось проверить ограничения контента"})
+				c.Abort()
 				return
 			}
 			if len(ids) > 0 {

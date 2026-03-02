@@ -494,15 +494,16 @@ func (r *BookRepo) RemapBookGenres(ctx context.Context, codeToIDs map[string][]i
 	}
 
 	totalProcessed := 0
-	offset := 0
+	var lastBookID int64 // cursor for keyset pagination
 
 	for {
-		// Get a batch of book IDs that have genre links
+		// Cursor-based pagination: get next batch of book IDs after lastBookID
 		rows, err := r.pool.Query(ctx,
 			`SELECT DISTINCT bg.book_id FROM book_genres bg
+			 WHERE bg.book_id > $1
 			 ORDER BY bg.book_id
-			 LIMIT $1 OFFSET $2`,
-			batchSize, offset,
+			 LIMIT $2`,
+			lastBookID, batchSize,
 		)
 		if err != nil {
 			return totalProcessed, fmt.Errorf("get book IDs for remap: %w", err)
@@ -525,6 +526,9 @@ func (r *BookRepo) RemapBookGenres(ctx context.Context, codeToIDs map[string][]i
 		if len(bookIDs) == 0 {
 			break
 		}
+
+		// Advance cursor to last ID in batch
+		lastBookID = bookIDs[len(bookIDs)-1]
 
 		// Get current genre codes for these books
 		codeRows, err := r.pool.Query(ctx,
@@ -589,7 +593,6 @@ func (r *BookRepo) RemapBookGenres(ctx context.Context, codeToIDs map[string][]i
 		}
 
 		totalProcessed += len(bookIDs)
-		offset += batchSize
 	}
 
 	return totalProcessed, nil

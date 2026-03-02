@@ -51,10 +51,14 @@ func (h *BooksHandler) GetBook(c *gin.Context) {
 		return
 	}
 
-	// Check parental restriction
+	// Check parental restriction (fail-closed: block on error)
 	if restrictedIDs := getRestrictedGenreIDs(c); len(restrictedIDs) > 0 {
 		restricted, err := h.restrictionChecker.IsBookRestricted(c.Request.Context(), id, restrictedIDs)
-		if err == nil && restricted {
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
+			return
+		}
+		if restricted {
 			c.JSON(http.StatusForbidden, gin.H{"error": "content_restricted"})
 			return
 		}

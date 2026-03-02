@@ -91,6 +91,7 @@ import { useCatalogStore } from '@/stores/catalog'
 import { useThemeStore } from '@/stores/theme'
 import { useParentalStore } from '@/stores/parental'
 import { getGenres, getStats, type GenreTreeItem } from '@/api/books'
+import { sortGenreTree } from '@/utils/genres'
 
 const catalog = useCatalogStore()
 const themeStore = useThemeStore()
@@ -109,14 +110,6 @@ const genreTree = ref<GenreTreeItem[]>([])
 const genreMenuOpen = ref(false)
 const formatOptions = ref<string[]>([])
 const langOptions = ref<string[]>([])
-
-function sortGenreTree(items: GenreTreeItem[]): GenreTreeItem[] {
-  const sorted = [...items].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-  return sorted.map(item => ({
-    ...item,
-    children: item.children ? sortGenreTree(item.children) : undefined,
-  }))
-}
 
 const sortedGenreTree = computed(() => {
   if (themeStore.genreSortOrder === 'alphabetical') {
