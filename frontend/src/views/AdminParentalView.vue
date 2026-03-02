@@ -1,5 +1,27 @@
 <template>
-  <v-container>
+  <!-- PIN gate: require PIN before showing settings -->
+  <v-container v-if="showPinGate" class="d-flex align-center justify-center" style="min-height: 400px">
+    <PinUnlockDialog
+      v-model="showPinDialog"
+      @cancel="onPinCancel"
+    />
+    <v-card variant="outlined" max-width="400" class="text-center pa-6">
+      <v-icon size="64" color="grey" class="mb-4">mdi-shield-lock</v-icon>
+      <h2 class="text-h5 mb-2">Родительский контроль</h2>
+      <p class="text-body-2 text-grey mb-4">Введите PIN-код для доступа к настройкам</p>
+      <v-btn color="primary" @click="showPinDialog = true">
+        Ввести PIN
+      </v-btn>
+    </v-card>
+  </v-container>
+
+  <!-- Loading state while checking parental status -->
+  <v-container v-else-if="!parentalLoaded" class="d-flex justify-center pa-8">
+    <v-progress-circular indeterminate />
+  </v-container>
+
+  <!-- Main settings content -->
+  <v-container v-else>
     <h1 class="text-h4 mb-4">Родительский контроль</h1>
 
     <v-alert v-if="error" type="error" class="mb-4" closable @click:close="error = ''">
@@ -133,10 +155,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import * as parentalApi from '@/api/parental'
 import type { AdminParentalStatus, UserAdultStatus } from '@/api/parental'
 import { getGenres, type GenreTreeItem } from '@/api/books'
+import { useParentalStore } from '@/stores/parental'
+import PinUnlockDialog from '@/components/common/PinUnlockDialog.vue'
+
+const router = useRouter()
+const parentalStore = useParentalStore()
+
+const showPinDialog = ref(false)
+const parentalLoaded = ref(false)
+
+const showPinGate = computed(() =>
+  parentalLoaded.value && parentalStore.pinSet && !parentalStore.adultContentEnabled
+)
 
 const status = ref<AdminParentalStatus | null>(null)
 const newPin = ref('')
@@ -158,6 +193,29 @@ function showSuccess(msg: string) {
   setTimeout(() => { successMsg.value = '' }, 3000)
 }
 
+function onPinCancel() {
+  showPinDialog.value = false
+  router.back()
+}
+
+// When PIN gate disappears (after unlock), load admin data.
+// Using a watcher is more reliable than the @unlocked emit because
+// unlock() sets adultContentEnabled=true reactively, which may cause
+// Vue to unmount the PinUnlockDialog before the emit reaches the parent.
+const dataLoaded = ref(false)
+watch(showPinGate, (gate, prevGate) => {
+  if (prevGate && !gate && !dataLoaded.value) {
+    loadAllData()
+  }
+})
+
+function loadAllData() {
+  dataLoaded.value = true
+  loadStatus()
+  loadGenres()
+  loadUsers()
+}
+
 async function loadStatus() {
   try {
     status.value = await parentalApi.getAdminParentalStatus()
@@ -170,7 +228,6 @@ async function loadStatus() {
 async function loadGenres() {
   loadingGenres.value = true
   try {
-    // Admin always sees all genres (middleware skips admin)
     allGenres.value = await getGenres()
   } catch {
     // Genres not loaded yet
@@ -241,9 +298,15 @@ async function handleToggleUser(user: UserAdultStatus, enabled: boolean) {
   }
 }
 
-onMounted(() => {
-  loadStatus()
-  loadGenres()
-  loadUsers()
+onMounted(async () => {
+  if (!parentalStore.loaded) {
+    await parentalStore.loadStatus()
+  }
+  parentalLoaded.value = true
+
+  // If no PIN set or already unlocked, load data immediately
+  if (!parentalStore.pinSet || parentalStore.adultContentEnabled) {
+    loadAllData()
+  }
 })
 </script>

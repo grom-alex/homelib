@@ -15,15 +15,9 @@ type ParentalServicer interface {
 
 // ParentalFilter returns middleware that resolves restricted genre IDs
 // and stores them in the Gin context for downstream handlers.
-// Admin users are always allowed to see all content.
+// All users (including admins) are subject to parental filtering.
 func ParentalFilter(svc ParentalServicer) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		role := c.GetString("user_role")
-		if role == "admin" {
-			c.Next()
-			return
-		}
-
 		userID := c.GetString("user_id")
 		if userID == "" {
 			c.Next()
