@@ -27,7 +27,7 @@ func TestDownloadHandler_DownloadBook_Success(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewDownloadHandler(svc)
+	h := NewDownloadHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -43,7 +43,7 @@ func TestDownloadHandler_DownloadBook_Success(t *testing.T) {
 }
 
 func TestDownloadHandler_DownloadBook_InvalidID(t *testing.T) {
-	h := NewDownloadHandler(&mockDownloadService{})
+	h := NewDownloadHandler(&mockDownloadService{}, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -61,7 +61,7 @@ func TestDownloadHandler_DownloadBook_NotFound(t *testing.T) {
 			return nil, fmt.Errorf("book not found")
 		},
 	}
-	h := NewDownloadHandler(svc)
+	h := NewDownloadHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -84,7 +84,7 @@ func TestDownloadHandler_DownloadBook_ZeroSize(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewDownloadHandler(svc)
+	h := NewDownloadHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)

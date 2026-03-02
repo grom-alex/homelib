@@ -221,6 +221,8 @@ Architecture documentation is in Russian in [docs/](docs/). The most current ver
 - PostgreSQL 17 (reading_progress, user settings), файловый кеш (конвертированный HTML) (006-fb2-reader)
 - Go 1.25 (backend), TypeScript + Vue 3 (frontend) + Gin (HTTP), pgx/v5 (DB), Vuetify 3 (UI), Pinia (state), Vue Router, axios (007-catalog-redesign)
 - PostgreSQL 17 (JSONB `users.settings` для тем) (007-catalog-redesign)
+- Go 1.25.6 (backend), TypeScript 5.7 + Vue 3.5 (frontend) + Gin 1.11, pgx/v5 5.8, Vuetify 3.8, Pinia 3.0, Vitest 3.1 (008-genre-tree)
+- PostgreSQL 17 + pg_trgm, tsvector; файл `.glst` встраивается через `//go:embed` (008-genre-tree)
 
 ## Recent Changes
 - 001-github-ci-setup: Added Go 1.25 (latest patch 1.25.7) + GitHub Actions (`actions/checkout@v5`, `actions/setup-go@v6`, `golangci/golangci-lint-action@v9`)

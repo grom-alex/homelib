@@ -1,6 +1,33 @@
 <template>
   <div class="genres-tab">
-    <div class="genres-tab__header">Дерево жанров</div>
+    <div class="genres-tab__search">
+      <div class="search-input-wrapper">
+        <svg class="search-input-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          v-model="searchQuery"
+          placeholder="Поиск жанра..."
+          @input="onSearchInput"
+        />
+        <button v-if="searchQuery" class="search-input-clear" @click="clearSearch">&times;</button>
+      </div>
+      <button
+        class="genres-tab__sort-btn"
+        :title="themeStore.genreSortOrder === 'original' ? 'Порядок из файла' : 'По алфавиту'"
+        @click="toggleSort"
+      >
+        <svg v-if="themeStore.genreSortOrder === 'alphabetical'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <text x="3" y="10" font-size="8" stroke="none" fill="currentColor" font-weight="bold">Aa</text>
+          <line x1="17" y1="4" x2="17" y2="20" /><polyline points="13 16 17 20 21 16" />
+        </svg>
+        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="6" x2="14" y2="6" /><line x1="4" y1="12" x2="11" y2="12" /><line x1="4" y1="18" x2="8" y2="18" />
+          <line x1="17" y1="4" x2="17" y2="20" /><polyline points="13 16 17 20 21 16" />
+        </svg>
+      </button>
+    </div>
 
     <div v-if="loading" class="genres-tab__status">
       <span class="spinner" />
@@ -10,105 +37,114 @@
       Жанры не найдены
     </div>
 
-    <div v-else class="genres-tab__list">
-      <div v-for="group in groupedGenres" :key="group.name">
-        <div
-          class="genres-tab__group"
-          :class="{ 'genres-tab__group--selected': false }"
-          @click="toggleGroup(group.name)"
-        >
-          <svg
-            width="12" height="12" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-            class="genres-tab__chevron"
-            :class="{ 'genres-tab__chevron--open': expandedGroups.has(group.name) }"
-          >
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-          <svg
-            width="14" height="14" viewBox="0 0 24 24"
-            :fill="expandedGroups.has(group.name) ? 'rgb(var(--v-theme-primary))' : 'none'"
-            stroke="currentColor" stroke-width="2"
-          >
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-          </svg>
-          <span class="genres-tab__group-name">{{ group.name }}</span>
-          <span class="genres-tab__group-count">{{ group.items.length }}</span>
-        </div>
-
-        <template v-if="expandedGroups.has(group.name)">
-          <div
-            v-for="genre in group.items"
-            :key="genre.id"
-            class="genres-tab__child"
-            :class="{ 'genres-tab__child--selected': catalog.navigationFilter?.type === 'genre' && catalog.navigationFilter?.id === genre.id }"
-            @click="selectGenre(genre.id, genre.name)"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-            </svg>
-            <span>{{ genre.name }}</span>
-          </div>
-        </template>
+    <div v-else class="genres-tab__tree">
+      <div v-if="debouncedSearch && filteredCount === 0" class="genres-tab__status genres-tab__status--empty">
+        Жанры не найдены
       </div>
+      <v-treeview
+        v-show="!debouncedSearch || filteredCount > 0"
+        :items="sortedGenres"
+        item-value="id"
+        item-title="name"
+        item-children="children"
+        activatable
+        open-on-click
+        density="compact"
+        slim
+        :search="debouncedSearch"
+        :activated="activated"
+        @update:activated="onActivated"
+      >
+        <template #append="{ item }">
+          <span class="genres-tab__count">{{ item.books_count }}</span>
+        </template>
+      </v-treeview>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useCatalogStore } from '@/stores/catalog'
+import { useThemeStore } from '@/stores/theme'
+import { useParentalStore } from '@/stores/parental'
 import { getGenres, type GenreTreeItem } from '@/api/books'
+import { sortGenreTree } from '@/utils/genres'
 
 const catalog = useCatalogStore()
+const themeStore = useThemeStore()
+const parentalStore = useParentalStore()
 
 const genres = ref<GenreTreeItem[]>([])
 const loading = ref(false)
-const expandedGroups = ref<Set<string>>(new Set())
+const searchQuery = ref('')
+const debouncedSearch = ref('')
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-interface GenreGroup {
-  name: string
-  items: GenreTreeItem[]
-}
-
-const groupedGenres = computed<GenreGroup[]>(() => {
-  const groups = new Map<string, GenreTreeItem[]>()
-
-  for (const genre of genres.value) {
-    const groupName = genre.meta_group || 'Другое'
-    if (!groups.has(groupName)) {
-      groups.set(groupName, [])
-    }
-    groups.get(groupName)!.push(genre)
-
-    if (genre.children) {
-      for (const child of genre.children) {
-        const childGroup = child.meta_group || groupName
-        if (!groups.has(childGroup)) {
-          groups.set(childGroup, [])
-        }
-        groups.get(childGroup)!.push(child)
-      }
-    }
+const sortedGenres = computed(() => {
+  if (themeStore.genreSortOrder === 'alphabetical') {
+    return sortGenreTree(genres.value)
   }
-
-  return Array.from(groups.entries())
-    .map(([name, items]) => ({ name, items }))
-    .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+  return genres.value
 })
 
-function toggleGroup(name: string) {
-  if (expandedGroups.value.has(name)) {
-    expandedGroups.value.delete(name)
-  } else {
-    expandedGroups.value.add(name)
-  }
-  expandedGroups.value = new Set(expandedGroups.value)
+function toggleSort() {
+  themeStore.setGenreSortOrder(
+    themeStore.genreSortOrder === 'original' ? 'alphabetical' : 'original',
+  )
 }
 
-function selectGenre(genreId: number, name: string) {
-  catalog.selectNavItem('genre', genreId, undefined, name)
+// Build a flat lookup map for id → genre
+const genreMap = computed(() => {
+  const map = new Map<number, GenreTreeItem>()
+  function walk(items: GenreTreeItem[]) {
+    for (const item of items) {
+      map.set(item.id, item)
+      if (item.children) walk(item.children)
+    }
+  }
+  walk(genres.value)
+  return map
+})
+
+// Count how many genres match the search (for empty state)
+const filteredCount = computed(() => {
+  if (!debouncedSearch.value) return genreMap.value.size
+  const q = debouncedSearch.value.toLowerCase()
+  let count = 0
+  for (const genre of genreMap.value.values()) {
+    if (genre.name.toLowerCase().includes(q)) count++
+  }
+  return count
+})
+
+// Sync activated state with catalog store
+const activated = computed(() => {
+  if (catalog.navigationFilter?.type === 'genre' && catalog.navigationFilter?.id) {
+    return [catalog.navigationFilter.id]
+  }
+  return []
+})
+
+function onActivated(ids: number[]) {
+  if (ids.length > 0) {
+    const id = ids[0]
+    const genre = genreMap.value.get(id)
+    catalog.selectNavItem('genre', id, undefined, genre?.name)
+  }
+}
+
+function onSearchInput() {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    debouncedSearch.value = searchQuery.value
+  }, 300)
+}
+
+function clearSearch() {
+  searchQuery.value = ''
+  debouncedSearch.value = ''
+  if (debounceTimer) clearTimeout(debounceTimer)
 }
 
 async function fetchGenres() {
@@ -122,10 +158,21 @@ async function fetchGenres() {
   }
 }
 
+// Re-fetch genres when parental content status changes (backend filters server-side)
+watch(() => parentalStore.adultContentEnabled, () => {
+  fetchGenres()
+})
+
 onMounted(() => {
   fetchGenres()
 })
+
+onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 </script>
+
+<style src="@/assets/nav-tab.css"></style>
 
 <style scoped>
 .genres-tab {
@@ -135,35 +182,40 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.genres-tab__header {
-  padding: 8px 6px;
-  font-size: 11px;
-  color: rgb(var(--v-theme-on-surface));
-  opacity: 0.4;
+.genres-tab__search {
+  padding: 10px 10px 8px;
   border-bottom: 1px solid rgb(var(--v-theme-surface-variant));
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.genres-tab__sort-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgb(var(--v-theme-surface-variant));
+  border-radius: 4px;
+  background: transparent;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.5;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.genres-tab__sort-btn:hover {
+  opacity: 1;
+  border-color: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-primary));
 }
 
 .genres-tab__status {
   padding: 20px;
   text-align: center;
-}
-
-.spinner {
-  display: inline-block;
-  width: 24px;
-  height: 24px;
-  border: 2.5px solid rgb(var(--v-theme-surface-variant));
-  border-top-color: rgb(var(--v-theme-primary));
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .genres-tab__status--empty {
@@ -172,66 +224,32 @@ onMounted(() => {
   opacity: 0.4;
 }
 
-.genres-tab__list {
+.genres-tab__tree {
   flex: 1;
   overflow-y: auto;
-  padding: 6px;
+  padding: 2px 0;
 }
 
-.genres-tab__group {
-  cursor: pointer;
-  padding: 3px 4px;
-  border-radius: 3px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  user-select: none;
-  color: rgb(var(--v-theme-on-surface));
-}
-
-.genres-tab__group:hover {
-  background: rgb(var(--v-theme-table-row-hover));
-}
-
-.genres-tab__chevron {
-  transform: rotate(0deg);
-  transition: transform 0.15s;
-  flex-shrink: 0;
-}
-
-.genres-tab__chevron--open {
-  transform: rotate(90deg);
-}
-
-.genres-tab__group-name {
-  font-weight: 500;
-  font-size: 13px;
-}
-
-.genres-tab__group-count {
+.genres-tab__count {
   font-size: 11px;
   color: rgb(var(--v-theme-on-surface));
   opacity: 0.4;
-  margin-left: auto;
+  background: rgb(var(--v-theme-surface-variant));
+  padding: 1px 7px;
+  border-radius: 8px;
+  flex-shrink: 0;
 }
 
-.genres-tab__child {
-  cursor: pointer;
-  padding: 3px 4px 3px 22px;
-  border-radius: 3px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  user-select: none;
+/* Compact VTreeview styling to match navigation panel */
+.genres-tab__tree :deep(.v-treeview-item) {
+  min-height: 28px;
+}
+
+.genres-tab__tree :deep(.v-list-item-title) {
   font-size: 13px;
-  color: rgb(var(--v-theme-on-surface));
 }
 
-.genres-tab__child:hover {
-  background: rgb(var(--v-theme-table-row-hover));
-}
-
-.genres-tab__child--selected {
+.genres-tab__tree :deep(.v-list-item--active) {
   background: rgba(var(--v-theme-primary), 0.12);
   color: rgb(var(--v-theme-primary));
 }

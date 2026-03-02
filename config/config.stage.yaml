@@ -28,3 +28,6 @@ import:
 
 reader:
   cache_path: "/cache/books"
+
+genre_tree:
+  file_path: "/etc/homelib/genres_all.glst"

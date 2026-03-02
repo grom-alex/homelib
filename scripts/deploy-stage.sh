@@ -187,6 +187,7 @@ scp_file "${PROJECT_ROOT}/docker/docker-compose.stage.yml" "${REMOTE_APP_DIR}/do
 scp_file "${PROJECT_ROOT}/docker/nginx/nginx.prod.conf" "${REMOTE_APP_DIR}/nginx/nginx.conf"
 scp_file "${PROJECT_ROOT}/docker/nginx/proxy-headers.conf" "${REMOTE_APP_DIR}/nginx/proxy-headers.conf"
 scp_file "${PROJECT_ROOT}/config/config.stage.yaml" "${REMOTE_APP_DIR}/config.yaml"
+scp_file "${PROJECT_ROOT}/docs/genres_all.glst" "${REMOTE_APP_DIR}/genres_all.glst"
 log_info "Deployment files copied"
 
 # Step 4: Update .env on remote server with IMAGE_TAG

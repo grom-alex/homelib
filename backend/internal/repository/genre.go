@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/grom-alex/homelib/backend/internal/glst"
 	"github.com/grom-alex/homelib/backend/internal/models"
 )
 
@@ -53,54 +54,24 @@ func (r *GenreRepo) UpsertGenres(ctx context.Context, tx pgx.Tx, codes []string)
 
 func (r *GenreRepo) GetAll(ctx context.Context) ([]models.GenreTreeItem, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT g.id, g.code, g.name, g.parent_id, g.meta_group,
+		`SELECT g.id, g.code, g.name, g.position, g.parent_id,
 				COUNT(bg.book_id) as books_count
 		 FROM genres g
 		 LEFT JOIN book_genres bg ON bg.genre_id = g.id
-		 GROUP BY g.id, g.code, g.name, g.parent_id, g.meta_group
-		 ORDER BY g.meta_group, g.name`)
+		 WHERE g.is_active = TRUE
+		 GROUP BY g.id, g.code, g.name, g.position, g.parent_id
+		 ORDER BY g.sort_order`)
 	if err != nil {
 		return nil, fmt.Errorf("query genres: %w", err)
 	}
 	defer rows.Close()
 
-	type flatGenre struct {
-		models.GenreTreeItem
-		ParentID *int
-	}
-
-	var flat []flatGenre
-
-	for rows.Next() {
-		var g flatGenre
-		if err := rows.Scan(&g.ID, &g.Code, &g.Name, &g.ParentID, &g.MetaGroup, &g.BooksCount); err != nil {
-			return nil, fmt.Errorf("scan genre: %w", err)
-		}
-		flat = append(flat, g)
-	}
-	if err := rows.Err(); err != nil {
+	flat, err := scanFlatGenres(rows)
+	if err != nil {
 		return nil, err
 	}
 
-	genreMap := make(map[int]*flatGenre, len(flat))
-	for i := range flat {
-		genreMap[flat[i].ID] = &flat[i]
-	}
-
-	// Build tree
-	var roots []models.GenreTreeItem
-	for i := range flat {
-		g := &flat[i]
-		if g.ParentID != nil {
-			if parent, ok := genreMap[*g.ParentID]; ok {
-				parent.Children = append(parent.Children, g.GenreTreeItem)
-				continue
-			}
-		}
-		roots = append(roots, g.GenreTreeItem)
-	}
-
-	return roots, nil
+	return buildGenreTree(flat, nil), nil
 }
 
 func (r *GenreRepo) GetByID(ctx context.Context, id int) (*models.Genre, error) {
@@ -112,4 +83,261 @@ func (r *GenreRepo) GetByID(ctx context.Context, id int) (*models.Genre, error) 
 		return nil, fmt.Errorf("get genre %d: %w", id, err)
 	}
 	return &g, nil
+}
+
+// LoadTree loads genre entries from a parsed GLST file into the database.
+// It deactivates all existing genres, then upserts entries from the file,
+// resolving parent_id by position lookup. All operations run in a single transaction.
+func (r *GenreRepo) LoadTree(ctx context.Context, entries []glst.GenreEntry) (int, error) {
+	if len(entries) == 0 {
+		return 0, nil
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// Deactivate all genres before loading new tree
+	if _, err := tx.Exec(ctx, `UPDATE genres SET is_active = FALSE`); err != nil {
+		return 0, fmt.Errorf("deactivate genres: %w", err)
+	}
+
+	// Build position → parent_id mapping incrementally.
+	// We process entries in order, so parent positions are resolved before children.
+	positionToID := make(map[string]int, len(entries))
+	loaded := 0
+
+	for i, e := range entries {
+		var parentID *int
+		if e.ParentPosition != "" {
+			if pid, ok := positionToID[e.ParentPosition]; ok {
+				parentID = &pid
+			} else {
+				// Parent not yet loaded — skip (should not happen
+				// if parser validates orphans, but be defensive)
+				continue
+			}
+		}
+
+		var id int
+		err := tx.QueryRow(ctx,
+			`INSERT INTO genres (code, name, position, parent_id, sort_order, is_active)
+			 VALUES ($1, $2, $3, $4, $5, TRUE)
+			 ON CONFLICT (position) WHERE position IS NOT NULL
+			 DO UPDATE SET code = EXCLUDED.code,
+			              name = EXCLUDED.name,
+			              parent_id = EXCLUDED.parent_id,
+			              sort_order = EXCLUDED.sort_order,
+			              is_active = TRUE
+			 RETURNING id`,
+			e.Code, e.Name, e.Position, parentID, i,
+		).Scan(&id)
+		if err != nil {
+			return loaded, fmt.Errorf("upsert genre %q (position %s): %w", e.Code, e.Position, err)
+		}
+
+		positionToID[e.Position] = id
+		loaded++
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("commit genre tree: %w", err)
+	}
+
+	return loaded, nil
+}
+
+// GetUnsortedGenreID returns the ID of the «Неотсортированное» genre (position='0.0').
+func (r *GenreRepo) GetUnsortedGenreID(ctx context.Context) (int, error) {
+	var id int
+	err := r.pool.QueryRow(ctx,
+		`SELECT id FROM genres WHERE position = '0.0' LIMIT 1`,
+	).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("get unsorted genre: %w", err)
+	}
+	return id, nil
+}
+
+// GetDescendantIDs returns all descendant genre IDs for the given parent IDs,
+// using the materialized path (position LIKE parent.position || '.%').
+func (r *GenreRepo) GetDescendantIDs(ctx context.Context, parentIDs []int) ([]int, error) {
+	if len(parentIDs) == 0 {
+		return nil, nil
+	}
+
+	rows, err := r.pool.Query(ctx,
+		`SELECT DISTINCT g2.id
+		 FROM genres g1
+		 JOIN genres g2 ON g2.position LIKE g1.position || '.%' AND g2.is_active = TRUE
+		 WHERE g1.id = ANY($1) AND g1.is_active = TRUE`,
+		parentIDs,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get descendant genre IDs: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan descendant ID: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// GetAllFiltered returns the genre tree excluding genres with the given IDs and their children.
+// If excludeIDs is empty, it returns the full tree (same as GetAll).
+func (r *GenreRepo) GetAllFiltered(ctx context.Context, excludeIDs []int) ([]models.GenreTreeItem, error) {
+	if len(excludeIDs) == 0 {
+		return r.GetAll(ctx)
+	}
+
+	rows, err := r.pool.Query(ctx,
+		`SELECT g.id, g.code, g.name, g.position, g.parent_id,
+				COUNT(bg.book_id) as books_count
+		 FROM genres g
+		 LEFT JOIN book_genres bg ON bg.genre_id = g.id
+		 WHERE g.is_active = TRUE AND g.id != ALL($1::int[])
+		 GROUP BY g.id, g.code, g.name, g.position, g.parent_id
+		 ORDER BY g.sort_order`,
+		excludeIDs,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query filtered genres: %w", err)
+	}
+	defer rows.Close()
+
+	flat, err := scanFlatGenres(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	excludeSet := make(map[int]bool, len(excludeIDs))
+	for _, id := range excludeIDs {
+		excludeSet[id] = true
+	}
+
+	return buildGenreTree(flat, excludeSet), nil
+}
+
+// flatGenre holds a genre row with its parent ID for tree building.
+type flatGenre struct {
+	models.GenreTreeItem
+	ParentID *int
+}
+
+// scanFlatGenres scans rows into a slice of flatGenre.
+func scanFlatGenres(rows pgx.Rows) ([]flatGenre, error) {
+	var flat []flatGenre
+	for rows.Next() {
+		var g flatGenre
+		if err := rows.Scan(&g.ID, &g.Code, &g.Name, &g.Position, &g.ParentID, &g.BooksCount); err != nil {
+			return nil, fmt.Errorf("scan genre: %w", err)
+		}
+		flat = append(flat, g)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return flat, nil
+}
+
+// buildGenreTree converts a flat list of genres into a tree with accumulated book counts.
+// If excludeSet is non-nil, nodes whose parent is in the set are skipped (orphaned by exclusion).
+func buildGenreTree(flat []flatGenre, excludeSet map[int]bool) []models.GenreTreeItem {
+	type pNode struct {
+		ID         int
+		Code       string
+		Name       string
+		Position   string
+		BooksCount int
+		ParentID   *int
+		children   []*pNode
+	}
+
+	nodeMap := make(map[int]*pNode, len(flat))
+	nodes := make([]pNode, len(flat))
+	for i := range flat {
+		nodes[i] = pNode{
+			ID: flat[i].ID, Code: flat[i].Code, Name: flat[i].Name,
+			Position: flat[i].Position, BooksCount: flat[i].BooksCount,
+			ParentID: flat[i].ParentID,
+		}
+		nodeMap[flat[i].ID] = &nodes[i]
+	}
+
+	var rootNodes []*pNode
+	for i := range nodes {
+		n := &nodes[i]
+		if n.ParentID != nil {
+			if excludeSet != nil && excludeSet[*n.ParentID] {
+				continue // parent was excluded — skip orphan
+			}
+			if parent, ok := nodeMap[*n.ParentID]; ok {
+				parent.children = append(parent.children, n)
+			} else {
+				rootNodes = append(rootNodes, n)
+			}
+		} else {
+			rootNodes = append(rootNodes, n)
+		}
+	}
+
+	var convert func(n *pNode) models.GenreTreeItem
+	convert = func(n *pNode) models.GenreTreeItem {
+		item := models.GenreTreeItem{
+			ID: n.ID, Code: n.Code, Name: n.Name,
+			Position: n.Position, BooksCount: n.BooksCount,
+		}
+		for _, c := range n.children {
+			child := convert(c)
+			item.BooksCount += child.BooksCount
+			item.Children = append(item.Children, child)
+		}
+		return item
+	}
+
+	roots := make([]models.GenreTreeItem, 0, len(rootNodes))
+	for _, rn := range rootNodes {
+		roots = append(roots, convert(rn))
+	}
+	return roots
+}
+
+// GetIDsByCodes returns a mapping of genre code to all matching genre IDs.
+// One code can map to multiple IDs when duplicates exist across tree levels.
+func (r *GenreRepo) GetIDsByCodes(ctx context.Context, codes []string) (map[string][]int, error) {
+	if len(codes) == 0 {
+		return make(map[string][]int), nil
+	}
+
+	rows, err := r.pool.Query(ctx,
+		`SELECT code, id FROM genres WHERE code = ANY($1) AND is_active = TRUE`,
+		codes,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get genre IDs by codes: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string][]int, len(codes))
+	for rows.Next() {
+		var code string
+		var id int
+		if err := rows.Scan(&code, &id); err != nil {
+			return nil, fmt.Errorf("scan genre code/id: %w", err)
+		}
+		result[code] = append(result[code], id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

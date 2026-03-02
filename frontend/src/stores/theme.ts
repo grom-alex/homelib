@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useTheme } from 'vuetify'
-import type { CatalogThemeName, CustomCatalogColors } from '@/types/catalog'
+import type { CatalogThemeName, CustomCatalogColors, GenreSortOrder } from '@/types/catalog'
 import { defaultCatalogSettings } from '@/types/catalog'
 import api from '@/api/client'
 
@@ -60,6 +60,7 @@ export const useThemeStore = defineStore('theme', () => {
   const catalogTheme = ref<CatalogThemeName>(defaultCatalogSettings.theme)
   const readerThemeOverride = ref<CatalogThemeName | null>(null)
   const customCatalogColors = ref<CustomCatalogColors>({ ...defaultCustomColors })
+  const genreSortOrder = ref<GenreSortOrder>('original')
   const loaded = ref(false)
 
   // Захватываем ссылку на Vuetify theme в setup-контексте стора,
@@ -113,6 +114,11 @@ export const useThemeStore = defineStore('theme', () => {
     scheduleSave()
   }
 
+  function setGenreSortOrder(order: GenreSortOrder) {
+    genreSortOrder.value = order
+    scheduleSave()
+  }
+
   function applyVuetifyTheme(theme: CatalogThemeName) {
     if (vuetifyTheme) {
       vuetifyTheme.global.name.value = theme
@@ -129,6 +135,9 @@ export const useThemeStore = defineStore('theme', () => {
       }
       if (catalog?.customColors) {
         customCatalogColors.value = catalog.customColors as CustomCatalogColors
+      }
+      if (catalog?.genreSortOrder) {
+        genreSortOrder.value = catalog.genreSortOrder as GenreSortOrder
       }
       if (catalogTheme.value === 'custom') {
         applyCustomColorsToVuetify(customCatalogColors.value)
@@ -160,6 +169,7 @@ export const useThemeStore = defineStore('theme', () => {
         catalog: {
           theme: catalogTheme.value,
           customColors: customCatalogColors.value,
+          genreSortOrder: genreSortOrder.value,
         },
         reader: { theme: readerThemeOverride.value },
       })
@@ -178,6 +188,8 @@ export const useThemeStore = defineStore('theme', () => {
     setCatalogCustomColors,
     setReaderTheme,
     resetReaderTheme,
+    genreSortOrder,
+    setGenreSortOrder,
     loadSettings,
     saveSettings,
   }

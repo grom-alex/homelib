@@ -75,9 +75,10 @@ type BookDetail struct {
 }
 
 type BookGenreDetailRef struct {
-	ID   int    `json:"id"`
-	Code string `json:"code"`
-	Name string `json:"name"`
+	ID       int    `json:"id"`
+	Code     string `json:"code"`
+	Name     string `json:"name"`
+	Position string `json:"position"`
 }
 
 type BookSeriesDetailRef struct {
@@ -93,18 +94,19 @@ type BookCollectionRef struct {
 }
 
 type BookFilter struct {
-	Query      string `form:"q"`
-	AuthorID   *int64 `form:"author_id"`
-	AuthorName string `form:"author_name"`
-	GenreID    *int   `form:"genre_id"`
-	SeriesID   *int64 `form:"series_id"`
-	SeriesName string `form:"series_name"`
-	Lang       string `form:"lang"`
-	Format     string `form:"format"`
-	Page       int    `form:"page"`
-	Limit      int    `form:"limit"`
-	Sort       string `form:"sort"`
-	Order      string `form:"order"`
+	Query           string `form:"q"`
+	AuthorID        *int64 `form:"author_id"`
+	AuthorName      string `form:"author_name"`
+	GenreID         *int   `form:"genre_id"`
+	SeriesID        *int64 `form:"series_id"`
+	SeriesName      string `form:"series_name"`
+	Lang            string `form:"lang"`
+	Format          string `form:"format"`
+	Page            int    `form:"page"`
+	Limit           int    `form:"limit"`
+	Sort            string `form:"sort"`
+	Order           string `form:"order"`
+	ExcludeGenreIDs []int  `form:"-"` // Parental control: set by middleware, not from query params
 }
 
 func (f *BookFilter) SetDefaults() {

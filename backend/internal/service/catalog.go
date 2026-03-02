@@ -79,8 +79,8 @@ func (s *CatalogService) GetAuthor(ctx context.Context, id int64) (*models.Autho
 	}, nil
 }
 
-func (s *CatalogService) ListGenres(ctx context.Context) ([]models.GenreTreeItem, error) {
-	return s.genreRepo.GetAll(ctx)
+func (s *CatalogService) ListGenres(ctx context.Context, excludeIDs []int) ([]models.GenreTreeItem, error) {
+	return s.genreRepo.GetAllFiltered(ctx, excludeIDs)
 }
 
 func (s *CatalogService) ListSeries(ctx context.Context, query string, page, limit int) ([]models.SeriesListItem, int, error) {

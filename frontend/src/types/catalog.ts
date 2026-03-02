@@ -1,4 +1,30 @@
-// Catalog types per spec 007-catalog-redesign
+// Catalog types per spec 007-catalog-redesign, 008-genre-tree
+
+export interface GenreTreeItem {
+  id: number
+  code: string
+  name: string
+  position: string
+  books_count: number
+  children?: GenreTreeItem[]
+}
+
+export interface BookGenreDetailRef {
+  id: number
+  code: string
+  name: string
+  position: string
+}
+
+export type GenreSortOrder = 'original' | 'alphabetical'
+
+export interface GenreReloadResult {
+  genres_loaded: number
+  books_remapped: number
+  warnings: string[]
+}
+
+// --- 007-catalog-redesign types below ---
 
 export type CatalogThemeName = 'light' | 'dark' | 'sepia' | 'night' | 'custom'
 

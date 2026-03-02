@@ -198,7 +198,7 @@ func (r *BookRepo) GetByID(ctx context.Context, id int64) (*models.BookDetail, e
 
 	// Load genres
 	rows2, err := r.pool.Query(ctx,
-		`SELECT g.id, g.code, g.name FROM genres g
+		`SELECT g.id, g.code, g.name, g.position FROM genres g
 		 JOIN book_genres bg ON bg.genre_id = g.id
 		 WHERE bg.book_id = $1 ORDER BY g.name`, id)
 	if err != nil {
@@ -207,7 +207,7 @@ func (r *BookRepo) GetByID(ctx context.Context, id int64) (*models.BookDetail, e
 	defer rows2.Close()
 	for rows2.Next() {
 		var ref models.BookGenreDetailRef
-		if err := rows2.Scan(&ref.ID, &ref.Code, &ref.Name); err != nil {
+		if err := rows2.Scan(&ref.ID, &ref.Code, &ref.Name, &ref.Position); err != nil {
 			return nil, err
 		}
 		b.Genres = append(b.Genres, ref)
@@ -278,8 +278,13 @@ func (r *BookRepo) List(ctx context.Context, f models.BookFilter) ([]models.Book
 		argIdx++
 	}
 	if f.GenreID != nil {
+		// Cascading filter: match the genre itself AND all its descendants via materialized path
 		conditions = append(conditions, fmt.Sprintf(
-			"EXISTS (SELECT 1 FROM book_genres bg WHERE bg.book_id = b.id AND bg.genre_id = $%d)", argIdx))
+			`EXISTS (SELECT 1 FROM book_genres bg WHERE bg.book_id = b.id AND bg.genre_id IN (
+				SELECT g.id FROM genres g WHERE g.is_active = TRUE AND (
+					g.id = $%d OR g.position LIKE (SELECT position || '.%%' FROM genres WHERE id = $%d AND is_active = TRUE)
+				)
+			))`, argIdx, argIdx))
 		args = append(args, *f.GenreID)
 		argIdx++
 	}
@@ -302,6 +307,12 @@ func (r *BookRepo) List(ctx context.Context, f models.BookFilter) ([]models.Book
 	if f.Format != "" {
 		conditions = append(conditions, fmt.Sprintf("b.format = $%d", argIdx))
 		args = append(args, f.Format)
+		argIdx++
+	}
+	if len(f.ExcludeGenreIDs) > 0 {
+		conditions = append(conditions, fmt.Sprintf(
+			"NOT EXISTS (SELECT 1 FROM book_genres bg2 WHERE bg2.book_id = b.id AND bg2.genre_id = ANY($%d::int[]))", argIdx))
+		args = append(args, f.ExcludeGenreIDs)
 		argIdx++
 	}
 
@@ -472,4 +483,133 @@ func (r *BookRepo) getBookSeriesRefsBatch(ctx context.Context, bookIDs []int64) 
 		result[bookID] = &ref
 	}
 	return result, rows.Err()
+}
+
+// RemapBookGenres rebuilds book_genres links based on code→IDs mapping.
+// Processes books in batches. Books with no mappable genres get the fallbackID.
+// Returns the total number of books processed.
+func (r *BookRepo) RemapBookGenres(ctx context.Context, codeToIDs map[string][]int, fallbackID int, batchSize int) (int, error) {
+	if batchSize <= 0 {
+		batchSize = 3000
+	}
+
+	totalProcessed := 0
+	var lastBookID int64 // cursor for keyset pagination
+
+	for {
+		// Cursor-based pagination: get next batch of book IDs after lastBookID
+		rows, err := r.pool.Query(ctx,
+			`SELECT DISTINCT bg.book_id FROM book_genres bg
+			 WHERE bg.book_id > $1
+			 ORDER BY bg.book_id
+			 LIMIT $2`,
+			lastBookID, batchSize,
+		)
+		if err != nil {
+			return totalProcessed, fmt.Errorf("get book IDs for remap: %w", err)
+		}
+
+		var bookIDs []int64
+		for rows.Next() {
+			var id int64
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return totalProcessed, fmt.Errorf("scan book ID: %w", err)
+			}
+			bookIDs = append(bookIDs, id)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return totalProcessed, err
+		}
+
+		if len(bookIDs) == 0 {
+			break
+		}
+
+		// Advance cursor to last ID in batch
+		lastBookID = bookIDs[len(bookIDs)-1]
+
+		// Get current genre codes for these books
+		codeRows, err := r.pool.Query(ctx,
+			`SELECT bg.book_id, g.code FROM book_genres bg
+			 JOIN genres g ON g.id = bg.genre_id
+			 WHERE bg.book_id = ANY($1)`,
+			bookIDs,
+		)
+		if err != nil {
+			return totalProcessed, fmt.Errorf("get book genre codes: %w", err)
+		}
+
+		bookCodes := make(map[int64][]string)
+		for codeRows.Next() {
+			var bookID int64
+			var code string
+			if err := codeRows.Scan(&bookID, &code); err != nil {
+				codeRows.Close()
+				return totalProcessed, fmt.Errorf("scan book genre code: %w", err)
+			}
+			bookCodes[bookID] = append(bookCodes[bookID], code)
+		}
+		codeRows.Close()
+		if err := codeRows.Err(); err != nil {
+			return totalProcessed, err
+		}
+
+		// Build new book_genres mapping
+		newBookGenres := make(map[int64][]int32, len(bookIDs))
+		for _, bookID := range bookIDs {
+			seen := make(map[int]bool)
+			codes := bookCodes[bookID]
+			for _, code := range codes {
+				if ids, ok := codeToIDs[code]; ok {
+					for _, id := range ids {
+						if !seen[id] {
+							seen[id] = true
+							newBookGenres[bookID] = append(newBookGenres[bookID], int32(id))
+						}
+					}
+				}
+			}
+			// Fallback: if no genres mapped, assign to «Неотсортированное»
+			if len(newBookGenres[bookID]) == 0 {
+				newBookGenres[bookID] = []int32{int32(fallbackID)}
+			}
+		}
+
+		// Update in a transaction
+		tx, err := r.pool.Begin(ctx)
+		if err != nil {
+			return totalProcessed, fmt.Errorf("begin remap tx: %w", err)
+		}
+
+		if err := r.BatchSetBookGenres(ctx, tx, newBookGenres); err != nil {
+			_ = tx.Rollback(ctx)
+			return totalProcessed, fmt.Errorf("batch set remap: %w", err)
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			return totalProcessed, fmt.Errorf("commit remap: %w", err)
+		}
+
+		totalProcessed += len(bookIDs)
+	}
+
+	return totalProcessed, nil
+}
+
+// IsBookRestricted checks whether a book belongs to any of the given restricted genre IDs.
+func (r *BookRepo) IsBookRestricted(ctx context.Context, bookID int64, restrictedGenreIDs []int) (bool, error) {
+	if len(restrictedGenreIDs) == 0 {
+		return false, nil
+	}
+	var exists bool
+	err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM book_genres bg WHERE bg.book_id = $1 AND bg.genre_id = ANY($2::int[]))`,
+		bookID, restrictedGenreIDs,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check book restricted %d: %w", bookID, err)
+	}
+	return exists, nil
 }

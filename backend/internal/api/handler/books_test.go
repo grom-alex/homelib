@@ -25,7 +25,7 @@ func TestBooksHandler_ListBooks_Success(t *testing.T) {
 			}, 2, nil
 		},
 	}
-	h := NewBooksHandler(svc)
+	h := NewBooksHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -42,7 +42,7 @@ func TestBooksHandler_ListBooks_Success(t *testing.T) {
 }
 
 func TestBooksHandler_ListBooks_BadParams(t *testing.T) {
-	h := NewBooksHandler(nil)
+	h := NewBooksHandler(nil, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -59,7 +59,7 @@ func TestBooksHandler_ListBooks_ServiceError(t *testing.T) {
 			return nil, 0, fmt.Errorf("db error")
 		},
 	}
-	h := NewBooksHandler(svc)
+	h := NewBooksHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -77,7 +77,7 @@ func TestBooksHandler_GetBook_Success(t *testing.T) {
 			return &models.BookDetail{ID: 42, Title: "Test Book"}, nil
 		},
 	}
-	h := NewBooksHandler(svc)
+	h := NewBooksHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -94,7 +94,7 @@ func TestBooksHandler_GetBook_Success(t *testing.T) {
 }
 
 func TestBooksHandler_GetBook_InvalidID(t *testing.T) {
-	h := NewBooksHandler(nil)
+	h := NewBooksHandler(nil, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -115,7 +115,7 @@ func TestBooksHandler_GetBook_NotFound(t *testing.T) {
 			return nil, fmt.Errorf("not found")
 		},
 	}
-	h := NewBooksHandler(svc)
+	h := NewBooksHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -125,6 +125,33 @@ func TestBooksHandler_GetBook_NotFound(t *testing.T) {
 	h.GetBook(c)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestBooksHandler_ListBooks_GenreIDFilter(t *testing.T) {
+	// Verifies that genre_id filter is correctly forwarded to the service.
+	// The cascading behavior (parent genre includes descendants) is handled
+	// at the repository SQL level via materialized path queries.
+	svc := &mockCatalogService{
+		listBooksFn: func(_ context.Context, f models.BookFilter) ([]models.BookListItem, int, error) {
+			assert.NotNil(t, f.GenreID, "GenreID filter should be set")
+			assert.Equal(t, 42, *f.GenreID)
+			return []models.BookListItem{
+				{ID: 1, Title: "Sci-Fi Book", Format: "fb2"},
+			}, 1, nil
+		},
+	}
+	h := NewBooksHandler(svc, &mockBookRestrictionChecker{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/books?genre_id=42", nil)
+
+	h.ListBooks(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, float64(1), resp["total"])
 }
 
 func TestBooksHandler_GetStats_Success(t *testing.T) {
@@ -140,7 +167,7 @@ func TestBooksHandler_GetStats_Success(t *testing.T) {
 			}, nil
 		},
 	}
-	h := NewBooksHandler(svc)
+	h := NewBooksHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -160,7 +187,7 @@ func TestBooksHandler_GetStats_Error(t *testing.T) {
 			return nil, fmt.Errorf("db error")
 		},
 	}
-	h := NewBooksHandler(svc)
+	h := NewBooksHandler(svc, &mockBookRestrictionChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)

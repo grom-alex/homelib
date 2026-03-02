@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -16,6 +17,7 @@ import (
 func main() {
 	configPath := flag.String("config", "config.yaml", "path to config file")
 	runImport := flag.Bool("import", false, "run INPX import and exit")
+	reloadGenres := flag.Bool("reload-genres", false, "force reload genre tree from .glst file and exit")
 	flag.Parse()
 
 	cfg, err := config.Load(*configPath)
@@ -36,6 +38,32 @@ func main() {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 	log.Println("Migrations applied successfully")
+
+	if *reloadGenres {
+		genreRepo := repository.NewGenreRepo(pool)
+		bookRepo := repository.NewBookRepo(pool)
+		metadataRepo := repository.NewMetadataRepo(pool)
+
+		if cfg.GenreTree.FilePath == "" {
+			log.Fatalf("genre_tree.file_path is not configured")
+		}
+		genreData, err := os.ReadFile(cfg.GenreTree.FilePath)
+		if err != nil {
+			log.Fatalf("Failed to read genre file %q: %v", cfg.GenreTree.FilePath, err)
+		}
+
+		genreTreeSvc := service.NewGenreTreeService(genreData, metadataRepo, genreRepo, bookRepo)
+		result, err := genreTreeSvc.ForceReload(ctx)
+		if err != nil {
+			log.Fatalf("Genre reload failed: %v", err)
+		}
+		log.Printf("Genre reload completed: %d genres loaded, %d books remapped, %d warnings",
+			result.GenresLoaded, result.BooksRemapped, len(result.Warnings))
+		for _, w := range result.Warnings {
+			log.Printf("  WARNING: %s", w)
+		}
+		return
+	}
 
 	if *runImport {
 		bookRepo := repository.NewBookRepo(pool)

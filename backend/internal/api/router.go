@@ -18,9 +18,10 @@ type Handlers struct {
 	Reader   *handler.ReaderHandler
 	Progress *handler.ProgressHandler
 	Settings *handler.SettingsHandler
+	Parental *handler.ParentalHandler
 }
 
-func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware) *gin.Engine {
+func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware, parentalMw gin.HandlerFunc) *gin.Engine {
 	r := gin.Default()
 
 	// Health check
@@ -49,10 +50,13 @@ func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware) *gin.Engine {
 			}
 		}
 
-		// Authenticated endpoints
+		// Authenticated endpoints (with parental filter)
 		authorized := api.Group("")
 		if authMw != nil {
 			authorized.Use(authMw.RequireAuth())
+		}
+		if parentalMw != nil {
+			authorized.Use(parentalMw)
 		}
 		{
 			authorized.GET("/books", h.Books.ListBooks)
@@ -76,6 +80,11 @@ func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware) *gin.Engine {
 				authorized.GET("/me/settings", h.Settings.GetUserSettings)
 				authorized.PUT("/me/settings", h.Settings.UpdateUserSettings)
 			}
+			if h.Parental != nil {
+				authorized.GET("/me/parental/status", h.Parental.GetMyParentalStatus)
+				authorized.POST("/me/parental/unlock", h.Parental.UnlockAdultContent)
+				authorized.POST("/me/parental/lock", h.Parental.LockAdultContent)
+			}
 			authorized.GET("/authors", h.Authors.ListAuthors)
 			authorized.GET("/authors/:id", h.Authors.GetAuthor)
 			authorized.GET("/genres", h.Genres.ListGenres)
@@ -91,6 +100,16 @@ func SetupRouter(h Handlers, authMw *middleware.AuthMiddleware) *gin.Engine {
 			admin.POST("/import", h.Admin.StartImport)
 			admin.GET("/import/status", h.Admin.ImportStatus)
 			admin.POST("/import/cancel", h.Admin.CancelImport)
+			admin.POST("/genres/reload", h.Admin.ReloadGenres)
+			if h.Parental != nil {
+				admin.GET("/parental/status", h.Parental.GetAdminParentalStatus)
+				admin.GET("/parental/genres", h.Parental.GetRestrictedGenres)
+				admin.PUT("/parental/genres", h.Parental.UpdateRestrictedGenres)
+				admin.POST("/parental/pin", h.Parental.SetPin)
+				admin.DELETE("/parental/pin", h.Parental.RemovePin)
+				admin.GET("/parental/users", h.Parental.ListUsersAdultStatus)
+				admin.PUT("/parental/users/:userId", h.Parental.SetUserAdultContent)
+			}
 		}
 	}
 

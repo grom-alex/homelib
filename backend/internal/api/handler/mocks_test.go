@@ -55,7 +55,7 @@ type mockCatalogService struct {
 	getBookFn     func(ctx context.Context, id int64) (*models.BookDetail, error)
 	listAuthorsFn func(ctx context.Context, query string, page, limit int) ([]models.AuthorListItem, int, error)
 	getAuthorFn   func(ctx context.Context, id int64) (*models.AuthorDetail, error)
-	listGenresFn  func(ctx context.Context) ([]models.GenreTreeItem, error)
+	listGenresFn  func(ctx context.Context, excludeIDs []int) ([]models.GenreTreeItem, error)
 	listSeriesFn  func(ctx context.Context, query string, page, limit int) ([]models.SeriesListItem, int, error)
 	getStatsFn    func(ctx context.Context) (*service.Stats, error)
 }
@@ -88,9 +88,9 @@ func (m *mockCatalogService) GetAuthor(ctx context.Context, id int64) (*models.A
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (m *mockCatalogService) ListGenres(ctx context.Context) ([]models.GenreTreeItem, error) {
+func (m *mockCatalogService) ListGenres(ctx context.Context, excludeIDs []int) ([]models.GenreTreeItem, error) {
 	if m.listGenresFn != nil {
-		return m.listGenresFn(ctx)
+		return m.listGenresFn(ctx, excludeIDs)
 	}
 	return nil, fmt.Errorf("not implemented")
 }
@@ -148,6 +148,38 @@ func (m *mockImportService) CancelImport() {
 	if m.cancelFn != nil {
 		m.cancelFn()
 	}
+}
+
+// --- Book restriction checker mock ---
+
+type mockBookRestrictionChecker struct {
+	isBookRestrictedFn func(ctx context.Context, bookID int64, restrictedGenreIDs []int) (bool, error)
+}
+
+func (m *mockBookRestrictionChecker) IsBookRestricted(ctx context.Context, bookID int64, restrictedGenreIDs []int) (bool, error) {
+	if m.isBookRestrictedFn != nil {
+		return m.isBookRestrictedFn(ctx, bookID, restrictedGenreIDs)
+	}
+	return false, nil
+}
+
+// --- Parental cache invalidator mock ---
+
+type mockParentalCacheInvalidator struct{}
+
+func (m *mockParentalCacheInvalidator) InvalidateCache() {}
+
+// --- Genre tree service mock ---
+
+type mockGenreTreeService struct {
+	forceReloadFn func(ctx context.Context) (*service.GenreTreeResult, error)
+}
+
+func (m *mockGenreTreeService) ForceReload(ctx context.Context) (*service.GenreTreeResult, error) {
+	if m.forceReloadFn != nil {
+		return m.forceReloadFn(ctx)
+	}
+	return nil, fmt.Errorf("not implemented")
 }
 
 // --- Reader service mock ---

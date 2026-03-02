@@ -209,8 +209,11 @@ func (s *ImportService) importINPX(ctx context.Context) (*models.ImportStats, er
 
 	// Caches for dedup within import
 	authorCache := make(map[string]int64)
-	genreCache := make(map[string]int)
+	genreCache := make(map[string][]int)
 	seriesCache := make(map[string]int64)
+
+	// Get unsorted genre ID for fallback
+	unsortedGenreID, _ := s.genreRepo.GetUnsortedGenreID(ctx)
 
 	batchNum := 0
 	for i := 0; i < len(result.Records); i += batchSize {
@@ -223,7 +226,7 @@ func (s *ImportService) importINPX(ctx context.Context) (*models.ImportStats, er
 		}
 		batch := result.Records[i:end]
 
-		batchStats, err := s.processBatch(ctx, batch, coll.ID, authorCache, genreCache, seriesCache)
+		batchStats, err := s.processBatch(ctx, batch, coll.ID, authorCache, genreCache, seriesCache, unsortedGenreID)
 		if err != nil {
 			stats.Errors++
 			log.Printf("Batch %d-%d error: %v", i, end, err)
@@ -256,8 +259,9 @@ func (s *ImportService) processBatch(
 	records []inpx.BookRecord,
 	collectionID int,
 	authorCache map[string]int64,
-	genreCache map[string]int,
+	genreCache map[string][]int,
 	seriesCache map[string]int64,
+	unsortedGenreID int,
 ) (*models.ImportStats, error) {
 	stats := &models.ImportStats{}
 
@@ -310,13 +314,13 @@ func (s *ImportService) processBatch(
 		}
 	}
 
-	// Upsert genres
+	// Look up genre IDs by codes (genres are pre-loaded from .glst)
 	if len(genreSet) > 0 {
 		codes := make([]string, 0, len(genreSet))
 		for code := range genreSet {
 			codes = append(codes, code)
 		}
-		ids, err := s.genreRepo.UpsertGenres(ctx, tx, codes)
+		ids, err := s.genreRepo.GetIDsByCodes(ctx, codes)
 		if err != nil {
 			return stats, err
 		}
@@ -437,9 +441,12 @@ func (s *ImportService) processBatch(
 		}
 		var gIDs []int
 		for _, g := range rec.Genres {
-			if id, ok := genreCache[g]; ok {
-				gIDs = append(gIDs, id)
+			if ids, ok := genreCache[g]; ok {
+				gIDs = append(gIDs, ids...)
 			}
+		}
+		if len(gIDs) == 0 && unsortedGenreID > 0 {
+			gIDs = []int{unsortedGenreID}
 		}
 		metas = append(metas, bookMeta{authorIDs: aIDs, genreIDs: gIDs})
 	}

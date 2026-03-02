@@ -5,9 +5,11 @@
   </div>
 
   <div v-else-if="store.error" class="reader-error">
-    <v-icon size="64" color="error">mdi-alert-circle-outline</v-icon>
+    <v-icon size="64" :color="isContentRestricted ? 'warning' : 'error'">
+      {{ isContentRestricted ? 'mdi-lock' : 'mdi-alert-circle-outline' }}
+    </v-icon>
     <h2>{{ errorTitle }}</h2>
-    <p>{{ store.error }}</p>
+    <p>{{ isContentRestricted ? 'Доступ к этой книге ограничен родительским контролем' : store.error }}</p>
     <v-btn color="primary" @click="$router.back()">Назад в каталог</v-btn>
   </div>
 
@@ -28,7 +30,13 @@ const { loadBookContent } = useBookContent()
 
 const bookId = computed(() => Number(route.params.id))
 
+const isContentRestricted = computed(() => {
+  const err = store.error ?? ''
+  return err.includes('content_restricted') || err.includes('Контент ограничен')
+})
+
 const errorTitle = computed(() => {
+  if (isContentRestricted.value) return 'Контент ограничен'
   const err = store.error ?? ''
   if (err.includes('не найдена')) return 'Книга не найдена'
   if (err.includes('не поддерживается')) return 'Формат не поддерживается'

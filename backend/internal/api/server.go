@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/grom-alex/homelib/backend/internal/api/handler"
@@ -17,10 +18,26 @@ import (
 )
 
 type Server struct {
-	httpServer *http.Server
-	pool       *pgxpool.Pool
-	importSvc  *service.ImportService
-	readerSvc  *service.ReaderService
+	httpServer   *http.Server
+	pool         *pgxpool.Pool
+	importSvc    *service.ImportService
+	readerSvc    *service.ReaderService
+	genreTreeSvc *service.GenreTreeService
+	parentalSvc  *service.ParentalService
+}
+
+// loadGenreData reads genre file from the path specified in config.
+// Returns nil if no path configured (genre tree feature disabled).
+func loadGenreData(cfg config.GenreTreeConfig) []byte {
+	if cfg.FilePath == "" {
+		return nil
+	}
+	data, err := os.ReadFile(cfg.FilePath)
+	if err != nil {
+		log.Printf("WARNING: failed to read genre file %q: %v", cfg.FilePath, err)
+		return nil
+	}
+	return data
 }
 
 func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
@@ -32,6 +49,13 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 	collectionRepo := repository.NewCollectionRepo(pool)
 	userRepo := repository.NewUserRepo(pool)
 	refreshRepo := repository.NewRefreshTokenRepo(pool)
+	metadataRepo := repository.NewMetadataRepo(pool)
+
+	// Genre tree service (nil if no genre file configured)
+	var genreTreeSvc *service.GenreTreeService
+	if genreData := loadGenreData(cfg.GenreTree); genreData != nil {
+		genreTreeSvc = service.NewGenreTreeService(genreData, metadataRepo, genreRepo, bookRepo)
+	}
 
 	// Services
 	catalogSvc := service.NewCatalogService(pool, bookRepo, authorRepo, genreRepo, seriesRepo, collectionRepo)
@@ -39,6 +63,7 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 	authSvc := service.NewAuthService(cfg.Auth, userRepo, refreshRepo)
 	downloadSvc := service.NewDownloadService(bookRepo, cfg.Library)
 	readerSvc := service.NewReaderService(bookRepo, cfg.Library, cfg.Reader)
+	parentalSvc := service.NewParentalService(metadataRepo, genreRepo, userRepo)
 
 	// Reading progress repository
 	progressRepo := repository.NewReadingProgressRepo(pool)
@@ -47,21 +72,25 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 	authValidator := &authServiceValidator{authSvc: authSvc}
 	authMw := middleware.NewAuthMiddleware(authValidator)
 
+	// Parental control middleware
+	parentalMw := middleware.ParentalFilter(parentalSvc)
+
 	// Handlers
 	h := Handlers{
-		Books:    handler.NewBooksHandler(catalogSvc),
+		Books:    handler.NewBooksHandler(catalogSvc, bookRepo),
 		Authors:  handler.NewAuthorsHandler(catalogSvc),
 		Genres:   handler.NewGenresHandler(catalogSvc),
 		Series:   handler.NewSeriesHandler(catalogSvc),
-		Admin:    handler.NewAdminHandler(importSvc),
+		Admin:    handler.NewAdminHandler(importSvc, genreTreeSvc, parentalSvc),
 		Auth:     handler.NewAuthHandler(authSvc, cfg.Auth.RefreshTokenTTL, cfg.Auth.CookieSecure),
-		Download: handler.NewDownloadHandler(downloadSvc),
-		Reader:   handler.NewReaderHandler(readerSvc),
+		Download: handler.NewDownloadHandler(downloadSvc, bookRepo),
+		Reader:   handler.NewReaderHandler(readerSvc, bookRepo),
 		Progress: handler.NewProgressHandler(progressRepo),
 		Settings: handler.NewSettingsHandler(userRepo),
+		Parental: handler.NewParentalHandler(parentalSvc),
 	}
 
-	router := SetupRouter(h, authMw)
+	router := SetupRouter(h, authMw, parentalMw)
 
 	return &Server{
 		httpServer: &http.Server{
@@ -72,9 +101,11 @@ func NewServer(cfg *config.Config, pool *pgxpool.Pool) *Server {
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       120 * time.Second,
 		},
-		pool:      pool,
-		importSvc: importSvc,
-		readerSvc: readerSvc,
+		pool:         pool,
+		importSvc:    importSvc,
+		readerSvc:    readerSvc,
+		genreTreeSvc: genreTreeSvc,
+		parentalSvc:  parentalSvc,
 	}
 }
 
@@ -98,6 +129,19 @@ func (v *authServiceValidator) ValidateToken(tokenString string) (*middleware.Cl
 func (s *Server) Start(ctx context.Context) error {
 	// Set app context so imports started via API are cancelled on shutdown
 	s.importSvc.SetAppContext(ctx)
+
+	// Load genre tree if needed (idempotent — skips if hash unchanged)
+	if s.genreTreeSvc != nil {
+		result, err := s.genreTreeSvc.LoadIfNeeded(ctx)
+		if err != nil {
+			log.Printf("WARNING: genre tree load failed: %v", err)
+		} else if result.Skipped {
+			log.Println("Genre tree: up to date, skipped")
+		} else {
+			log.Printf("Genre tree loaded: %d genres, %d books remapped, %d warnings",
+				result.GenresLoaded, result.BooksRemapped, len(result.Warnings))
+		}
+	}
 
 	// Start periodic cache cleanup (stops on ctx cancellation)
 	s.readerSvc.StartCacheCleanup(ctx)

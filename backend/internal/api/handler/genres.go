@@ -16,7 +16,9 @@ func NewGenresHandler(catalogSvc CatalogServicer) *GenresHandler {
 
 // ListGenres handles GET /api/genres.
 func (h *GenresHandler) ListGenres(c *gin.Context) {
-	genres, err := h.catalogSvc.ListGenres(c.Request.Context())
+	excludeIDs := getRestrictedGenreIDs(c)
+
+	genres, err := h.catalogSvc.ListGenres(c.Request.Context(), excludeIDs)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list genres"})
 		return

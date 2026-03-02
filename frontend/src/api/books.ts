@@ -87,7 +87,7 @@ export interface GenreTreeItem {
   id: number
   code: string
   name: string
-  meta_group?: string
+  position: string
   books_count: number
   children?: GenreTreeItem[]
 }
@@ -172,5 +172,16 @@ export async function getSeries(params: { q?: string; page?: number; limit?: num
 
 export async function getStats(): Promise<CatalogStats> {
   const { data } = await api.get<CatalogStats>('/stats')
+  return data
+}
+
+export interface GenreReloadResult {
+  genres_loaded: number
+  books_remapped: number
+  warnings: string[]
+}
+
+export async function reloadGenres(): Promise<GenreReloadResult> {
+  const { data } = await api.post<GenreReloadResult>('/admin/genres/reload')
   return data
 }

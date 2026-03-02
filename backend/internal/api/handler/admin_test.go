@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grom-alex/homelib/backend/internal/models"
+	"github.com/grom-alex/homelib/backend/internal/service"
 )
 
 func init() {
@@ -25,7 +26,7 @@ func TestAdminHandler_StartImport_Accepted(t *testing.T) {
 			return nil
 		},
 	}
-	h := NewAdminHandler(svc)
+	h := NewAdminHandler(svc, &mockGenreTreeService{}, &mockParentalCacheInvalidator{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -45,7 +46,7 @@ func TestAdminHandler_StartImport_Conflict(t *testing.T) {
 			return fmt.Errorf("import is already running")
 		},
 	}
-	h := NewAdminHandler(svc)
+	h := NewAdminHandler(svc, &mockGenreTreeService{}, &mockParentalCacheInvalidator{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -65,7 +66,7 @@ func TestAdminHandler_ImportStatus(t *testing.T) {
 			return models.ImportStatus{Status: "idle"}
 		},
 	}
-	h := NewAdminHandler(svc)
+	h := NewAdminHandler(svc, &mockGenreTreeService{}, &mockParentalCacheInvalidator{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -86,7 +87,7 @@ func TestAdminHandler_CancelImport(t *testing.T) {
 			cancelCalled = true
 		},
 	}
-	h := NewAdminHandler(svc)
+	h := NewAdminHandler(svc, &mockGenreTreeService{}, &mockParentalCacheInvalidator{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -99,4 +100,64 @@ func TestAdminHandler_CancelImport(t *testing.T) {
 	var resp map[string]string
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	assert.Equal(t, "import cancellation requested", resp["message"])
+}
+
+func TestAdminHandler_ReloadGenres_Success(t *testing.T) {
+	genreSvc := &mockGenreTreeService{
+		forceReloadFn: func(_ context.Context) (*service.GenreTreeResult, error) {
+			return &service.GenreTreeResult{
+				GenresLoaded:  448,
+				BooksRemapped: 1000,
+				Warnings:      []string{"duplicate code: home_cooking"},
+			}, nil
+		},
+	}
+	h := NewAdminHandler(&mockImportService{}, genreSvc, &mockParentalCacheInvalidator{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/admin/genres/reload", nil)
+
+	h.ReloadGenres(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp service.GenreTreeResult
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, 448, resp.GenresLoaded)
+	assert.Equal(t, 1000, resp.BooksRemapped)
+	assert.Len(t, resp.Warnings, 1)
+}
+
+func TestAdminHandler_ReloadGenres_Conflict(t *testing.T) {
+	genreSvc := &mockGenreTreeService{
+		forceReloadFn: func(_ context.Context) (*service.GenreTreeResult, error) {
+			return nil, service.ErrGenreReloadAlreadyRunning
+		},
+	}
+	h := NewAdminHandler(&mockImportService{}, genreSvc, &mockParentalCacheInvalidator{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/admin/genres/reload", nil)
+
+	h.ReloadGenres(c)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+}
+
+func TestAdminHandler_ReloadGenres_Error(t *testing.T) {
+	genreSvc := &mockGenreTreeService{
+		forceReloadFn: func(_ context.Context) (*service.GenreTreeResult, error) {
+			return nil, fmt.Errorf("database error")
+		},
+	}
+	h := NewAdminHandler(&mockImportService{}, genreSvc, &mockParentalCacheInvalidator{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/admin/genres/reload", nil)
+
+	h.ReloadGenres(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }

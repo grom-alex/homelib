@@ -12,11 +12,29 @@ import (
 )
 
 type ReaderHandler struct {
-	readerSvc ReaderServicer
+	readerSvc          ReaderServicer
+	restrictionChecker BookRestrictionChecker
 }
 
-func NewReaderHandler(readerSvc ReaderServicer) *ReaderHandler {
-	return &ReaderHandler{readerSvc: readerSvc}
+func NewReaderHandler(readerSvc ReaderServicer, restrictionChecker BookRestrictionChecker) *ReaderHandler {
+	return &ReaderHandler{readerSvc: readerSvc, restrictionChecker: restrictionChecker}
+}
+
+// checkBookRestriction returns true (and writes error response) if the book is restricted or check fails.
+// Follows fail-closed principle: blocks access on errors.
+func (h *ReaderHandler) checkBookRestriction(c *gin.Context, bookID int64) bool {
+	if restrictedIDs := getRestrictedGenreIDs(c); len(restrictedIDs) > 0 {
+		restricted, err := h.restrictionChecker.IsBookRestricted(c.Request.Context(), bookID, restrictedIDs)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error", "message": "Ошибка проверки ограничений"})
+			return true
+		}
+		if restricted {
+			c.JSON(http.StatusForbidden, gin.H{"error": "content_restricted", "message": "Контент ограничен"})
+			return true
+		}
+	}
+	return false
 }
 
 // GetBookContent handles GET /api/books/:id/content.
@@ -24,6 +42,10 @@ func (h *ReaderHandler) GetBookContent(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_id", "message": "Некорректный ID книги"})
+		return
+	}
+
+	if h.checkBookRestriction(c, id) {
 		return
 	}
 
@@ -41,6 +63,10 @@ func (h *ReaderHandler) GetChapter(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_id", "message": "Некорректный ID книги"})
+		return
+	}
+
+	if h.checkBookRestriction(c, id) {
 		return
 	}
 
@@ -64,6 +90,10 @@ func (h *ReaderHandler) GetBookImage(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_id", "message": "Некорректный ID книги"})
+		return
+	}
+
+	if h.checkBookRestriction(c, id) {
 		return
 	}
 

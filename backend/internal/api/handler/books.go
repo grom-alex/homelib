@@ -10,11 +10,12 @@ import (
 )
 
 type BooksHandler struct {
-	catalogSvc CatalogServicer
+	catalogSvc         CatalogServicer
+	restrictionChecker BookRestrictionChecker
 }
 
-func NewBooksHandler(catalogSvc CatalogServicer) *BooksHandler {
-	return &BooksHandler{catalogSvc: catalogSvc}
+func NewBooksHandler(catalogSvc CatalogServicer, restrictionChecker BookRestrictionChecker) *BooksHandler {
+	return &BooksHandler{catalogSvc: catalogSvc, restrictionChecker: restrictionChecker}
 }
 
 // ListBooks handles GET /api/books.
@@ -24,6 +25,9 @@ func (h *BooksHandler) ListBooks(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid query parameters"})
 		return
 	}
+
+	// Apply parental content filter
+	f.ExcludeGenreIDs = getRestrictedGenreIDs(c)
 
 	books, total, err := h.catalogSvc.ListBooks(c.Request.Context(), f)
 	if err != nil {
@@ -45,6 +49,19 @@ func (h *BooksHandler) GetBook(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid book id"})
 		return
+	}
+
+	// Check parental restriction (fail-closed: block on error)
+	if restrictedIDs := getRestrictedGenreIDs(c); len(restrictedIDs) > 0 {
+		restricted, err := h.restrictionChecker.IsBookRestricted(c.Request.Context(), id, restrictedIDs)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal_error"})
+			return
+		}
+		if restricted {
+			c.JSON(http.StatusForbidden, gin.H{"error": "content_restricted"})
+			return
+		}
 	}
 
 	book, err := h.catalogSvc.GetBook(c.Request.Context(), id)

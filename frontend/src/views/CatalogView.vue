@@ -1,9 +1,5 @@
 <template>
   <div class="catalog-view">
-    <div class="catalog-header-slot">
-      <CatalogHeader />
-    </div>
-
     <div class="catalog-content">
       <Splitpanes class="default-theme" @resized="onVerticalResized">
         <Pane :size="panelSizes.leftWidth" :min-size="10" :max-size="50">
@@ -29,19 +25,29 @@
 <script setup lang="ts">
 defineOptions({ name: 'CatalogView' })
 
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { Splitpanes, Pane } from 'splitpanes'
 import 'splitpanes/dist/splitpanes.css'
 import { useThemeStore } from '@/stores/theme'
+import { useCatalogStore } from '@/stores/catalog'
+import { useParentalStore } from '@/stores/parental'
 import { usePanelResize } from '@/composables/usePanelResize'
-import CatalogHeader from '@/components/catalog/CatalogHeader.vue'
 import NavigationPanel from '@/components/catalog/NavigationPanel.vue'
 import BookTable from '@/components/catalog/BookTable.vue'
 import BookDetailPanel from '@/components/catalog/BookDetailPanel.vue'
 import StatusBar from '@/components/catalog/StatusBar.vue'
 
 const themeStore = useThemeStore()
+const catalog = useCatalogStore()
+const parentalStore = useParentalStore()
 const { sizes: panelSizes, onVerticalResized, onHorizontalResized } = usePanelResize()
+
+// Re-fetch books when parental content status changes (backend filters server-side)
+watch(() => parentalStore.adultContentEnabled, () => {
+  if (catalog.navigationFilter) {
+    catalog.fetchBooks()
+  }
+})
 
 onMounted(() => {
   themeStore.loadSettings()
@@ -52,14 +58,10 @@ onMounted(() => {
 .catalog-view {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
   background: rgb(var(--v-theme-background));
   color: rgb(var(--v-theme-on-background));
-}
-
-.catalog-header-slot {
-  flex-shrink: 0;
 }
 
 .catalog-content {
